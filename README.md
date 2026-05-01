@@ -20,6 +20,7 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 
 - [`SIMPLIFYPHYSICS.md`](./SIMPLIFYPHYSICS.md) — How the tilt physics are simplified for clean gameplay
 - [`PLATFORMS.md`](./PLATFORMS.md) — Roadmap for varied platform types, surface modifiers (wet, frozen, hot), and block properties (heavy, fragile, sticky)
+- [`SIMILARGAMES.md`](./SIMILARGAMES.md) — Lessons from contemporary games (Tricky Towers, Boom Blox, World of Goo) and concrete features/coding tricks worth borrowing
 
 ## Tech
 
