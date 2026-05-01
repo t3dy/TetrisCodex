@@ -39,10 +39,195 @@ const FULCRUM_Y = 500;
 const PLATFORM_Y = 485;
 const GRID_LEFT = FULCRUM_X - GRID_W / 2;
 const GRID_TOP = PLATFORM_Y - GRID_H;
-const STIFFNESS = 25;
-const MAX_TILT = Math.PI / 4;
 const TILT_LERP = 0.07;
 const DROP_SPEED = 1200; // pixels per second
+
+// ===== PLATFORM TYPES =====
+// Each platform is a config object describing physics + render.
+// Interface:
+//   computeTorque(grid)  -> { torque, secondary } (secondary used by multi-fulcrum)
+//   tiltAngle(torque)    -> radians
+//   isStable(angle, torqueData) -> boolean
+//   renderSupport(ctx)   -> draws fulcrum/base in screen space (does NOT rotate)
+//   renderBeam(ctx, beamPad) -> draws the beam (called inside rotated context)
+//   pivot                -> { x, y } in screen space (rotation center)
+
+const PLATFORMS = {
+  seesaw: {
+    id: 'seesaw',
+    name: 'Seesaw',
+    description: 'Single point pivot, classic balance challenge.',
+    difficulty: 'medium',
+    stiffness: 25,
+    maxTilt: Math.PI / 4,
+    pivot: { x: FULCRUM_X, y: FULCRUM_Y },
+    computeTorque(grid) {
+      let t = 0;
+      const center = (COLS - 1) / 2;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c]) t += (c - center);
+        }
+      }
+      return { torque: t };
+    },
+    tiltAngle(td) { return Math.atan(td.torque / this.stiffness); },
+    isStable(angle, td) { return Math.abs(angle) <= this.maxTilt; },
+    renderSupport(ctx) {
+      ctx.fillStyle = '#6a6a8a';
+      ctx.beginPath();
+      ctx.moveTo(FULCRUM_X - 25, FULCRUM_Y + 30);
+      ctx.lineTo(FULCRUM_X + 25, FULCRUM_Y + 30);
+      ctx.lineTo(FULCRUM_X, FULCRUM_Y - 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#8a8aaa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  },
+
+  wideBase: {
+    id: 'wideBase',
+    name: 'Wide Base',
+    description: 'Forgiving below 8°, sharp failure beyond.',
+    difficulty: 'easy',
+    stiffness: 40,
+    softStiffness: 15,
+    softThreshold: 8 * Math.PI / 180,
+    maxTilt: Math.PI / 4,
+    pivot: { x: FULCRUM_X, y: FULCRUM_Y },
+    computeTorque(grid) {
+      let t = 0;
+      const center = (COLS - 1) / 2;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c]) t += (c - center);
+        }
+      }
+      return { torque: t };
+    },
+    tiltAngle(td) {
+      // Two-stage: stiff up to softThreshold, softer beyond
+      const linearAngle = Math.atan(td.torque / this.stiffness);
+      if (Math.abs(linearAngle) <= this.softThreshold) return linearAngle;
+      const sign = Math.sign(td.torque);
+      const excess = Math.abs(td.torque) - Math.tan(this.softThreshold) * this.stiffness;
+      const beyond = Math.atan(excess / this.softStiffness);
+      return sign * (this.softThreshold + beyond);
+    },
+    isStable(angle) { return Math.abs(angle) <= this.maxTilt; },
+    renderSupport(ctx) {
+      // Wide trapezoidal base
+      ctx.fillStyle = '#5a5a7a';
+      ctx.beginPath();
+      ctx.moveTo(FULCRUM_X - 70, FULCRUM_Y + 30);
+      ctx.lineTo(FULCRUM_X + 70, FULCRUM_Y + 30);
+      ctx.lineTo(FULCRUM_X + 35, FULCRUM_Y - 5);
+      ctx.lineTo(FULCRUM_X - 35, FULCRUM_Y - 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#7a7a9a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  },
+
+  narrowPole: {
+    id: 'narrowPole',
+    name: 'Narrow Pole',
+    description: 'Low stiffness. Every piece counts.',
+    difficulty: 'hard',
+    stiffness: 12,
+    maxTilt: Math.PI / 6, // 30 degrees
+    pivot: { x: FULCRUM_X, y: FULCRUM_Y },
+    computeTorque(grid) {
+      let t = 0;
+      const center = (COLS - 1) / 2;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c]) t += (c - center);
+        }
+      }
+      return { torque: t };
+    },
+    tiltAngle(td) { return Math.atan(td.torque / this.stiffness); },
+    isStable(angle) { return Math.abs(angle) <= this.maxTilt; },
+    renderSupport(ctx) {
+      // Tall thin pole + small tip
+      ctx.fillStyle = '#5a5a7a';
+      ctx.fillRect(FULCRUM_X - 4, FULCRUM_Y - 5, 8, 50);
+      ctx.fillStyle = '#7a7a9a';
+      ctx.beginPath();
+      ctx.moveTo(FULCRUM_X - 8, FULCRUM_Y - 5);
+      ctx.lineTo(FULCRUM_X + 8, FULCRUM_Y - 5);
+      ctx.lineTo(FULCRUM_X, FULCRUM_Y - 14);
+      ctx.closePath();
+      ctx.fill();
+      // Base plate
+      ctx.fillStyle = '#4a4a6a';
+      ctx.fillRect(FULCRUM_X - 30, FULCRUM_Y + 42, 60, 8);
+    }
+  },
+
+  twoFulcrum: {
+    id: 'twoFulcrum',
+    name: 'Two-Fulcrum Bridge',
+    description: 'Two pivots. Mass must stay over the bridge.',
+    difficulty: 'hard',
+    stiffness: 18,
+    maxTilt: Math.PI / 5, // 36 degrees
+    fulcrumOffsets: [-2.5, 2.5], // columns from center
+    pivot: { x: FULCRUM_X, y: FULCRUM_Y },
+    computeTorque(grid) {
+      // Net torque around center (for visual tilt)
+      // Plus per-fulcrum torque (mass on far-side of each fulcrum tries to tip it)
+      let net = 0;
+      let leftFail = 0;  // mass to the LEFT of left fulcrum
+      let rightFail = 0; // mass to the RIGHT of right fulcrum
+      const center = (COLS - 1) / 2;
+      const leftF = center + this.fulcrumOffsets[0];
+      const rightF = center + this.fulcrumOffsets[1];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (!grid[r][c]) continue;
+          net += (c - center);
+          if (c < leftF) leftFail += (leftF - c);
+          if (c > rightF) rightFail += (c - rightF);
+        }
+      }
+      return { torque: net, leftFail, rightFail };
+    },
+    tiltAngle(td) { return Math.atan(td.torque / this.stiffness); },
+    isStable(angle, td) {
+      if (Math.abs(angle) > this.maxTilt) return false;
+      // Failure if too much mass overhangs either fulcrum
+      const overhangThreshold = 8;
+      if (td.leftFail > overhangThreshold || td.rightFail > overhangThreshold) return false;
+      return true;
+    },
+    renderSupport(ctx) {
+      const center = (COLS - 1) / 2;
+      const offs = this.fulcrumOffsets;
+      for (const off of offs) {
+        const fx = GRID_LEFT + (center + off + 0.5) * CELL;
+        ctx.fillStyle = '#6a6a8a';
+        ctx.beginPath();
+        ctx.moveTo(fx - 18, FULCRUM_Y + 30);
+        ctx.lineTo(fx + 18, FULCRUM_Y + 30);
+        ctx.lineTo(fx, FULCRUM_Y + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#8a8aaa';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      // Visual indicators on platform showing safe zone
+    }
+  }
+};
+
+const PLATFORM_ORDER = ['seesaw', 'wideBase', 'narrowPole', 'twoFulcrum'];
 
 // ===== PIECE DEFINITIONS =====
 const PIECE_TYPES = ['I','O','T','S','Z','J','L'];
@@ -131,17 +316,22 @@ function screenToGridCol(mx, my, angle) {
 // ===== GAME STATE =====
 let game = null;
 
-function createGame() {
+function createGame(platformId) {
+  const pid = platformId || 'seesaw';
   return {
     phase: 'menu', // menu | playing | dropping | gameOver
+    platform: PLATFORMS[pid],
+    platformId: pid,
+    selectedPlatformIdx: PLATFORM_ORDER.indexOf(pid),
     grid: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
     bag: [],
     current: null,    // { type, shape, color, colorDark, colorLight, col }
     next: [],         // array of 3 upcoming pieces
     score: 0,
-    highScore: parseInt(localStorage.getItem('bb_highscore') || '0'),
+    highScore: parseInt(localStorage.getItem('bb_highscore_' + pid) || '0'),
     tiltAngle: 0,
     targetTilt: 0,
+    lastTorqueData: { torque: 0 },
     piecesPlaced: 0,
     dropY: 0,
     dropTargetY: 0,
@@ -238,21 +428,11 @@ function isValidCol(grid, shape, col) {
 }
 
 // ===== PHYSICS =====
-function calculateTorque(grid) {
-  let torque = 0;
-  const center = (COLS - 1) / 2;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (grid[r][c] !== null) {
-        torque += (c - center);
-      }
-    }
-  }
-  return torque;
-}
-
-function torqueToAngle(torque) {
-  return Math.atan(torque / STIFFNESS);
+// Routes through the active platform.
+function computePhysics(g) {
+  const td = g.platform.computeTorque(g.grid);
+  const angle = g.platform.tiltAngle(td);
+  return { torqueData: td, angle };
 }
 
 // ===== PLACEMENT =====
@@ -269,7 +449,9 @@ function lockPiece(g, shape, color, colorDark, colorLight, col, row) {
   }
   g.piecesPlaced++;
   g.score = g.piecesPlaced;
-  g.targetTilt = torqueToAngle(calculateTorque(g.grid));
+  const phys = computePhysics(g);
+  g.targetTilt = phys.angle;
+  g.lastTorqueData = phys.torqueData;
   g.flashTimer = 15;
 }
 
@@ -293,7 +475,13 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
 
   if (game.phase === 'menu') {
-    startGame();
+    if (e.code === 'ArrowLeft') {
+      game.selectedPlatformIdx = (game.selectedPlatformIdx - 1 + PLATFORM_ORDER.length) % PLATFORM_ORDER.length;
+    } else if (e.code === 'ArrowRight') {
+      game.selectedPlatformIdx = (game.selectedPlatformIdx + 1) % PLATFORM_ORDER.length;
+    } else if (e.code === 'Enter' || e.code === 'Space') {
+      startGame(PLATFORM_ORDER[game.selectedPlatformIdx]);
+    }
     e.preventDefault();
     return;
   }
@@ -301,6 +489,8 @@ document.addEventListener('keydown', e => {
   if (game.phase === 'gameOver') {
     if (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter') {
       startGame();
+    } else if (e.code === 'Escape') {
+      game = createGame(game.platformId);
     }
     e.preventDefault();
     return;
@@ -381,9 +571,35 @@ canvas.addEventListener('mousemove', e => {
   }
 });
 
+function getCanvasMouse(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+}
+
 canvas.addEventListener('click', e => {
   if (game.phase === 'menu') {
-    startGame();
+    const m = getCanvasMouse(e);
+    // Check platform cards
+    for (const r of menuPlatformRects) {
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        if (game.selectedPlatformIdx === r.idx) {
+          startGame(r.pid);
+        } else {
+          game.selectedPlatformIdx = r.idx;
+        }
+        return;
+      }
+    }
+    // Check start button
+    if (menuStartRect) {
+      const r = menuStartRect;
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        startGame(PLATFORM_ORDER[game.selectedPlatformIdx]);
+        return;
+      }
+    }
     return;
   }
   if (game.phase === 'gameOver') {
@@ -424,8 +640,10 @@ canvas.addEventListener('contextmenu', e => {
 });
 
 // ===== GAME FLOW =====
-function startGame() {
-  game = createGame();
+function startGame(platformId) {
+  const pid = platformId || (game ? game.platformId : 'seesaw');
+  localStorage.setItem('bb_lastPlatform', pid);
+  game = createGame(pid);
   game.phase = 'playing';
   spawnPiece(game);
 }
@@ -435,7 +653,7 @@ function triggerGameOver(g) {
   g.gameOverTimer = 0;
   if (g.score > g.highScore) {
     g.highScore = g.score;
-    localStorage.setItem('bb_highscore', String(g.highScore));
+    localStorage.setItem('bb_highscore_' + g.platformId, String(g.highScore));
   }
 }
 
@@ -481,8 +699,8 @@ function update(g, dt) {
       g.shakeX = (Math.random() - 0.5) * angleDelta * 20;
       g.shakeY = (Math.random() - 0.5) * angleDelta * 10;
 
-      // Check game over
-      if (Math.abs(g.targetTilt) > MAX_TILT) {
+      // Check game over via active platform's stability rule
+      if (!g.platform.isStable(g.targetTilt, g.lastTorqueData)) {
         triggerGameOver(g);
         return;
       }
@@ -532,17 +750,8 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha) {
 }
 
 function drawPlatform(g) {
-  // Fulcrum (drawn in screen space, doesn't rotate)
-  ctx.fillStyle = '#6a6a8a';
-  ctx.beginPath();
-  ctx.moveTo(FULCRUM_X - 25, FULCRUM_Y + 30);
-  ctx.lineTo(FULCRUM_X + 25, FULCRUM_Y + 30);
-  ctx.lineTo(FULCRUM_X, FULCRUM_Y - 5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#8a8aaa';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  // Support (fulcrum/base/pole) — drawn in screen space, doesn't rotate
+  g.platform.renderSupport(ctx);
 
   // Rotated group: platform beam + grid + pieces
   ctx.save();
@@ -664,7 +873,7 @@ function drawTiltMeter(g) {
   ctx.strokeRect(meterX - 2, meterY - 2, meterW + 4, meterH + 4);
 
   // Fill based on tilt
-  const tiltPct = Math.min(1, Math.abs(g.tiltAngle) / MAX_TILT);
+  const tiltPct = Math.min(1, Math.abs(g.tiltAngle) / g.platform.maxTilt);
   const fillH = tiltPct * meterH;
 
   // Color gradient: green → yellow → red
@@ -804,57 +1013,159 @@ function drawControls(g) {
   });
 }
 
-function drawMenu() {
+// Menu hit-test rects, populated each render
+let menuPlatformRects = [];
+let menuStartRect = null;
+
+function drawMenu(g) {
   ctx.fillStyle = '#0a0a1a';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Title
   ctx.textAlign = 'center';
   ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 48px "Segoe UI", sans-serif';
-  ctx.fillText('BALANCE', CANVAS_W / 2, 200);
+  ctx.font = 'bold 44px "Segoe UI", sans-serif';
+  ctx.fillText('BALANCE', CANVAS_W / 2, 90);
   ctx.fillStyle = '#ffa726';
-  ctx.font = 'bold 48px "Segoe UI", sans-serif';
-  ctx.fillText('BLOCKS', CANVAS_W / 2, 255);
+  ctx.fillText('BLOCKS', CANVAS_W / 2, 138);
 
   // Subtitle
   ctx.fillStyle = '#8888aa';
-  ctx.font = '16px "Segoe UI", sans-serif';
-  ctx.fillText('Stack pieces without tipping the platform', CANVAS_W / 2, 300);
+  ctx.font = '14px "Segoe UI", sans-serif';
+  ctx.fillText('Stack pieces without tipping the platform', CANVAS_W / 2, 168);
 
-  // Start prompt
-  const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+  // Platform selection
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = 'bold 14px "Segoe UI", sans-serif';
+  ctx.fillText('CHOOSE A PLATFORM', CANVAS_W / 2, 210);
+
+  menuPlatformRects = [];
+  const cardW = 150, cardH = 130, gap = 16;
+  const totalW = cardW * 4 + gap * 3;
+  const startX = (CANVAS_W - totalW) / 2;
+  const cardY = 230;
+
+  PLATFORM_ORDER.forEach((pid, i) => {
+    const p = PLATFORMS[pid];
+    const x = startX + i * (cardW + gap);
+    const selected = i === g.selectedPlatformIdx;
+    menuPlatformRects.push({ x, y: cardY, w: cardW, h: cardH, idx: i, pid });
+
+    // Card bg
+    ctx.fillStyle = selected ? 'rgba(0, 229, 255, 0.12)' : 'rgba(30, 30, 50, 0.6)';
+    ctx.fillRect(x, cardY, cardW, cardH);
+    ctx.strokeStyle = selected ? '#00e5ff' : 'rgba(100, 100, 140, 0.5)';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(x, cardY, cardW, cardH);
+
+    // Mini platform diagram
+    const diagY = cardY + 28;
+    const diagX = x + cardW / 2;
+    drawPlatformIcon(p, diagX, diagY);
+
+    // Name
+    ctx.fillStyle = selected ? '#ffffff' : '#aaaacc';
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.fillText(p.name, x + cardW / 2, cardY + 78);
+
+    // Difficulty
+    const diffColor = p.difficulty === 'easy' ? '#66bb6a'
+      : p.difficulty === 'medium' ? '#ffeb3b'
+      : '#ef5350';
+    ctx.fillStyle = diffColor;
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.fillText(p.difficulty.toUpperCase(), x + cardW / 2, cardY + 95);
+
+    // High score per platform
+    const hs = parseInt(localStorage.getItem('bb_highscore_' + pid) || '0');
+    if (hs > 0) {
+      ctx.fillStyle = '#888899';
+      ctx.font = '10px "Segoe UI", sans-serif';
+      ctx.fillText('Best: ' + hs, x + cardW / 2, cardY + 113);
+    }
+  });
+
+  // Selected description
+  const selPlatform = PLATFORMS[PLATFORM_ORDER[g.selectedPlatformIdx]];
+  ctx.fillStyle = '#cccce0';
+  ctx.font = '13px "Segoe UI", sans-serif';
+  ctx.fillText(selPlatform.description, CANVAS_W / 2, 388);
+
+  // Start button
+  const btnW = 220, btnH = 44;
+  const btnX = (CANVAS_W - btnW) / 2;
+  const btnY = 415;
+  menuStartRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
   ctx.globalAlpha = pulse;
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '18px "Segoe UI", sans-serif';
-  ctx.fillText('Click or press any key to start', CANVAS_W / 2, 400);
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillRect(btnX, btnY, btnW, btnH);
   ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0a0a1a';
+  ctx.font = 'bold 16px "Segoe UI", sans-serif';
+  ctx.fillText('START', btnX + btnW / 2, btnY + 28);
 
-  // High score
-  const hs = parseInt(localStorage.getItem('bb_highscore') || '0');
-  if (hs > 0) {
-    ctx.fillStyle = '#6666888';
-    ctx.font = '14px "Segoe UI", sans-serif';
-    ctx.fillText('Best: ' + hs + ' pieces', CANVAS_W / 2, 450);
-  }
+  // Controls hint
+  ctx.fillStyle = '#666688';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  ctx.fillText('Click a platform or use ← → to select — Enter or click START to play',
+    CANVAS_W / 2, 478);
 
   // Mini piece display
   const demoTypes = ['T', 'I', 'S', 'L', 'Z', 'J', 'O'];
-  const startX = CANVAS_W / 2 - demoTypes.length * 25;
-  demoTypes.forEach((type, i) => {
+  const dCellSize = 8;
+  let totalDw = 0;
+  demoTypes.forEach(t => totalDw += PIECE_SHAPES[t][0].length * dCellSize + 16);
+  let dx = (CANVAS_W - totalDw) / 2;
+  const dy = 510;
+  demoTypes.forEach(type => {
     const shape = PIECE_SHAPES[type];
-    const s = 10;
-    const x = startX + i * 52;
-    const y = 330;
     for (let r = 0; r < shape.length; r++) {
       for (let c = 0; c < shape[r].length; c++) {
         if (shape[r][c]) {
           ctx.fillStyle = PIECE_COLORS[type];
-          ctx.fillRect(x + c * s, y + r * s, s - 1, s - 1);
+          ctx.fillRect(dx + c * dCellSize, dy + r * dCellSize, dCellSize - 1, dCellSize - 1);
         }
       }
     }
+    dx += shape[0].length * dCellSize + 16;
   });
+}
+
+function drawPlatformIcon(p, cx, cy) {
+  // Simple iconic representation of each platform type
+  ctx.save();
+  ctx.translate(cx, cy);
+  // Beam
+  ctx.fillStyle = '#5a5a7a';
+  ctx.fillRect(-40, -2, 80, 4);
+  // Support (varies)
+  ctx.fillStyle = '#7a7a9a';
+  if (p.id === 'seesaw') {
+    ctx.beginPath();
+    ctx.moveTo(-8, 16);
+    ctx.lineTo(8, 16);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+  } else if (p.id === 'wideBase') {
+    ctx.beginPath();
+    ctx.moveTo(-22, 16);
+    ctx.lineTo(22, 16);
+    ctx.lineTo(11, 2);
+    ctx.lineTo(-11, 2);
+    ctx.closePath();
+    ctx.fill();
+  } else if (p.id === 'narrowPole') {
+    ctx.fillRect(-1, 2, 2, 18);
+    ctx.fillRect(-10, 20, 20, 3);
+  } else if (p.id === 'twoFulcrum') {
+    ctx.beginPath();
+    ctx.moveTo(-22, 16); ctx.lineTo(-10, 16); ctx.lineTo(-16, 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(10, 16); ctx.lineTo(22, 16); ctx.lineTo(16, 2); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawGameOver(g) {
@@ -897,7 +1208,7 @@ function drawGameOver(g) {
     ctx.globalAlpha = pulse;
     ctx.fillStyle = '#aaaacc';
     ctx.font = '16px "Segoe UI", sans-serif';
-    ctx.fillText('Press R, Space, or Click to restart', CANVAS_W / 2, 390);
+    ctx.fillText('R / Space / Click to retry — Esc to choose platform', CANVAS_W / 2, 390);
     ctx.globalAlpha = 1;
   }
 }
@@ -915,7 +1226,7 @@ function render(g) {
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   if (g.phase === 'menu') {
-    drawMenu();
+    drawMenu(g);
     return;
   }
 
@@ -952,7 +1263,7 @@ function render(g) {
 }
 
 // ===== GAME LOOP =====
-game = createGame();
+game = createGame(localStorage.getItem('bb_lastPlatform') || 'seesaw');
 let lastTime = 0;
 
 function loop(timestamp) {

@@ -28,7 +28,7 @@ Single-file vanilla JavaScript with HTML5 Canvas. No build step, no dependencies
 ## Roadmap
 
 - [x] v1: Single seesaw platform, 7 standard tetrominoes, mouse + keyboard controls
-- [ ] v2: Multiple platform types (wide base, narrow pole, two-fulcrum bridge)
+- [x] v2: Multiple platform types (seesaw, wide base, narrow pole, two-fulcrum bridge) with platform selection menu and per-platform high scores
 - [ ] v3: Surface modifiers (wet/frozen for slippery placement, hot for melting blocks)
 - [ ] v4: Block properties (heavy/light/fragile/sticky)
 - [ ] v5: Level/campaign system with hand-tuned challenges
