@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balance Blocks</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+'use strict';
+
+// ===== CONSTANTS =====
+const COLS = 10;
+const ROWS = 10;
+const CELL = 30;
+const GRID_W = COLS * CELL;
+const GRID_H = ROWS * CELL;
+const CANVAS_W = 740;
+const CANVAS_H = 640;
+const FULCRUM_X = 350;
+const FULCRUM_Y = 500;
+const PLATFORM_Y = 485;
+const GRID_LEFT = FULCRUM_X - GRID_W / 2;
+const GRID_TOP = PLATFORM_Y - GRID_H;
+const STIFFNESS = 25;
+const MAX_TILT = Math.PI / 4;
+const TILT_LERP = 0.07;
+const DROP_SPEED = 1200; // pixels per second
+
+// ===== PIECE DEFINITIONS =====
+const PIECE_TYPES = ['I','O','T','S','Z','J','L'];
+
+const PIECE_SHAPES = {
+  I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+  O: [[1,1],[1,1]],
+  T: [[0,1,0],[1,1,1],[0,0,0]],
+  S: [[0,1,1],[1,1,0],[0,0,0]],
+  Z: [[1,1,0],[0,1,1],[0,0,0]],
+  J: [[1,0,0],[1,1,1],[0,0,0]],
+  L: [[0,0,1],[1,1,1],[0,0,0]]
+};
+
+const PIECE_COLORS = {
+  I: '#00e5ff',
+  O: '#ffeb3b',
+  T: '#ab47bc',
+  S: '#66bb6a',
+  Z: '#ef5350',
+  J: '#42a5f5',
+  L: '#ffa726'
+};
+
+const PIECE_COLORS_DARK = {
+  I: '#00838f',
+  O: '#f9a825',
+  T: '#6a1b9a',
+  S: '#2e7d32',
+  Z: '#c62828',
+  J: '#1565c0',
+  L: '#e65100'
+};
+
+const PIECE_COLORS_LIGHT = {
+  I: '#80deea',
+  O: '#fff9c4',
+  T: '#ce93d8',
+  S: '#a5d6a7',
+  Z: '#ef9a9a',
+  J: '#90caf9',
+  L: '#ffcc80'
+};
+
+// ===== CANVAS SETUP =====
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = CANVAS_W;
+canvas.height = CANVAS_H;
+
+// ===== UTILITY =====
+function rotateCW(shape) {
+  const rows = shape.length, cols = shape[0].length;
+  const r = [];
+  for (let c = 0; c < cols; c++) {
+    r.push([]);
+    for (let row = rows - 1; row >= 0; row--) {
+      r[c].push(shape[row][c]);
+    }
+  }
+  return r;
+}
+
+function rotateCCW(shape) {
+  return rotateCW(rotateCW(rotateCW(shape)));
+}
+
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function screenToGridCol(mx, my, angle) {
+  const dx = mx - FULCRUM_X;
+  const dy = my - FULCRUM_Y;
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  const lx = dx * cos - dy * sin + FULCRUM_X;
+  return Math.floor((lx - GRID_LEFT) / CELL);
+}
+
+// ===== GAME STATE =====
+let game = null;
+
+function createGame() {
+  return {
+    phase: 'menu', // menu | playing | dropping | gameOver
+    grid: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
+    bag: [],
+    current: null,    // { type, shape, color, colorDark, colorLight, col }
+    next: [],         // array of 3 upcoming pieces
+    score: 0,
+    highScore: parseInt(localStorage.getItem('bb_highscore') || '0'),
+    tiltAngle: 0,
+    targetTilt: 0,
+    piecesPlaced: 0,
+    dropY: 0,
+    dropTargetY: 0,
+    dropPiece: null,
+    dropCol: 0,
+    dropRow: 0,
+    mouseCol: -1,
+    lastPlaceTime: 0,
+    flashTimer: 0,
+    gameOverTimer: 0,
+    shakeX: 0,
+    shakeY: 0
+  };
+}
+
+// ===== PIECE MANAGEMENT =====
+function nextFromBag(g) {
+  if (g.bag.length === 0) {
+    g.bag = shuffled(PIECE_TYPES);
+  }
+  return g.bag.pop();
+}
+
+function makePiece(type) {
+  return {
+    type,
+    shape: PIECE_SHAPES[type].map(r => r.slice()),
+    color: PIECE_COLORS[type],
+    colorDark: PIECE_COLORS_DARK[type],
+    colorLight: PIECE_COLORS_LIGHT[type],
+    col: Math.floor((COLS - PIECE_SHAPES[type][0].length) / 2)
+  };
+}
+
+function fillQueue(g) {
+  while (g.next.length < 3) {
+    g.next.push(makePiece(nextFromBag(g)));
+  }
+}
+
+function spawnPiece(g) {
+  fillQueue(g);
+  g.current = g.next.shift();
+  fillQueue(g);
+  // If can't place at all at start position, adjust
+  if (collides(g.grid, g.current.shape, g.current.col, 0)) {
+    // Try to shift
+    for (let offset = 0; offset <= COLS; offset++) {
+      for (const dir of [0, -1, 1, -2, 2]) {
+        const c = g.current.col + dir;
+        if (c >= 0 && !collides(g.grid, g.current.shape, c, 0)) {
+          g.current.col = c;
+          return;
+        }
+      }
+    }
+  }
+}
+
+// ===== COLLISION =====
+function collides(grid, shape, col, row) {
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const gr = row + r;
+      const gc = col + c;
+      if (gc < 0 || gc >= COLS) return true;
+      if (gr >= ROWS) return true;
+      if (gr >= 0 && grid[gr][gc] !== null) return true;
+    }
+  }
+  return false;
+}
+
+function findLandingRow(grid, shape, col) {
+  let row = -shape.length;
+  while (row < ROWS) {
+    if (collides(grid, shape, col, row + 1)) return row;
+    row++;
+  }
+  return row;
+}
+
+function isValidCol(grid, shape, col) {
+  // Check if piece fits horizontally
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const gc = col + c;
+      if (gc < 0 || gc >= COLS) return false;
+    }
+  }
+  return true;
+}
+
+// ===== PHYSICS =====
+function calculateTorque(grid) {
+  let torque = 0;
+  const center = (COLS - 1) / 2;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] !== null) {
+        torque += (c - center);
+      }
+    }
+  }
+  return torque;
+}
+
+function torqueToAngle(torque) {
+  return Math.atan(torque / STIFFNESS);
+}
+
+// ===== PLACEMENT =====
+function lockPiece(g, shape, color, colorDark, colorLight, col, row) {
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const gr = row + r;
+      const gc = col + c;
+      if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
+        g.grid[gr][gc] = { color, colorDark, colorLight };
+      }
+    }
+  }
+  g.piecesPlaced++;
+  g.score = g.piecesPlaced;
+  g.targetTilt = torqueToAngle(calculateTorque(g.grid));
+  g.flashTimer = 15;
+}
+
+function startDrop(g) {
+  const cur = g.current;
+  const landRow = findLandingRow(g.grid, cur.shape, cur.col);
+  g.dropPiece = cur;
+  g.dropCol = cur.col;
+  g.dropRow = landRow;
+  g.dropY = GRID_TOP - CELL * 2;
+  g.dropTargetY = GRID_TOP + landRow * CELL;
+  g.phase = 'dropping';
+  g.current = null;
+}
+
+// ===== INPUT =====
+const keys = {};
+
+document.addEventListener('keydown', e => {
+  if (keys[e.code]) return;
+  keys[e.code] = true;
+
+  if (game.phase === 'menu') {
+    startGame();
+    e.preventDefault();
+    return;
+  }
+
+  if (game.phase === 'gameOver') {
+    if (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter') {
+      startGame();
+    }
+    e.preventDefault();
+    return;
+  }
+
+  if (game.phase !== 'playing' || !game.current) return;
+
+  const cur = game.current;
+  switch (e.code) {
+    case 'ArrowLeft':
+      if (isValidCol(game.grid, cur.shape, cur.col - 1)) cur.col--;
+      break;
+    case 'ArrowRight':
+      if (isValidCol(game.grid, cur.shape, cur.col + 1)) cur.col++;
+      break;
+    case 'ArrowUp':
+    case 'KeyX': {
+      const rotated = rotateCW(cur.shape);
+      let newCol = cur.col;
+      // Wall kick: try 0, -1, +1, -2, +2
+      for (const kick of [0, -1, 1, -2, 2]) {
+        if (isValidCol(game.grid, rotated, newCol + kick)) {
+          cur.shape = rotated;
+          cur.col = newCol + kick;
+          break;
+        }
+      }
+      break;
+    }
+    case 'KeyZ': {
+      const rotated = rotateCCW(cur.shape);
+      let newCol = cur.col;
+      for (const kick of [0, -1, 1, -2, 2]) {
+        if (isValidCol(game.grid, rotated, newCol + kick)) {
+          cur.shape = rotated;
+          cur.col = newCol + kick;
+          break;
+        }
+      }
+      break;
+    }
+    case 'Space':
+    case 'Enter':
+      startDrop(game);
+      break;
+    case 'ArrowDown':
+      startDrop(game);
+      break;
+  }
+  e.preventDefault();
+});
+
+document.addEventListener('keyup', e => {
+  keys[e.code] = false;
+});
+
+// Mouse
+let mouseX = 0, mouseY = 0;
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+
+  if (game && game.phase === 'playing' && game.current) {
+    const col = screenToGridCol(mouseX, mouseY, game.tiltAngle);
+    if (col >= 0 && col < COLS) {
+      game.mouseCol = col;
+      // Adjust piece column so it doesn't go out of bounds
+      const shapeW = game.current.shape[0].length;
+      const newCol = Math.max(0, Math.min(COLS - shapeW, col - Math.floor(shapeW / 2)));
+      if (isValidCol(game.grid, game.current.shape, newCol)) {
+        game.current.col = newCol;
+      }
+    }
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if (game.phase === 'menu') {
+    startGame();
+    return;
+  }
+  if (game.phase === 'gameOver') {
+    if (game.gameOverTimer > 30) startGame();
+    return;
+  }
+  if (game.phase === 'playing' && game.current) {
+    startDrop(game);
+  }
+});
+
+canvas.addEventListener('wheel', e => {
+  if (game.phase !== 'playing' || !game.current) return;
+  e.preventDefault();
+  const cur = game.current;
+  const rotated = e.deltaY < 0 ? rotateCW(cur.shape) : rotateCCW(cur.shape);
+  for (const kick of [0, -1, 1, -2, 2]) {
+    if (isValidCol(game.grid, rotated, cur.col + kick)) {
+      cur.shape = rotated;
+      cur.col = cur.col + kick;
+      break;
+    }
+  }
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (game.phase !== 'playing' || !game.current) return;
+  const cur = game.current;
+  const rotated = rotateCW(cur.shape);
+  for (const kick of [0, -1, 1, -2, 2]) {
+    if (isValidCol(game.grid, rotated, cur.col + kick)) {
+      cur.shape = rotated;
+      cur.col = cur.col + kick;
+      break;
+    }
+  }
+});
+
+// ===== GAME FLOW =====
+function startGame() {
+  game = createGame();
+  game.phase = 'playing';
+  spawnPiece(game);
+}
+
+function triggerGameOver(g) {
+  g.phase = 'gameOver';
+  g.gameOverTimer = 0;
+  if (g.score > g.highScore) {
+    g.highScore = g.score;
+    localStorage.setItem('bb_highscore', String(g.highScore));
+  }
+}
+
+// ===== UPDATE =====
+function update(g, dt) {
+  if (g.phase === 'menu') return;
+
+  // dt-scaled lerp factor: 1 - (1 - base)^(dt * 60) approximates frame-rate-independent lerp
+  const tiltLerp = 1 - Math.pow(1 - TILT_LERP, dt * 60);
+
+  // Animate tilt
+  const diff = g.targetTilt - g.tiltAngle;
+  g.tiltAngle += diff * tiltLerp;
+
+  // Shake decay (dt-scaled)
+  const decayFactor = Math.pow(0.85, dt * 60);
+  g.shakeX *= decayFactor;
+  g.shakeY *= decayFactor;
+
+  // Flash decay
+  if (g.flashTimer > 0) g.flashTimer = Math.max(0, g.flashTimer - dt * 60);
+
+  if (g.phase === 'gameOver') {
+    g.gameOverTimer += dt * 60;
+    // Exaggerate tilt on game over
+    const overTilt = g.targetTilt > 0 ? Math.PI / 2.5 : -Math.PI / 2.5;
+    const goLerp = 1 - Math.pow(1 - 0.03, dt * 60);
+    g.tiltAngle += (overTilt - g.tiltAngle) * goLerp;
+    return;
+  }
+
+  if (g.phase === 'dropping') {
+    g.dropY += DROP_SPEED * dt;
+    if (g.dropY >= g.dropTargetY) {
+      g.dropY = g.dropTargetY;
+      // Lock piece
+      const dp = g.dropPiece;
+      lockPiece(g, dp.shape, dp.color, dp.colorDark, dp.colorLight, g.dropCol, g.dropRow);
+      g.dropPiece = null;
+
+      // Shake proportional to tilt change
+      const angleDelta = Math.abs(g.targetTilt - g.tiltAngle);
+      g.shakeX = (Math.random() - 0.5) * angleDelta * 20;
+      g.shakeY = (Math.random() - 0.5) * angleDelta * 10;
+
+      // Check game over
+      if (Math.abs(g.targetTilt) > MAX_TILT) {
+        triggerGameOver(g);
+        return;
+      }
+
+      // Check if grid is topped out (landing row was negative)
+      if (g.dropRow < 0) {
+        triggerGameOver(g);
+        return;
+      }
+
+      // Spawn next
+      g.phase = 'playing';
+      spawnPiece(g);
+    }
+    return;
+  }
+}
+
+// ===== RENDERING =====
+function drawBlock(x, y, size, color, colorLight, colorDark) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size, size);
+  // Bevel
+  ctx.fillStyle = colorLight;
+  ctx.fillRect(x, y, size, 3);
+  ctx.fillRect(x, y, 3, size);
+  ctx.fillStyle = colorDark;
+  ctx.fillRect(x, y + size - 3, size, 3);
+  ctx.fillRect(x + size - 3, y, 3, size);
+  // Inner highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
+}
+
+function drawShape(shape, x, y, color, colorLight, colorDark, alpha) {
+  if (alpha !== undefined && alpha < 1) {
+    ctx.globalAlpha = alpha;
+  }
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (shape[r][c]) {
+        drawBlock(x + c * CELL, y + r * CELL, CELL, color, colorLight, colorDark);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPlatform(g) {
+  // Fulcrum (drawn in screen space, doesn't rotate)
+  ctx.fillStyle = '#6a6a8a';
+  ctx.beginPath();
+  ctx.moveTo(FULCRUM_X - 25, FULCRUM_Y + 30);
+  ctx.lineTo(FULCRUM_X + 25, FULCRUM_Y + 30);
+  ctx.lineTo(FULCRUM_X, FULCRUM_Y - 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#8a8aaa';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Rotated group: platform beam + grid + pieces
+  ctx.save();
+  ctx.translate(FULCRUM_X + g.shakeX, FULCRUM_Y + g.shakeY);
+  ctx.rotate(g.tiltAngle);
+  ctx.translate(-FULCRUM_X, -FULCRUM_Y);
+
+  // Platform beam
+  const beamPad = 12;
+  ctx.fillStyle = '#3a3a5a';
+  ctx.fillRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
+  ctx.strokeStyle = '#5a5a7a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
+
+  // Grid background
+  ctx.fillStyle = 'rgba(20, 20, 40, 0.6)';
+  ctx.fillRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(100, 100, 140, 0.15)';
+  ctx.lineWidth = 1;
+  for (let c = 0; c <= COLS; c++) {
+    const x = GRID_LEFT + c * CELL;
+    ctx.beginPath();
+    ctx.moveTo(x, GRID_TOP);
+    ctx.lineTo(x, PLATFORM_Y);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    const y = GRID_TOP + r * CELL;
+    ctx.beginPath();
+    ctx.moveTo(GRID_LEFT, y);
+    ctx.lineTo(GRID_LEFT + GRID_W, y);
+    ctx.stroke();
+  }
+
+  // Grid border
+  ctx.strokeStyle = 'rgba(100, 100, 160, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
+
+  // Placed pieces
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = g.grid[r][c];
+      if (cell) {
+        drawBlock(
+          GRID_LEFT + c * CELL, GRID_TOP + r * CELL, CELL,
+          cell.color, cell.colorLight, cell.colorDark
+        );
+      }
+    }
+  }
+
+  // Ghost piece (landing preview)
+  if (g.phase === 'playing' && g.current) {
+    const cur = g.current;
+    const landRow = findLandingRow(g.grid, cur.shape, cur.col);
+    if (landRow >= -cur.shape.length) {
+      drawShape(
+        cur.shape,
+        GRID_LEFT + cur.col * CELL,
+        GRID_TOP + landRow * CELL,
+        cur.color, cur.colorLight, cur.colorDark,
+        0.25
+      );
+    }
+  }
+
+  // Current piece (above grid, being positioned)
+  if (g.phase === 'playing' && g.current) {
+    const cur = g.current;
+    drawShape(
+      cur.shape,
+      GRID_LEFT + cur.col * CELL,
+      GRID_TOP - CELL * 2.5,
+      cur.color, cur.colorLight, cur.colorDark,
+      1
+    );
+    // Arrow pointing down
+    const arrowX = GRID_LEFT + cur.col * CELL + (cur.shape[0].length * CELL) / 2;
+    const arrowY = GRID_TOP - CELL * 0.3;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.moveTo(arrowX - 6, arrowY - 10);
+    ctx.lineTo(arrowX + 6, arrowY - 10);
+    ctx.lineTo(arrowX, arrowY);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Dropping piece animation
+  if (g.phase === 'dropping' && g.dropPiece) {
+    const dp = g.dropPiece;
+    drawShape(
+      dp.shape,
+      GRID_LEFT + g.dropCol * CELL,
+      g.dropY,
+      dp.color, dp.colorLight, dp.colorDark,
+      1
+    );
+  }
+
+  ctx.restore();
+}
+
+function drawTiltMeter(g) {
+  const meterX = 600;
+  const meterY = 240;
+  const meterH = 200;
+  const meterW = 20;
+
+  // Background
+  ctx.fillStyle = 'rgba(30, 30, 50, 0.8)';
+  ctx.fillRect(meterX - 2, meterY - 2, meterW + 4, meterH + 4);
+  ctx.strokeStyle = 'rgba(100, 100, 140, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(meterX - 2, meterY - 2, meterW + 4, meterH + 4);
+
+  // Fill based on tilt
+  const tiltPct = Math.min(1, Math.abs(g.tiltAngle) / MAX_TILT);
+  const fillH = tiltPct * meterH;
+
+  // Color gradient: green → yellow → red
+  let fillColor;
+  if (tiltPct < 0.5) {
+    fillColor = `rgb(${Math.floor(tiltPct * 2 * 255)}, 200, 80)`;
+  } else {
+    fillColor = `rgb(255, ${Math.floor((1 - tiltPct) * 2 * 200)}, 60)`;
+  }
+
+  // Pulsing when dangerous
+  if (tiltPct > 0.75) {
+    const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+  }
+
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(meterX, meterY + meterH - fillH, meterW, fillH);
+  ctx.globalAlpha = 1;
+
+  // Center line
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(meterX - 5, meterY + meterH / 2);
+  ctx.lineTo(meterX + meterW + 5, meterY + meterH / 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Danger zone markers
+  ctx.strokeStyle = 'rgba(255, 80, 80, 0.5)';
+  ctx.lineWidth = 1;
+  const dangerY = meterY + meterH * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(meterX - 3, dangerY);
+  ctx.lineTo(meterX + meterW + 3, dangerY);
+  ctx.stroke();
+  const dangerY2 = meterY + meterH * 0.85;
+  ctx.beginPath();
+  ctx.moveTo(meterX - 3, dangerY2);
+  ctx.lineTo(meterX + meterW + 3, dangerY2);
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('TILT', meterX + meterW / 2, meterY - 8);
+
+  // Direction arrow
+  if (Math.abs(g.tiltAngle) > 0.05) {
+    const dir = g.tiltAngle > 0 ? 'R' : 'L';
+    ctx.fillStyle = tiltPct > 0.6 ? fillColor : '#aaaacc';
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.fillText(dir, meterX + meterW / 2, meterY + meterH + 18);
+  }
+
+  // Angle readout
+  const degrees = Math.round(Math.abs(g.tiltAngle) * 180 / Math.PI);
+  ctx.fillStyle = tiltPct > 0.75 ? fillColor : '#aaaacc';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText(degrees + '\u00B0', meterX + meterW / 2, meterY + meterH + 34);
+}
+
+function drawNextPieces(g) {
+  const boxX = 600;
+  const boxY = 60;
+
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = 'bold 13px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('NEXT', boxX + 30, boxY - 8);
+
+  for (let i = 0; i < g.next.length; i++) {
+    const p = g.next[i];
+    const py = boxY + i * 75;
+
+    ctx.fillStyle = 'rgba(30, 30, 50, 0.6)';
+    ctx.fillRect(boxX - 5, py - 3, 70, 65);
+    ctx.strokeStyle = 'rgba(100, 100, 140, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(boxX - 5, py - 3, 70, 65);
+
+    const shapeW = p.shape[0].length;
+    const shapeH = p.shape.length;
+    const previewCell = 16;
+    const ox = boxX + (60 - shapeW * previewCell) / 2;
+    const oy = py + (58 - shapeH * previewCell) / 2;
+
+    for (let r = 0; r < p.shape.length; r++) {
+      for (let c = 0; c < p.shape[r].length; c++) {
+        if (p.shape[r][c]) {
+          drawBlock(ox + c * previewCell, oy + r * previewCell, previewCell,
+            p.color, p.colorLight, p.colorDark);
+        }
+      }
+    }
+  }
+}
+
+function drawScore(g) {
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText('PIECES', 30, 55);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 32px "Segoe UI", sans-serif';
+  ctx.fillText(String(g.score), 30, 90);
+
+  ctx.fillStyle = '#666688';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText('BEST', 30, 120);
+
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = 'bold 18px "Segoe UI", sans-serif';
+  ctx.fillText(String(g.highScore), 30, 142);
+}
+
+function drawControls(g) {
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#555577';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  const lines = [
+    '\u2190 \u2192  Move',
+    '\u2191 / X  Rotate CW',
+    'Z    Rotate CCW',
+    'Space  Drop',
+    '',
+    'Mouse  Aim',
+    'Click  Drop',
+    'Wheel  Rotate'
+  ];
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 25, CANVAS_H - 120 + i * 15);
+  });
+}
+
+function drawMenu() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Title
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 48px "Segoe UI", sans-serif';
+  ctx.fillText('BALANCE', CANVAS_W / 2, 200);
+  ctx.fillStyle = '#ffa726';
+  ctx.font = 'bold 48px "Segoe UI", sans-serif';
+  ctx.fillText('BLOCKS', CANVAS_W / 2, 255);
+
+  // Subtitle
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '16px "Segoe UI", sans-serif';
+  ctx.fillText('Stack pieces without tipping the platform', CANVAS_W / 2, 300);
+
+  // Start prompt
+  const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '18px "Segoe UI", sans-serif';
+  ctx.fillText('Click or press any key to start', CANVAS_W / 2, 400);
+  ctx.globalAlpha = 1;
+
+  // High score
+  const hs = parseInt(localStorage.getItem('bb_highscore') || '0');
+  if (hs > 0) {
+    ctx.fillStyle = '#6666888';
+    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.fillText('Best: ' + hs + ' pieces', CANVAS_W / 2, 450);
+  }
+
+  // Mini piece display
+  const demoTypes = ['T', 'I', 'S', 'L', 'Z', 'J', 'O'];
+  const startX = CANVAS_W / 2 - demoTypes.length * 25;
+  demoTypes.forEach((type, i) => {
+    const shape = PIECE_SHAPES[type];
+    const s = 10;
+    const x = startX + i * 52;
+    const y = 330;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c]) {
+          ctx.fillStyle = PIECE_COLORS[type];
+          ctx.fillRect(x + c * s, y + r * s, s - 1, s - 1);
+        }
+      }
+    }
+  });
+}
+
+function drawGameOver(g) {
+  // Dim overlay
+  const alpha = Math.min(0.7, g.gameOverTimer / 40);
+  ctx.fillStyle = `rgba(10, 10, 26, ${alpha})`;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (g.gameOverTimer < 20) return;
+
+  ctx.textAlign = 'center';
+
+  // Game over text
+  ctx.fillStyle = '#ef5350';
+  ctx.font = 'bold 42px "Segoe UI", sans-serif';
+  ctx.fillText('TIPPED OVER!', CANVAS_W / 2, 220);
+
+  // Score
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '20px "Segoe UI", sans-serif';
+  ctx.fillText('Pieces placed: ' + g.score, CANVAS_W / 2, 280);
+
+  // High score
+  if (g.score >= g.highScore && g.score > 0) {
+    const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#ffd740';
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.fillText('NEW BEST!', CANVAS_W / 2, 320);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = '#8888aa';
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillText('Best: ' + g.highScore, CANVAS_W / 2, 320);
+  }
+
+  // Restart
+  if (g.gameOverTimer > 40) {
+    const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#aaaacc';
+    ctx.font = '16px "Segoe UI", sans-serif';
+    ctx.fillText('Press R, Space, or Click to restart', CANVAS_W / 2, 390);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawFlash(g) {
+  if (g.flashTimer > 0) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${g.flashTimer / 60})`;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+}
+
+function render(g) {
+  // Clear
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (g.phase === 'menu') {
+    drawMenu();
+    return;
+  }
+
+  // Background grid pattern
+  ctx.strokeStyle = 'rgba(40, 40, 60, 0.5)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < CANVAS_W; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
+  }
+  for (let y = 0; y < CANVAS_H; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
+  }
+
+  // Ground line
+  ctx.fillStyle = '#1a1a3a';
+  ctx.fillRect(0, FULCRUM_Y + 28, CANVAS_W, CANVAS_H - FULCRUM_Y - 28);
+  ctx.strokeStyle = '#3a3a5a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, FULCRUM_Y + 28);
+  ctx.lineTo(CANVAS_W, FULCRUM_Y + 28);
+  ctx.stroke();
+
+  drawPlatform(g);
+  drawTiltMeter(g);
+  drawNextPieces(g);
+  drawScore(g);
+  drawControls(g);
+  drawFlash(g);
+
+  if (g.phase === 'gameOver') {
+    drawGameOver(g);
+  }
+}
+
+// ===== GAME LOOP =====
+game = createGame();
+let lastTime = 0;
+
+function loop(timestamp) {
+  const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 1/60;
+  lastTime = timestamp;
+  update(game, dt);
+  render(game);
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
