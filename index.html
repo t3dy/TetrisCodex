@@ -42,6 +42,15 @@ const GRID_TOP = PLATFORM_Y - GRID_H;
 const TILT_LERP = 0.07;
 const DROP_SPEED = 1200; // pixels per second
 
+// Per-cell torque contribution. Mode can override via mode.cellTorque(cell, r, c, center).
+// Default: (col - center) * (cell.weight || 1).
+function cellContribution(cell, r, c, center) {
+  if (game && game.mode && game.mode.cellTorque) {
+    return game.mode.cellTorque(cell, r, c, center);
+  }
+  return (c - center) * (cell.weight || 1);
+}
+
 // ===== PLATFORM TYPES =====
 // Each platform is a config object describing physics + render.
 // Interface:
@@ -66,7 +75,7 @@ const PLATFORMS = {
       const center = (COLS - 1) / 2;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (grid[r][c]) t += (c - center);
+          if (grid[r][c]) t += cellContribution(grid[r][c], r, c, center);
         }
       }
       return { torque: t };
@@ -102,7 +111,7 @@ const PLATFORMS = {
       const center = (COLS - 1) / 2;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (grid[r][c]) t += (c - center);
+          if (grid[r][c]) t += cellContribution(grid[r][c], r, c, center);
         }
       }
       return { torque: t };
@@ -146,7 +155,7 @@ const PLATFORMS = {
       const center = (COLS - 1) / 2;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
-          if (grid[r][c]) t += (c - center);
+          if (grid[r][c]) t += cellContribution(grid[r][c], r, c, center);
         }
       }
       return { torque: t };
@@ -191,7 +200,7 @@ const PLATFORMS = {
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           if (!grid[r][c]) continue;
-          net += (c - center);
+          net += cellContribution(grid[r][c], r, c, center);
           if (c < leftF) leftFail += (leftF - c);
           if (c > rightF) rightFail += (c - rightF);
         }
@@ -267,10 +276,34 @@ const MODES = {
       piece.colorLight = '#fff';
       piece.colorDark = g.zenAccent;
     }
+  },
+  balloons: {
+    id: 'balloons',
+    name: 'Balloons',
+    description: '~1 in 5 pieces are balloons. Negative torque, scaled by height. Place high to lift heavy bottoms.',
+    difficulty: 'normal',
+    balloonChance: 0.2,
+    onSpawn(g, piece) {
+      // ~20% of pieces become balloons
+      if (Math.random() < this.balloonChance) {
+        piece.balloon = true;
+        piece.color = '#9df';
+        piece.colorLight = '#cef';
+        piece.colorDark = '#5ab';
+      }
+    },
+    cellTorque(cell, r, c, center) {
+      if (cell.balloon) {
+        // Negative torque scaled by height: row 0 (top) lifts hardest, row ROWS-1 (bottom) barely
+        const heightFactor = 1 + (ROWS - 1 - r) * 0.4;
+        return (c - center) * -1 * heightFactor;
+      }
+      return (c - center) * (cell.weight || 1);
+    }
   }
 };
 
-const MODE_ORDER = ['standard', 'zen'];
+const MODE_ORDER = ['standard', 'zen', 'balloons'];
 
 const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
 
@@ -418,7 +451,10 @@ function makePiece(type) {
 
 function fillQueue(g) {
   while (g.next.length < 3) {
-    g.next.push(makePiece(nextFromBag(g)));
+    const p = makePiece(nextFromBag(g));
+    // Apply mode's onSpawn at queue time so the next-piece preview is accurate
+    if (g.mode.onSpawn) g.mode.onSpawn(g, p);
+    g.next.push(p);
   }
 }
 
@@ -426,8 +462,6 @@ function spawnPiece(g) {
   fillQueue(g);
   g.current = g.next.shift();
   fillQueue(g);
-  // Mode hook: decorate the piece (e.g. Zen recolors)
-  if (g.mode.onSpawn) g.mode.onSpawn(g, g.current);
   // If can't place at all at start position, adjust
   if (collides(g.grid, g.current.shape, g.current.col, 0)) {
     // Try to shift
@@ -488,14 +522,24 @@ function computePhysics(g) {
 }
 
 // ===== PLACEMENT =====
-function lockPiece(g, shape, color, colorDark, colorLight, col, row) {
+function lockPiece(g, piece, col, row) {
+  const shape = piece.shape;
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
       if (!shape[r][c]) continue;
       const gr = row + r;
       const gc = col + c;
       if (gr >= 0 && gr < ROWS && gc >= 0 && gc < COLS) {
-        g.grid[gr][gc] = { color, colorDark, colorLight };
+        const cell = {
+          color: piece.color,
+          colorDark: piece.colorDark,
+          colorLight: piece.colorLight
+        };
+        // Propagate per-piece flags into the grid cell
+        if (piece.balloon) cell.balloon = true;
+        if (piece.bomb) { cell.bomb = true; cell.fuse = piece.fuse || 5; }
+        if (piece.weight !== undefined) cell.weight = piece.weight;
+        g.grid[gr][gc] = cell;
       }
     }
   }
@@ -754,7 +798,7 @@ function update(g, dt) {
       g.dropY = g.dropTargetY;
       // Lock piece
       const dp = g.dropPiece;
-      lockPiece(g, dp.shape, dp.color, dp.colorDark, dp.colorLight, g.dropCol, g.dropRow);
+      lockPiece(g, dp, g.dropCol, g.dropRow);
       g.dropPiece = null;
 
       // Shake proportional to tilt change
@@ -804,14 +848,27 @@ function drawBlock(x, y, size, color, colorLight, colorDark, style) {
   ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
 }
 
-function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style) {
+function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, balloon) {
   if (alpha !== undefined && alpha < 1) {
     ctx.globalAlpha = alpha;
   }
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
       if (shape[r][c]) {
-        drawBlock(x + c * CELL, y + r * CELL, CELL, color, colorLight, colorDark, style);
+        const bx = x + c * CELL, by = y + r * CELL;
+        drawBlock(bx, by, CELL, color, colorLight, colorDark, style);
+        if (balloon && style !== 'mono') {
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(bx + CELL / 2, by + CELL);
+          ctx.quadraticCurveTo(bx + CELL / 2 + 3, by + CELL + 5, bx + CELL / 2 - 1, by + CELL + 9);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.beginPath();
+          ctx.arc(bx + 8, by + 8, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
@@ -886,10 +943,21 @@ function drawPlatform(g) {
     for (let c = 0; c < COLS; c++) {
       const cell = g.grid[r][c];
       if (cell) {
-        drawBlock(
-          GRID_LEFT + c * CELL, GRID_TOP + r * CELL, CELL,
-          cell.color, cell.colorLight, cell.colorDark, blockStyle
-        );
+        const x = GRID_LEFT + c * CELL, y = GRID_TOP + r * CELL;
+        drawBlock(x, y, CELL, cell.color, cell.colorLight, cell.colorDark, blockStyle);
+        if (cell.balloon && blockStyle !== 'mono') {
+          // String motif: wavy line trailing below + highlight orb
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x + CELL / 2, y + CELL);
+          ctx.quadraticCurveTo(x + CELL / 2 + 3, y + CELL + 5, x + CELL / 2 - 1, y + CELL + 9);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.beginPath();
+          ctx.arc(x + 8, y + 8, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
@@ -904,7 +972,7 @@ function drawPlatform(g) {
         GRID_LEFT + cur.col * CELL,
         GRID_TOP + landRow * CELL,
         cur.color, cur.colorLight, cur.colorDark,
-        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle
+        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle, cur.balloon
       );
     }
   }
@@ -917,7 +985,7 @@ function drawPlatform(g) {
       GRID_LEFT + cur.col * CELL,
       GRID_TOP - CELL * 2.5,
       cur.color, cur.colorLight, cur.colorDark,
-      1, blockStyle
+      1, blockStyle, cur.balloon
     );
     // Arrow pointing down (skip in zen)
     if (!suppress.controls) {
@@ -941,7 +1009,7 @@ function drawPlatform(g) {
       GRID_LEFT + g.dropCol * CELL,
       g.dropY,
       dp.color, dp.colorLight, dp.colorDark,
-      1, blockStyle
+      1, blockStyle, dp.balloon
     );
   }
 
@@ -1059,6 +1127,12 @@ function drawNextPieces(g) {
             p.color, p.colorLight, p.colorDark);
         }
       }
+    }
+    if (p.balloon) {
+      ctx.fillStyle = '#9df';
+      ctx.font = 'bold 9px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('BALLOON', boxX + 30, py + 70);
     }
   }
 }
