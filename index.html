@@ -300,10 +300,56 @@ const MODES = {
       }
       return (c - center) * (cell.weight || 1);
     }
+  },
+  bombs: {
+    id: 'bombs',
+    name: 'Bombs',
+    description: '~1 in 6 pieces is a bomb. After 5 turns, each bomb cell detonates a 3×3 area. Sudden mass loss = sudden tilt.',
+    difficulty: 'hard',
+    bombChance: 1/6,
+    fuseLength: 5,
+    onSpawn(g, piece) {
+      if (Math.random() < this.bombChance) {
+        piece.bomb = true;
+        piece.fuse = this.fuseLength;
+        piece.color = '#e22';
+        piece.colorLight = '#f88';
+        piece.colorDark = '#900';
+      }
+    },
+    onPiecePlaced(g) {
+      // Tick all bomb fuses; collect cells whose fuse hit zero
+      const explosions = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = g.grid[r][c];
+          if (cell && cell.bomb && cell.fuse !== undefined) {
+            cell.fuse--;
+            if (cell.fuse <= 0) explosions.push([r, c]);
+          }
+        }
+      }
+      if (explosions.length === 0) return;
+      // Detonate: clear 3x3 around each exploding cell (simultaneous, no cascade)
+      for (const [r, c] of explosions) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const rr = r + dr, cc = c + dc;
+            if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) {
+              g.grid[rr][cc] = null;
+            }
+          }
+        }
+      }
+      // Visual: add shake proportional to number of detonations
+      g.shakeX = (Math.random() - 0.5) * 30 * explosions.length;
+      g.shakeY = (Math.random() - 0.5) * 15 * explosions.length;
+      g.flashTimer = Math.max(g.flashTimer, 30);
+    }
   }
 };
 
-const MODE_ORDER = ['standard', 'zen', 'balloons'];
+const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs'];
 
 const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
 
@@ -545,6 +591,9 @@ function lockPiece(g, piece, col, row) {
   }
   g.piecesPlaced++;
   g.score = g.piecesPlaced;
+  // Mode hook: settle pass (bombs detonate, surfaces slide, etc.)
+  // Runs BEFORE physics recompute so cascade effects on torque are reflected immediately.
+  if (g.mode.onPiecePlaced) g.mode.onPiecePlaced(g);
   const phys = computePhysics(g);
   g.targetTilt = phys.angle;
   g.lastTorqueData = phys.torqueData;
@@ -848,7 +897,8 @@ function drawBlock(x, y, size, color, colorLight, colorDark, style) {
   ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
 }
 
-function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, balloon) {
+function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, marker) {
+  // marker: { balloon, bomb, fuse } — optional decoration drawn on each filled cell
   if (alpha !== undefined && alpha < 1) {
     ctx.globalAlpha = alpha;
   }
@@ -857,22 +907,35 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, ball
       if (shape[r][c]) {
         const bx = x + c * CELL, by = y + r * CELL;
         drawBlock(bx, by, CELL, color, colorLight, colorDark, style);
-        if (balloon && style !== 'mono') {
-          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(bx + CELL / 2, by + CELL);
-          ctx.quadraticCurveTo(bx + CELL / 2 + 3, by + CELL + 5, bx + CELL / 2 - 1, by + CELL + 9);
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.beginPath();
-          ctx.arc(bx + 8, by + 8, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        if (marker && style !== 'mono') drawCellMarker(bx, by, marker);
       }
     }
   }
   ctx.globalAlpha = 1;
+}
+
+function drawCellMarker(x, y, marker) {
+  if (marker.balloon) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + CELL / 2, y + CELL);
+    ctx.quadraticCurveTo(x + CELL / 2 + 3, y + CELL + 5, x + CELL / 2 - 1, y + CELL + 9);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(x + 8, y + 8, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (marker.bomb && marker.fuse !== undefined && marker.fuse > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
+    ctx.fillStyle = `rgba(255,${100 + pulse * 100},${100 + pulse * 100},0.5)`;
+    ctx.fillRect(x + 5, y + 5, CELL - 10, CELL - 10);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(marker.fuse, x + CELL / 2, y + CELL / 2 + 5);
+  }
 }
 
 function drawPlatform(g) {
@@ -945,18 +1008,8 @@ function drawPlatform(g) {
       if (cell) {
         const x = GRID_LEFT + c * CELL, y = GRID_TOP + r * CELL;
         drawBlock(x, y, CELL, cell.color, cell.colorLight, cell.colorDark, blockStyle);
-        if (cell.balloon && blockStyle !== 'mono') {
-          // String motif: wavy line trailing below + highlight orb
-          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x + CELL / 2, y + CELL);
-          ctx.quadraticCurveTo(x + CELL / 2 + 3, y + CELL + 5, x + CELL / 2 - 1, y + CELL + 9);
-          ctx.stroke();
-          ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.beginPath();
-          ctx.arc(x + 8, y + 8, 3, 0, Math.PI * 2);
-          ctx.fill();
+        if (blockStyle !== 'mono' && (cell.balloon || cell.bomb)) {
+          drawCellMarker(x, y, cell);
         }
       }
     }
@@ -972,7 +1025,7 @@ function drawPlatform(g) {
         GRID_LEFT + cur.col * CELL,
         GRID_TOP + landRow * CELL,
         cur.color, cur.colorLight, cur.colorDark,
-        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle, cur.balloon
+        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle, cur
       );
     }
   }
@@ -985,7 +1038,7 @@ function drawPlatform(g) {
       GRID_LEFT + cur.col * CELL,
       GRID_TOP - CELL * 2.5,
       cur.color, cur.colorLight, cur.colorDark,
-      1, blockStyle, cur.balloon
+      1, blockStyle, cur
     );
     // Arrow pointing down (skip in zen)
     if (!suppress.controls) {
@@ -1009,7 +1062,7 @@ function drawPlatform(g) {
       GRID_LEFT + g.dropCol * CELL,
       g.dropY,
       dp.color, dp.colorLight, dp.colorDark,
-      1, blockStyle, dp.balloon
+      1, blockStyle, dp
     );
   }
 
@@ -1133,6 +1186,13 @@ function drawNextPieces(g) {
       ctx.font = 'bold 9px "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('BALLOON', boxX + 30, py + 70);
+    }
+    if (p.bomb) {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 100);
+      ctx.fillStyle = `rgba(255,${100 + pulse * 100},${100 + pulse * 100},1)`;
+      ctx.font = 'bold 10px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('BOMB!', boxX + 30, py + 70);
     }
   }
 }
