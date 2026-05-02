@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P7: Catherine Cascade</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px;cursor:crosshair}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+</style></head><body>
+<h1>Prototype 7: Catherine Cascade <span style="color:#ffa726;font-weight:400;font-size:13px;">— forgiveness mechanic</span></h1>
+<div class="info">Each turn you have a <b>shove budget</b>. Click any placed cell to shove it UP one row, displacing whatever was above. Spend wisely — budget regenerates 1 every 3 placements. Lets you correct bad placements without trivializing the game.</div>
+<canvas id="g" width="540" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=18, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const COL = {I:'#0fc',O:'#fd0',T:'#c4c',S:'#4d6',Z:'#e55',J:'#48d',L:'#fa3'};
+const TYPES = Object.keys(SHAPES);
+
+let grid, bag, cur, nxt, score, tilt, target, phase, shoves, sinceShove;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  bag = []; nxt = drawPiece();
+  cur = null; score=0; tilt=0; target=0; phase='play';
+  shoves = 3; sinceShove = 0;
+  spawn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  return {type:t, shape:SHAPES[t].map(r=>r.slice()), color:COL[t], col:Math.floor((COLS-SHAPES[t][0].length)/2)};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS||gr>=ROWS) return true;
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+function landRow(s,c){let r=-s.length; while(!collide(s,c,r+1) && r<ROWS) r++; return r}
+function spawn(){
+  cur = nxt; nxt = drawPiece();
+  if(collide(cur.shape, cur.col, 0)){phase='over';}
+}
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  if(lr < 0){phase='over';return}
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS) grid[gr][gc] = {color:cur.color};
+    }
+  }
+  score++;
+  sinceShove++;
+  if(sinceShove >= 3){
+    shoves = Math.min(5, shoves + 1);
+    sinceShove = 0;
+  }
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  spawn();
+}
+
+function shoveCell(r, c){
+  if(shoves <= 0) return false;
+  if(!grid[r][c]) return false;
+  // Push everything in column c upward starting from row r
+  // Need to check there's room at the top: if grid[0][c] exists, the top falls off the platform — game over
+  if(grid[0][c]){
+    // Can't shove, would push out of grid
+    return false;
+  }
+  for(let i = 0; i < r; i++){
+    grid[i][c] = grid[i+1][c];
+  }
+  grid[r][c] = null;
+  shoves--;
+  target = Math.atan(torque()/STIFF);
+  // Don't game-over from a shove (it's player-controlled), but if torque exceeds we'll see it visually
+  if(Math.abs(target) > MAXTILT) phase='over';
+  return true;
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase!=='play') return;
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+// Mouse: click placed cell to shove it up
+cv.addEventListener('click', e=>{
+  if(phase!=='play') return;
+  const rect = cv.getBoundingClientRect();
+  const sx = cv.width / rect.width, sy = cv.height / rect.height;
+  const mx = (e.clientX - rect.left) * sx;
+  const my = (e.clientY - rect.top) * sy;
+  // Inverse rotate around fulcrum
+  const dx = mx - FX, dy = my - FY;
+  const cos = Math.cos(-tilt), sin = Math.sin(-tilt);
+  const lx = dx*cos - dy*sin + FX;
+  const ly = dx*sin + dy*cos + FY;
+  const c = Math.floor((lx - GL) / CELL);
+  const r = Math.floor((ly - GT) / CELL);
+  if(r >= 0 && r < ROWS && c >= 0 && c < COLS){
+    shoveCell(r, c);
+  }
+});
+
+function drawBlock(x,y,c){
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,540,640);
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score, 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('PIECES', 14, 42);
+
+  // Shove HUD
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.fillText('SHOVES', 14, 75);
+  for(let i=0;i<5;i++){
+    const filled = i < shoves;
+    ctx.fillStyle = filled ? '#5cf' : '#223';
+    ctx.fillRect(14 + i*22, 82, 16, 16);
+    if(filled){
+      ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+      ctx.strokeRect(14 + i*22, 82, 16, 16);
+      ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('↑', 14 + i*22 + 8, 94);
+      ctx.textAlign='left';
+    }
+  }
+  ctx.fillStyle='#666'; ctx.font='10px sans-serif';
+  ctx.fillText('+1 every 3 placements ('+(3-sinceShove)+' to next)', 14, 118);
+
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif';
+  ctx.fillText('CLICK A PLACED CELL', 14, 145);
+  ctx.fillText('TO SHOVE IT UP', 14, 158);
+
+  // Next preview
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('NEXT', 460, 30);
+  if(nxt){
+    const ps=14;
+    for(let r=0;r<nxt.shape.length;r++)for(let c=0;c<nxt.shape[r].length;c++){
+      if(nxt.shape[r][c]){ctx.fillStyle=nxt.color; ctx.fillRect(460+c*ps, 40+r*ps, ps-1, ps-1)}
+    }
+  }
+
+  tilt += (target - tilt) * 0.1;
+
+  ctx.fillStyle='#556';
+  ctx.beginPath(); ctx.moveTo(FX-22, FY+25); ctx.lineTo(FX+22, FY+25); ctx.lineTo(FX, FY-2); ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  ctx.fillStyle='#345'; ctx.fillRect(GL-10, PY, GW+20, 14);
+  ctx.fillStyle='rgba(20,20,40,0.6)'; ctx.fillRect(GL,GT,GW,GH);
+  ctx.strokeStyle='rgba(80,80,120,0.18)';
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke()}
+
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL, grid[r][c].color);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    if(lr >= -cur.shape.length){
+      ctx.globalAlpha = 0.25;
+      for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+        if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL, cur.color);
+      }
+      ctx.globalAlpha = 1;
+    }
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL, cur.color);
+    }
+  }
+  ctx.restore();
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,540,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 270, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(score+' pieces', 270, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 270, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

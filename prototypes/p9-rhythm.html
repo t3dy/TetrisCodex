@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P9: Tetris Effect</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+  .start-prompt{margin:8px 0;color:#5cf;font-size:13px;}
+</style></head><body>
+<h1>Prototype 9: Tetris Effect <span style="color:#ffa726;font-weight:400;font-size:13px;">— rhythm scoring</span></h1>
+<div class="info"><b>Audio required.</b> Click anywhere to start the beat. Place pieces ON the beat for ×1.5, on a STRONG beat (every 4th) for ×2. Off-beat = ×1. The platform's tilt warps the synth filter — leaning hard distorts the audio.</div>
+<div class="start-prompt" id="prompt">click canvas to start audio</div>
+<canvas id="g" width="540" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=18, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const COL = {I:'#0fc',O:'#fd0',T:'#c4c',S:'#4d6',Z:'#e55',J:'#48d',L:'#fa3'};
+// Pitch (Hz) per piece type — pentatonic scale to keep it pleasant
+const PITCH = {I:330, O:392, T:440, S:494, Z:587, J:659, L:784};
+const TYPES = Object.keys(SHAPES);
+
+const BPM = 90;
+const BEAT_MS = 60000 / BPM;
+const TOLERANCE = 0.18; // fraction of beat for "on-beat"
+
+let grid, bag, cur, nxt, score, tilt, target, phase;
+let audioCtx, masterGain, bgGain, filterNode, beatStart, beatCount;
+let lastFlash, flashIntensity, lastMult;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  bag = []; nxt = drawPiece();
+  cur = null; score=0; tilt=0; target=0; phase='play';
+  beatCount = 0;
+  lastFlash = 0;
+  flashIntensity = 0;
+  lastMult = 0;
+  spawn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  return {type:t, shape:SHAPES[t].map(r=>r.slice()), color:COL[t], col:Math.floor((COLS-SHAPES[t][0].length)/2)};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS||gr>=ROWS) return true;
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+function landRow(s,c){let r=-s.length; while(!collide(s,c,r+1) && r<ROWS) r++; return r}
+function spawn(){
+  cur = nxt; nxt = drawPiece();
+  if(collide(cur.shape, cur.col, 0)){phase='over';}
+}
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+
+// ====== AUDIO ======
+function initAudio(){
+  if(audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain(); masterGain.gain.value = 0.3;
+  filterNode = audioCtx.createBiquadFilter(); filterNode.type = 'lowpass'; filterNode.frequency.value = 4000;
+  filterNode.connect(masterGain); masterGain.connect(audioCtx.destination);
+
+  // Background drone
+  const drone = audioCtx.createOscillator(); drone.type='sine'; drone.frequency.value = 110;
+  bgGain = audioCtx.createGain(); bgGain.gain.value = 0.04;
+  drone.connect(bgGain); bgGain.connect(filterNode); drone.start();
+
+  beatStart = audioCtx.currentTime * 1000;
+  scheduleBeat();
+  document.getElementById('prompt').style.display = 'none';
+}
+
+function scheduleBeat(){
+  if(!audioCtx) return;
+  // Schedule the next beat tick: a metronome click + visual flash
+  const next = beatStart + (beatCount + 1) * BEAT_MS;
+  const now = audioCtx.currentTime * 1000;
+  setTimeout(() => {
+    beatCount++;
+    flashIntensity = (beatCount % 4 === 0) ? 1.0 : 0.4;
+    // Subtle tick
+    playTone((beatCount % 4 === 0) ? 220 : 165, 0.04, 0.05, 'square');
+    scheduleBeat();
+  }, Math.max(0, next - now));
+}
+
+function playTone(freq, dur, gain, type){
+  if(!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'triangle'; o.frequency.value = freq;
+  g.gain.value = 0;
+  g.gain.linearRampToValueAtTime(gain, audioCtx.currentTime + 0.01);
+  g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(filterNode);
+  o.start();
+  o.stop(audioCtx.currentTime + dur + 0.05);
+}
+
+function getBeatMult(){
+  if(!audioCtx) return {mult:1, label:'×1'};
+  const elapsed = audioCtx.currentTime * 1000 - beatStart;
+  const phase = (elapsed % BEAT_MS) / BEAT_MS;
+  const distToBeat = Math.min(phase, 1 - phase);
+  const beatNum = Math.round(elapsed / BEAT_MS);
+  const isStrong = (beatNum % 4 === 0);
+  if(distToBeat < TOLERANCE){
+    return isStrong ? {mult:2, label:'×2 STRONG!'} : {mult:1.5, label:'×1.5 ON BEAT'};
+  }
+  return {mult:1, label:'×1'};
+}
+
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  if(lr < 0){phase='over';return}
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS) grid[gr][gc] = {color:cur.color};
+    }
+  }
+  const m = getBeatMult();
+  score += m.mult;
+  lastMult = m.mult;
+  lastFlash = m.mult > 1 ? 25 : 0;
+  // play piece's pitched note
+  playTone(PITCH[cur.type], m.mult > 1 ? 0.4 : 0.2, m.mult >= 2 ? 0.18 : 0.1);
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){
+    playTone(60, 0.6, 0.25, 'sawtooth');
+    phase='over';return
+  }
+  spawn();
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+
+cv.addEventListener('click', () => initAudio());
+
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase!=='play') return;
+  if(!audioCtx) initAudio();
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,c){
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,540,640);
+
+  // Update audio filter based on tilt
+  if(audioCtx && filterNode){
+    const tiltPct = Math.abs(tilt) / MAXTILT;
+    filterNode.frequency.value = 4000 - tiltPct * 3500; // gets muddier on tilt
+  }
+
+  if(flashIntensity > 0){
+    flashIntensity *= 0.85;
+    ctx.fillStyle = `rgba(0, 230, 255, ${flashIntensity * 0.06})`;
+    ctx.fillRect(0,0,540,640);
+  }
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score.toFixed(1), 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('SCORE', 14, 42);
+
+  // Beat indicator
+  if(audioCtx){
+    const m = getBeatMult();
+    ctx.fillStyle = m.mult >= 2 ? '#fd0' : m.mult > 1 ? '#5cf' : '#444';
+    ctx.font='bold 12px sans-serif';
+    ctx.fillText(m.label, 14, 70);
+
+    // Beat circle
+    const elapsed = audioCtx.currentTime * 1000 - beatStart;
+    const phase = (elapsed % BEAT_MS) / BEAT_MS;
+    const beatNum = Math.round(elapsed / BEAT_MS);
+    const isStrong = (beatNum % 4 === 0);
+    const onBeat = Math.min(phase, 1-phase) < TOLERANCE;
+    ctx.beginPath();
+    ctx.arc(28, 100, 8 + (1-Math.min(phase, 1-phase))*4, 0, Math.PI*2);
+    ctx.fillStyle = onBeat ? (isStrong ? '#fd0' : '#5cf') : '#222';
+    ctx.fill();
+    ctx.strokeStyle='#666'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(28, 100, 14, 0, Math.PI*2); ctx.stroke();
+  }
+
+  if(lastFlash > 0){
+    lastFlash--;
+    ctx.fillStyle = lastMult >= 2 ? '#fd0' : '#5cf';
+    ctx.font='bold 24px sans-serif';
+    ctx.fillText('×' + lastMult, 14, 145);
+  }
+
+  // Next preview
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('NEXT', 460, 30);
+  if(nxt){
+    const ps=14;
+    for(let r=0;r<nxt.shape.length;r++)for(let c=0;c<nxt.shape[r].length;c++){
+      if(nxt.shape[r][c]){ctx.fillStyle=nxt.color; ctx.fillRect(460+c*ps, 40+r*ps, ps-1, ps-1)}
+    }
+  }
+
+  tilt += (target - tilt) * 0.1;
+
+  ctx.fillStyle='#556';
+  ctx.beginPath(); ctx.moveTo(FX-22, FY+25); ctx.lineTo(FX+22, FY+25); ctx.lineTo(FX, FY-2); ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  ctx.fillStyle='#345'; ctx.fillRect(GL-10, PY, GW+20, 14);
+  ctx.fillStyle='rgba(20,20,40,0.6)'; ctx.fillRect(GL,GT,GW,GH);
+  ctx.strokeStyle='rgba(80,80,120,0.18)';
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke()}
+
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL, grid[r][c].color);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    if(lr >= -cur.shape.length){
+      ctx.globalAlpha = 0.25;
+      for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+        if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL, cur.color);
+      }
+      ctx.globalAlpha = 1;
+    }
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL, cur.color);
+    }
+  }
+  ctx.restore();
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,540,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 270, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('score: '+score.toFixed(1), 270, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 270, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

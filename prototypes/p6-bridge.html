@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P6: Bridge to Nowhere</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+</style></head><body>
+<h1>Prototype 6: Bridge to Nowhere <span style="color:#ffa726;font-weight:400;font-size:13px;">— Poly Bridge</span></h1>
+<div class="info">Two fulcra. Between them: <b>the void</b>. Pieces falling into the gap are LOST. Build a bridge across before you can stack — once a row spans both fulcra, that row becomes ground for everything above.</div>
+<canvas id="g" width="600" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=10, ROWS=10, CELL=32;
+const STIFF=22, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=300, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+// Two fulcra: chasm between them
+// Columns 0,1 are left support; 8,9 are right support; 2-7 is void (empty space pieces fall through)
+const LEFT_END = 1;   // last column of left support
+const RIGHT_START = 8; // first column of right support
+const VOID_LEFT = LEFT_END + 1;   // 2
+const VOID_RIGHT = RIGHT_START - 1; // 7
+const FULCRUM_LEFT_X = GL + (LEFT_END + 0.5) * CELL;
+const FULCRUM_RIGHT_X = GL + (RIGHT_START + 0.5) * CELL;
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const COL = {I:'#0fc',O:'#fd0',T:'#c4c',S:'#4d6',Z:'#e55',J:'#48d',L:'#fa3'};
+const TYPES = Object.keys(SHAPES);
+
+let grid, bag, cur, nxt, score, tilt, target, phase, lost, hasBridge;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  bag = []; nxt = drawPiece();
+  cur = null; score=0; tilt=0; target=0; phase='play'; lost=0; hasBridge=false;
+  spawn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  return {type:t, shape:SHAPES[t].map(r=>r.slice()), color:COL[t], col:Math.floor((COLS-SHAPES[t][0].length)/2)};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+
+// "Solid" cells include both placed cells AND the support floor (left end + right end at row=ROWS-1 conceptually)
+// Actually the platform IS solid for cells in left support cols (0-LEFT_END) and right support cols (RIGHT_START-9)
+// Void columns have no floor — pieces fall through unless supported by another placed piece
+function isSupported(c, r){
+  // Returns true if a cell at (r, c) would have something below it (a wall, a placed cell, or row beyond bottom in support col)
+  if(r >= ROWS-1){
+    // Bottom row: supported if in support column
+    return c <= LEFT_END || c >= RIGHT_START;
+  }
+  // Otherwise check the cell below
+  return !!grid[r+1][c];
+}
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS) return true;
+    if(gr>=ROWS){
+      // Going past bottom: blocked only if in support column
+      if(gc <= LEFT_END || gc >= RIGHT_START) return true;
+      // In void column: piece would fall into void
+      // We treat this as "no collision" for landing logic, handled separately
+      continue;
+    }
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+// Find where the piece lands: lowest row where ANY cell has support OR hits a placed cell
+function landRow(s,c){
+  let r = -s.length;
+  while(r < ROWS){
+    // Try moving down one
+    const next = r + 1;
+    // Check if any cell of the piece would now be inside a solid (placed cell or out of bounds)
+    let blocked = false;
+    let anyCellOnFloor = false;
+    for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+      if(!s[rr][cc])continue;
+      const gr = next+rr, gc = c+cc;
+      if(gc<0 || gc>=COLS){blocked=true; continue}
+      if(gr >= ROWS){
+        // In support col -> blocked. In void col -> falls through, not blocked
+        if(gc <= LEFT_END || gc >= RIGHT_START){
+          blocked = true;
+        }
+        continue;
+      }
+      if(gr >= 0 && grid[gr][gc]){blocked = true; continue}
+    }
+    if(blocked) return r;
+    r = next;
+    if(r > ROWS+5) break; // safety
+  }
+  return r;
+}
+
+function checkBridge(){
+  // Bridge formed when there's a row with cells from col LEFT_END to col RIGHT_START continuously filled
+  for(let r = 0; r < ROWS; r++){
+    let allFilled = true;
+    for(let c = LEFT_END; c <= RIGHT_START; c++){
+      if(!grid[r][c]){allFilled = false; break}
+    }
+    if(allFilled) return true;
+  }
+  return false;
+}
+
+function spawn(){
+  cur = nxt; nxt = drawPiece();
+  if(collide(cur.shape, cur.col, 0)){phase='over';}
+}
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  // Determine which cells actually land in valid (in-bounds, not void floor) positions
+  let placedCells = 0, lostCells = 0;
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr >= ROWS){
+        // Cell fell through the void
+        if(gc > LEFT_END && gc < RIGHT_START) lostCells++;
+        continue;
+      }
+      if(gr >= 0 && gc >= 0 && gc < COLS){
+        grid[gr][gc] = {color:cur.color};
+        placedCells++;
+      }
+    }
+  }
+  if(placedCells === 0){
+    // Entire piece fell into void — lost
+    lost++;
+    target = Math.atan(torque()/STIFF);
+    if(Math.abs(target) > MAXTILT){phase='over';return}
+    spawn();
+    return;
+  }
+  if(lostCells > 0) lost += lostCells;
+  score++;
+  if(!hasBridge && checkBridge()) hasBridge = true;
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  spawn();
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase!=='play') return;
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,c){
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,600,640);
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score, 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('PIECES', 14, 42);
+
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.fillText('LOST', 14, 68);
+  ctx.fillStyle='#f55'; ctx.font='bold 16px sans-serif'; ctx.fillText(lost, 14, 86);
+
+  ctx.fillStyle = hasBridge ? '#5d5' : '#778';
+  ctx.font='bold 11px sans-serif';
+  ctx.fillText(hasBridge ? 'BRIDGE ✓' : 'NO BRIDGE', 14, 116);
+
+  // Next preview
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('NEXT', 520, 30);
+  if(nxt){
+    const ps=14;
+    for(let r=0;r<nxt.shape.length;r++)for(let c=0;c<nxt.shape[r].length;c++){
+      if(nxt.shape[r][c]){ctx.fillStyle=nxt.color; ctx.fillRect(520+c*ps, 40+r*ps, ps-1, ps-1)}
+    }
+  }
+
+  tilt += (target - tilt) * 0.1;
+
+  // Both fulcra (drawn before rotation, in screen space; though they should rotate with the platform technically — we'll keep them stationary so the visual is a hanging bridge)
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  // Left support beam
+  ctx.fillStyle='#345'; ctx.fillRect(GL-8, PY, (LEFT_END+1)*CELL+8, 14);
+  // Right support beam
+  ctx.fillStyle='#345'; ctx.fillRect(GL+RIGHT_START*CELL, PY, (COLS-RIGHT_START)*CELL+8, 14);
+
+  // Grid background — but only for support columns; void cols are just empty space
+  ctx.fillStyle='rgba(20,20,40,0.6)';
+  ctx.fillRect(GL, GT, (LEFT_END+1)*CELL, GH);
+  ctx.fillRect(GL+RIGHT_START*CELL, GT, (COLS-RIGHT_START)*CELL, GH);
+
+  // Draw grid lines on supports only
+  ctx.strokeStyle='rgba(80,80,120,0.2)';
+  for(let c=0;c<=LEFT_END+1;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let c=RIGHT_START;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){
+    ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+(LEFT_END+1)*CELL,GT+r*CELL);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(GL+RIGHT_START*CELL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke();
+  }
+
+  // Void indication: dashed lines marking the chasm
+  ctx.strokeStyle='rgba(255,80,80,0.2)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(GL+VOID_LEFT*CELL, GT); ctx.lineTo(GL+VOID_LEFT*CELL, PY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(GL+(VOID_RIGHT+1)*CELL, GT); ctx.lineTo(GL+(VOID_RIGHT+1)*CELL, PY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Cells
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL, grid[r][c].color);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    // Ghost
+    ctx.globalAlpha = 0.25;
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]){
+        const gr = lr+r, gc = cur.col+c;
+        if(gr >= 0 && gr < ROWS) drawBlock(GL+gc*CELL, GT+gr*CELL, cur.color);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Current piece (above grid)
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL, cur.color);
+    }
+  }
+  ctx.restore();
+
+  // Fulcrum triangles in screen space
+  for(const fxx of [FULCRUM_LEFT_X, FULCRUM_RIGHT_X]){
+    ctx.fillStyle='#556';
+    ctx.beginPath(); ctx.moveTo(fxx-18, FY+25); ctx.lineTo(fxx+18, FY+25); ctx.lineTo(fxx, FY+5); ctx.closePath(); ctx.fill();
+  }
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,600,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 300, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(score+' pieces • '+lost+' lost', 300, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 300, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P8: Crayon Kinematics</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+</style></head><body>
+<h1>Prototype 8: Crayon Kinematics <span style="color:#ffa726;font-weight:400;font-size:13px;">— Crayon Physics</span></h1>
+<div class="info">No piece bag. <b>Draw your next piece</b> on the small grid (top-right) by dragging the mouse. Cells must be contiguous, max <b>5 cells</b>. Press <b>D</b> when done drawing to spawn it. Then place with arrows + space.</div>
+<canvas id="g" width="640" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=18, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+// Drawing pad: 5x5 grid, top-right
+const PAD_COLS = 5, PAD_ROWS = 5, PAD_CELL = 28;
+const PAD_X = 470, PAD_Y = 80;
+const MAX_CELLS = 5;
+
+const PAINT_COLORS = ['#0fc','#fd0','#c4c','#4d6','#e55','#48d','#fa3'];
+
+let grid, cur, score, tilt, target, phase;
+let pad, padCellCount, drawingMode, isDrawing;
+let pendingShape, pendingColor;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  cur = null; score=0; tilt=0; target=0; phase='draw';
+  pad = Array.from({length:PAD_ROWS},()=>Array(PAD_COLS).fill(0));
+  padCellCount = 0;
+  isDrawing = false;
+  pendingShape = null;
+  pendingColor = PAINT_COLORS[Math.floor(Math.random()*PAINT_COLORS.length)];
+}
+
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS||gr>=ROWS) return true;
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+function landRow(s,c){let r=-s.length; while(!collide(s,c,r+1) && r<ROWS) r++; return r}
+
+function isContiguous(p){
+  // Flood fill check
+  let start = null;
+  for(let r=0;r<PAD_ROWS;r++)for(let c=0;c<PAD_COLS;c++) if(p[r][c]){start=[r,c];break}
+  if(!start) return false;
+  const visited = Array.from({length:PAD_ROWS},()=>Array(PAD_COLS).fill(false));
+  const stack = [start];
+  let count = 0;
+  while(stack.length){
+    const [r,c] = stack.pop();
+    if(r<0||r>=PAD_ROWS||c<0||c>=PAD_COLS||visited[r][c]||!p[r][c]) continue;
+    visited[r][c] = true;
+    count++;
+    stack.push([r-1,c],[r+1,c],[r,c-1],[r,c+1]);
+  }
+  let total = 0;
+  for(let r=0;r<PAD_ROWS;r++)for(let c=0;c<PAD_COLS;c++) if(p[r][c]) total++;
+  return count === total;
+}
+
+function trimAndExtractShape(p){
+  // Find bounding box of filled cells, trim padding
+  let rMin=PAD_ROWS, rMax=-1, cMin=PAD_COLS, cMax=-1;
+  for(let r=0;r<PAD_ROWS;r++)for(let c=0;c<PAD_COLS;c++){
+    if(p[r][c]){
+      if(r<rMin) rMin=r; if(r>rMax) rMax=r;
+      if(c<cMin) cMin=c; if(c>cMax) cMax=c;
+    }
+  }
+  if(rMax < 0) return null;
+  const out = [];
+  for(let r=rMin;r<=rMax;r++){
+    const row = [];
+    for(let c=cMin;c<=cMax;c++) row.push(p[r][c]);
+    out.push(row);
+  }
+  return out;
+}
+
+function commitDrawing(){
+  if(padCellCount === 0) return;
+  if(!isContiguous(pad)){
+    // shake or hint
+    return;
+  }
+  const shape = trimAndExtractShape(pad);
+  if(!shape) return;
+  // Spawn it
+  const startCol = Math.floor((COLS - shape[0].length)/2);
+  cur = {shape, color: pendingColor, col: startCol};
+  if(collide(cur.shape, cur.col, 0)){phase='over';return}
+  phase = 'place';
+}
+
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  if(lr < 0){phase='over';return}
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS) grid[gr][gc] = {color:cur.color};
+    }
+  }
+  score++;
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  // Next round: draw a new piece
+  pad = Array.from({length:PAD_ROWS},()=>Array(PAD_COLS).fill(0));
+  padCellCount = 0;
+  pendingColor = PAINT_COLORS[Math.floor(Math.random()*PAINT_COLORS.length)];
+  cur = null;
+  phase = 'draw';
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+
+function getMouse(e){
+  const rect = cv.getBoundingClientRect();
+  const sx = cv.width / rect.width, sy = cv.height / rect.height;
+  return {x: (e.clientX-rect.left)*sx, y: (e.clientY-rect.top)*sy};
+}
+function getPadCell(m){
+  const c = Math.floor((m.x - PAD_X) / PAD_CELL);
+  const r = Math.floor((m.y - PAD_Y) / PAD_CELL);
+  if(r<0||r>=PAD_ROWS||c<0||c>=PAD_COLS) return null;
+  return [r,c];
+}
+
+cv.addEventListener('mousedown', e=>{
+  if(phase !== 'draw') return;
+  const m = getMouse(e);
+  const cell = getPadCell(m);
+  if(!cell) return;
+  isDrawing = true;
+  toggleCell(cell[0], cell[1]);
+});
+cv.addEventListener('mousemove', e=>{
+  if(!isDrawing || phase !== 'draw') return;
+  const m = getMouse(e);
+  const cell = getPadCell(m);
+  if(!cell) return;
+  paintCell(cell[0], cell[1]);
+});
+cv.addEventListener('mouseup', () => { isDrawing = false });
+cv.addEventListener('mouseleave', () => { isDrawing = false });
+
+function toggleCell(r,c){
+  if(pad[r][c]){
+    pad[r][c] = 0;
+    padCellCount--;
+  } else if(padCellCount < MAX_CELLS){
+    pad[r][c] = 1;
+    padCellCount++;
+  }
+}
+function paintCell(r,c){
+  if(!pad[r][c] && padCellCount < MAX_CELLS){
+    pad[r][c] = 1;
+    padCellCount++;
+  }
+}
+
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase==='over') return;
+  if(phase==='draw'){
+    if(e.code==='KeyD' || e.code==='Enter') commitDrawing();
+    if(e.code==='KeyC'){pad = Array.from({length:PAD_ROWS},()=>Array(PAD_COLS).fill(0)); padCellCount=0;}
+    e.preventDefault();
+    return;
+  }
+  // place phase
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,c,a){
+  if(a !== undefined) ctx.globalAlpha = a;
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+  ctx.globalAlpha = 1;
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,640,640);
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score, 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('PIECES', 14, 42);
+
+  // Drawing pad
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('DRAW NEXT PIECE', PAD_X, PAD_Y - 12);
+  ctx.fillStyle='#666'; ctx.font='10px sans-serif';
+  ctx.fillText(padCellCount + ' / ' + MAX_CELLS + ' cells', PAD_X, PAD_Y + PAD_ROWS*PAD_CELL + 14);
+
+  // Pad grid
+  for(let r=0;r<PAD_ROWS;r++)for(let c=0;c<PAD_COLS;c++){
+    const x = PAD_X + c*PAD_CELL, y = PAD_Y + r*PAD_CELL;
+    ctx.fillStyle = pad[r][c] ? pendingColor : 'rgba(30,30,50,0.6)';
+    ctx.fillRect(x, y, PAD_CELL-1, PAD_CELL-1);
+    ctx.strokeStyle = 'rgba(80,80,120,0.4)';
+    ctx.strokeRect(x+0.5, y+0.5, PAD_CELL-2, PAD_CELL-2);
+  }
+  // Pad border
+  ctx.strokeStyle = phase==='draw' ? pendingColor : '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(PAD_X, PAD_Y, PAD_COLS*PAD_CELL-1, PAD_ROWS*PAD_CELL-1);
+  ctx.lineWidth = 1;
+
+  // Validity hint
+  ctx.font='10px sans-serif';
+  if(padCellCount === 0){
+    ctx.fillStyle='#666';
+    ctx.fillText('drag to draw', PAD_X, PAD_Y + PAD_ROWS*PAD_CELL + 32);
+  } else if(!isContiguous(pad)){
+    ctx.fillStyle='#f55';
+    ctx.fillText('cells must be contiguous', PAD_X, PAD_Y + PAD_ROWS*PAD_CELL + 32);
+  } else {
+    ctx.fillStyle='#5d5';
+    ctx.fillText('press D to spawn this piece', PAD_X, PAD_Y + PAD_ROWS*PAD_CELL + 32);
+  }
+  ctx.fillStyle='#666';
+  ctx.fillText('C to clear', PAD_X, PAD_Y + PAD_ROWS*PAD_CELL + 48);
+
+  // phase indicator
+  ctx.fillStyle = phase==='draw' ? '#5cf' : '#fa3';
+  ctx.font='bold 12px sans-serif';
+  ctx.fillText(phase==='draw' ? '✏ DRAWING' : '◆ PLACING', 14, 70);
+
+  tilt += (target - tilt) * 0.1;
+
+  ctx.fillStyle='#556';
+  ctx.beginPath(); ctx.moveTo(FX-22, FY+25); ctx.lineTo(FX+22, FY+25); ctx.lineTo(FX, FY-2); ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  ctx.fillStyle='#345'; ctx.fillRect(GL-10, PY, GW+20, 14);
+  ctx.fillStyle='rgba(20,20,40,0.6)'; ctx.fillRect(GL,GT,GW,GH);
+  ctx.strokeStyle='rgba(80,80,120,0.18)';
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke()}
+
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL, grid[r][c].color);
+  }
+
+  if(phase==='place' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    if(lr >= -cur.shape.length){
+      for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+        if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL, cur.color, 0.25);
+      }
+    }
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL, cur.color);
+    }
+  }
+  ctx.restore();
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,640,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 320, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(score+' pieces drawn & placed', 320, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 320, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

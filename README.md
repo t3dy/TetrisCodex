@@ -27,13 +27,17 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 
 ## Prototypes
 
-Five standalone HTML prototypes live in [`prototypes/`](./prototypes/) — each demonstrates ONE experimental mechanic in isolation:
+Nine standalone HTML prototypes live in [`prototypes/`](./prototypes/) — each demonstrates ONE experimental mechanic in isolation:
 
 - **[Spells](./prototypes/p1-spells.html)** — earn cards, modify next piece (Tricky Towers)
 - **[Bombs](./prototypes/p2-bombs.html)** — fused tetrominoes that detonate (Boom Blox)
 - **[Balloons](./prototypes/p3-balloons.html)** — negative-weight cells (World of Goo)
 - **[JenGone](./prototypes/p4-jengone.html)** — inverted Tetris, anti-pieces delete cells (Jenga)
 - **[Zen](./prototypes/p5-zen.html)** — minimalist, no UI (mobile stackers)
+- **[Bridge to Nowhere](./prototypes/p6-bridge.html)** — chasm platform with void (Poly Bridge)
+- **[Catherine Cascade](./prototypes/p7-cascade.html)** — click placed cells to shove them up
+- **[Crayon Kinematics](./prototypes/p8-crayon.html)** — draw your next piece on a 5×5 pad
+- **[Tetris Effect](./prototypes/p9-rhythm.html)** — rhythm scoring with Web Audio synth
 
 Open the [prototype index](./prototypes/index.html) directly in any browser. No server required.
 
