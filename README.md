@@ -21,6 +21,21 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 - [`SIMPLIFYPHYSICS.md`](./SIMPLIFYPHYSICS.md) — How the tilt physics are simplified for clean gameplay
 - [`PLATFORMS.md`](./PLATFORMS.md) — Roadmap for varied platform types, surface modifiers (wet, frozen, hot), and block properties (heavy, fragile, sticky)
 - [`SIMILARGAMES.md`](./SIMILARGAMES.md) — Lessons from contemporary games (Tricky Towers, Boom Blox, World of Goo) and concrete features/coding tricks worth borrowing
+- [`PARODIES.md`](./PARODIES.md) — 10 parody mechanics translating each comparable game into Balance Tetris vocabulary
+- [`MODESPLAN.md`](./MODESPLAN.md) — Build plan for integrating modes into the main game (Mode interface, build order, what NOT to build yet)
+- [`MECHANICS_CATALOG.md`](./MECHANICS_CATALOG.md) — Long-form catalog of every mechanic with player-challenge analysis and implementation notes
+
+## Prototypes
+
+Five standalone HTML prototypes live in [`prototypes/`](./prototypes/) — each demonstrates ONE experimental mechanic in isolation:
+
+- **[Spells](./prototypes/p1-spells.html)** — earn cards, modify next piece (Tricky Towers)
+- **[Bombs](./prototypes/p2-bombs.html)** — fused tetrominoes that detonate (Boom Blox)
+- **[Balloons](./prototypes/p3-balloons.html)** — negative-weight cells (World of Goo)
+- **[JenGone](./prototypes/p4-jengone.html)** — inverted Tetris, anti-pieces delete cells (Jenga)
+- **[Zen](./prototypes/p5-zen.html)** — minimalist, no UI (mobile stackers)
+
+Open the [prototype index](./prototypes/index.html) directly in any browser. No server required.
 
 ## Tech
 

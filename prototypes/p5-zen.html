@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P5: Zen</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#000;color:#444;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:0;min-height:100vh;justify-content:center}
+  canvas{display:block;background:#000;cursor:none}
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);color:#222;font-size:10px;letter-spacing:0.2em}
+  a.back{position:fixed;top:14px;left:14px;color:#222;text-decoration:none;font-size:10px;letter-spacing:0.2em}
+  a.back:hover{color:#666}
+</style></head><body>
+<a class="back" href="index.html">←</a>
+<canvas id="g" width="540" height="640"></canvas>
+<div class="hint">← → ↑ space</div>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=18, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+// Single accent color randomized per session
+const ACCENTS = ['#fff','#e8d6b3','#b3d6e8','#d6b3e8','#b3e8c4','#e8b3b3'];
+const ACCENT = ACCENTS[Math.floor(Math.random()*ACCENTS.length)];
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const TYPES = Object.keys(SHAPES);
+
+let grid, bag, cur, score, tilt, target, phase, finalScoreTimer;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  bag = []; cur = drawPiece(); score=0; tilt=0; target=0; phase='play'; finalScoreTimer=0;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  return {shape:SHAPES[t].map(r=>r.slice()), col:Math.floor((COLS-SHAPES[t][0].length)/2)};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS||gr>=ROWS) return true;
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+function landRow(s,c){let r=-s.length; while(!collide(s,c,r+1) && r<ROWS) r++; return r}
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  if(lr < 0){phase='over';return}
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS) grid[gr][gc] = 1;
+    }
+  }
+  score++;
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  cur = drawPiece();
+  if(collide(cur.shape, cur.col, 0)){phase='over';}
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase!=='play') return;
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,a){
+  ctx.fillStyle = a !== undefined ? `rgba(255,255,255,${a})` : ACCENT;
+  ctx.fillRect(x+1,y+1,CELL-2,CELL-2);
+}
+
+function render(){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,540,640);
+  tilt += (target - tilt) * 0.08;
+
+  // Just a thin line for the platform
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  // Beam
+  ctx.fillStyle = '#222';
+  ctx.fillRect(GL-10, PY, GW+20, 2);
+
+  // Placed cells
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    if(lr >= -cur.shape.length){
+      for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+        if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL, 0.12);
+      }
+    }
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL);
+    }
+  }
+  ctx.restore();
+
+  // Tiny fulcrum dot (no triangle, minimal)
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(FX, FY+4, 3, 0, Math.PI*2); ctx.fill();
+
+  if(phase==='over'){
+    finalScoreTimer++;
+    const fade = Math.min(1, finalScoreTimer/40);
+    ctx.fillStyle = `rgba(0,0,0,${fade*0.85})`;
+    ctx.fillRect(0,0,540,640);
+    if(finalScoreTimer > 20){
+      const popIn = Math.min(1, (finalScoreTimer-20)/20);
+      ctx.fillStyle = `rgba(255,255,255,${popIn})`;
+      ctx.font = `${100 + popIn*20}px ui-serif, Georgia, serif`;
+      ctx.textAlign='center';
+      ctx.fillText(score, 270, 340);
+    }
+    if(finalScoreTimer > 80){
+      ctx.fillStyle='#444'; ctx.font='10px sans-serif'; ctx.letterSpacing = '0.3em';
+      ctx.fillText('R', 270, 400);
+    }
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

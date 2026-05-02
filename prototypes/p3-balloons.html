@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P3: Balloons</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+</style></head><body>
+<h1>Prototype 3: Balloons <span style="color:#ffa726;font-weight:400;font-size:13px;">— World of Glue</span></h1>
+<div class="info">~1 in 5 pieces is a <b>balloon piece</b> (light blue with strings). Balloon cells contribute <b>negative</b> torque proportional to height — placed near the top, they actively LIFT that side of the platform. Use them to anchor reckless heavy stacks.</div>
+<canvas id="g" width="540" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=18, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const COL = {I:'#0fc',O:'#fd0',T:'#c4c',S:'#4d6',Z:'#e55',J:'#48d',L:'#fa3'};
+const TYPES = Object.keys(SHAPES);
+
+let grid, bag, cur, nxt, score, tilt, target, phase;
+
+function reset(){
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  bag = []; nxt = drawPiece();
+  cur = null; score=0; tilt=0; target=0; phase='play';
+  spawn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  const isBalloon = Math.random() < 0.2;
+  return {type:t, shape:SHAPES[t].map(r=>r.slice()), color: isBalloon ? '#9df' : COL[t], col:Math.floor((COLS-SHAPES[t][0].length)/2), balloon:isBalloon};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+function collide(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS||gr>=ROWS) return true;
+    if(gr>=0 && grid[gr][gc]) return true;
+  }
+  return false;
+}
+function fits(s,c){return !collide(s,c,0) || !collide(s,c,-1)}
+function landRow(s,c){let r=-s.length; while(!collide(s,c,r+1) && r<ROWS) r++; return r}
+function spawn(){
+  cur = nxt; nxt = drawPiece();
+  if(collide(cur.shape, cur.col, 0)){phase='over';}
+}
+function torque(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++){
+    const cell=grid[r][cc];
+    if(!cell) continue;
+    if(cell.balloon){
+      // Balloon cells: negative torque, scaled by height (lift increases with height)
+      // Higher up = larger negative contribution
+      const heightFactor = 1 + (ROWS-1 - r) * 0.4;  // row 0 (top) = 1+3.6, row 9 (bottom) = 1+0
+      t += (cc-c) * (-1) * heightFactor;
+    } else {
+      t += (cc-c);
+    }
+  }
+  return t;
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  if(lr < 0){phase='over';return}
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS) grid[gr][gc] = {color:cur.color, balloon:cur.balloon};
+    }
+  }
+  score++;
+  target = Math.atan(torque()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  spawn();
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase==='over') return;
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,c,balloon){
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+  if(balloon){
+    // Draw balloon string motif
+    ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(x+CELL/2, y+CELL); ctx.quadraticCurveTo(x+CELL/2+3, y+CELL+6, x+CELL/2-1, y+CELL+10);
+    ctx.stroke();
+    // Highlight orb
+    ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(x+8, y+8, 3, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,540,640);
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score, 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('PIECES', 14, 42);
+
+  // Tilt readout — useful since balloons make tilt counter-intuitive
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('TILT', 14, 80);
+  const deg = Math.round(target*180/Math.PI);
+  ctx.fillStyle = Math.abs(deg) > 35 ? '#f55' : Math.abs(deg) > 22 ? '#fd0' : '#5d5';
+  ctx.font='bold 18px sans-serif'; ctx.fillText((deg>0?'+':'')+deg+'°', 14, 100);
+
+  // Net torque
+  const t = phase==='play' ? torque() : 0;
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.fillText('TORQUE', 14, 130);
+  ctx.fillStyle = '#ccd';
+  ctx.font='14px sans-serif'; ctx.fillText(t.toFixed(1), 14, 148);
+
+  // Next preview
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('NEXT', 460, 30);
+  if(nxt){
+    const ps=14;
+    for(let r=0;r<nxt.shape.length;r++)for(let c=0;c<nxt.shape[r].length;c++){
+      if(nxt.shape[r][c]){ctx.fillStyle=nxt.color; ctx.fillRect(460+c*ps, 40+r*ps, ps-1, ps-1)}
+    }
+    if(nxt.balloon){
+      ctx.fillStyle='#9df'; ctx.font='bold 11px sans-serif';
+      ctx.fillText('BALLOON', 460, 110);
+    }
+  }
+
+  tilt += (target - tilt) * 0.1;
+
+  ctx.fillStyle='#556';
+  ctx.beginPath(); ctx.moveTo(FX-22, FY+25); ctx.lineTo(FX+22, FY+25); ctx.lineTo(FX, FY-2); ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  ctx.fillStyle='#345'; ctx.fillRect(GL-10, PY, GW+20, 14);
+  ctx.fillStyle='rgba(20,20,40,0.6)'; ctx.fillRect(GL,GT,GW,GH);
+  ctx.strokeStyle='rgba(80,80,120,0.18)';
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke()}
+
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell = grid[r][c];
+    if(cell) drawBlock(GL+c*CELL, GT+r*CELL, cell.color, cell.balloon);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    if(lr >= -cur.shape.length){
+      ctx.globalAlpha = 0.25;
+      for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+        if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL, cur.color, cur.balloon);
+      }
+      ctx.globalAlpha = 1;
+    }
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawBlock(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL, cur.color, cur.balloon);
+    }
+  }
+  ctx.restore();
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,540,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 270, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(score+' pieces', 270, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 270, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

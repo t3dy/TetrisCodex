@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Balance Tetris — Prototypes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a1a;
+    color: #ccd;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 32px;
+    color: #00e5ff;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .sub { color: #889; font-size: 14px; margin-bottom: 32px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: rgba(30, 30, 50, 0.5);
+    border: 1px solid #334;
+    border-radius: 8px;
+    padding: 18px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+    display: block;
+  }
+  .card:hover {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: #00e5ff;
+    transform: translateY(-2px);
+  }
+  .card-tag {
+    font-size: 10px;
+    color: #889;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .card-title {
+    font-size: 18px;
+    color: #fff;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .card-source {
+    font-size: 11px;
+    color: #ffa726;
+    margin-bottom: 12px;
+    font-style: italic;
+  }
+  .card-desc {
+    font-size: 13px;
+    color: #aab;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+  .card-keys {
+    font-size: 11px;
+    color: #667;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .back {
+    display: inline-block;
+    margin-bottom: 24px;
+    color: #48f;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .back:hover { text-decoration: underline; }
+  footer {
+    margin-top: 48px;
+    color: #556;
+    font-size: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back to Balance Tetris</a>
+  <h1>Prototype Lab</h1>
+  <div class="sub">
+    Self-contained mechanic experiments. Each is a single HTML file with stripped-down rendering and one experimental rule. Pick a feel that works before we port it into the main game.
+  </div>
+
+  <div class="grid">
+    <a class="card" href="p1-spells.html">
+      <div class="card-tag">PROTOTYPE 1</div>
+      <div class="card-title">Spells</div>
+      <div class="card-source">inspired by Tricky Towers</div>
+      <div class="card-desc">Earn spell cards every 5 pieces. Apply to next piece for game-changing effects.</div>
+      <div class="card-keys">← → move • ↑ rotate • space drop • 1/2/3 cast</div>
+    </a>
+
+    <a class="card" href="p2-bombs.html">
+      <div class="card-tag">PROTOTYPE 2</div>
+      <div class="card-title">Bombs</div>
+      <div class="card-source">inspired by Boom Blox</div>
+      <div class="card-desc">Bomb pieces tick down 5 turns then explode, blasting a 3×3 area of cells off the platform.</div>
+      <div class="card-keys">← → move • ↑ rotate • space drop</div>
+    </a>
+
+    <a class="card" href="p3-balloons.html">
+      <div class="card-tag">PROTOTYPE 3</div>
+      <div class="card-title">Balloons</div>
+      <div class="card-source">inspired by World of Goo</div>
+      <div class="card-desc">Balloon pieces have negative weight — placed high up, they pull the platform UP, counteracting heavy bottoms.</div>
+      <div class="card-keys">← → move • ↑ rotate • space drop</div>
+    </a>
+
+    <a class="card" href="p4-jengone.html">
+      <div class="card-tag">PROTOTYPE 4</div>
+      <div class="card-title">JenGone</div>
+      <div class="card-source">inspired by Jenga / Boom Blox demolition</div>
+      <div class="card-desc">Inverted gameplay. Tower starts pre-built. You drop anti-pieces that DELETE cells. Don't tip it.</div>
+      <div class="card-keys">← → move • ↑ rotate • space drop</div>
+    </a>
+
+    <a class="card" href="p5-zen.html">
+      <div class="card-tag">PROTOTYPE 5</div>
+      <div class="card-title">Zen</div>
+      <div class="card-source">inspired by mobile stackers</div>
+      <div class="card-desc">Pure minimalism. Monochrome, no UI, no scores. Just blocks, gravity, and the platform's quiet hum.</div>
+      <div class="card-keys">← → move • ↑ rotate • space drop</div>
+    </a>
+  </div>
+
+  <footer>
+    Each prototype loads instantly — no server required. Press R to restart any prototype.
+  </footer>
+</div>
+</body>
+</html>

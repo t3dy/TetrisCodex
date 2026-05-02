@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>P4: JenGone</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a1a;color:#aac;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+  h1{color:#fff;font-size:18px;margin-bottom:4px;font-weight:600}
+  .info{color:#88a;font-size:12px;max-width:540px;text-align:center;margin-bottom:8px;line-height:1.4}
+  canvas{display:block;background:#0a0a1a;border:1px solid #223;border-radius:4px}
+  a.back{margin-top:10px;color:#48f;text-decoration:none;font-size:11px}
+</style></head><body>
+<h1>Prototype 4: JenGone <span style="color:#ffa726;font-weight:400;font-size:13px;">— Jenga inverted</span></h1>
+<div class="info">Tower starts pre-built. Drop <b>anti-pieces</b> (white outlines) that DELETE any cell they touch. Cells with no support don't fall — there's no gravity within the grid — but every removal shifts the torque. Don't tip past 45°.</div>
+<canvas id="g" width="540" height="640"></canvas>
+<a class="back" href="index.html">← back to prototypes</a>
+<script>
+const COLS=8, ROWS=10, CELL=32;
+const STIFF=22, MAXTILT=Math.PI/4;
+const GW=COLS*CELL, GH=ROWS*CELL;
+const FX=270, FY=520, PY=505;
+const GL=FX-GW/2, GT=PY-GH;
+
+const SHAPES = {
+  I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+  S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]],
+  J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+};
+const COL = ['#0fc','#fd0','#c4c','#4d6','#e55','#48d','#fa3'];
+const TYPES = Object.keys(SHAPES);
+
+let grid, bag, cur, nxt, score, tilt, target, phase, removed;
+
+function buildTower(){
+  // Pre-build a balanced tower of mixed pieces.
+  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  // Fill bottom 6 rows densely with random colored cells, but symmetric to start balanced
+  for(let r = ROWS-1; r >= ROWS-6; r--){
+    for(let c=0;c<COLS;c++){
+      // Mostly fill but leave occasional gaps for visual interest
+      if(Math.random() > 0.1){
+        grid[r][c] = {color: COL[Math.floor(Math.random()*COL.length)]};
+      }
+    }
+  }
+  // Add some upper structure to make removal effects more dramatic
+  for(let r = ROWS-7; r >= ROWS-9; r--){
+    for(let c=2;c<COLS-2;c++){
+      if(Math.random() > 0.3) grid[r][c] = {color: COL[Math.floor(Math.random()*COL.length)]};
+    }
+  }
+  // Force balance by checking initial torque and adding/removing edge cells
+  let t = torqueRaw();
+  let safety = 30;
+  while(Math.abs(t) > 2 && safety--){
+    if(t > 0){
+      // remove a cell from the right
+      for(let c = COLS-1; c >= 0; c--)
+        for(let r=0;r<ROWS;r++)
+          if(grid[r][c]){grid[r][c]=null; r=ROWS;c=-1;}
+    } else {
+      for(let c = 0; c < COLS; c++)
+        for(let r=0;r<ROWS;r++)
+          if(grid[r][c]){grid[r][c]=null; r=ROWS;c=COLS;}
+    }
+    t = torqueRaw();
+  }
+}
+function torqueRaw(){
+  let t=0; const c=(COLS-1)/2;
+  for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++) if(grid[r][cc]) t += (cc-c);
+  return t;
+}
+
+function reset(){
+  buildTower();
+  bag = []; nxt = drawPiece();
+  cur = null; score=0; tilt=0; target=Math.atan(torqueRaw()/STIFF); phase='play'; removed=0;
+  spawn();
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function drawPiece(){
+  if(bag.length===0) bag = shuffle(TYPES.slice());
+  const t = bag.pop();
+  return {type:t, shape:SHAPES[t].map(r=>r.slice()), col:Math.floor((COLS-SHAPES[t][0].length)/2)};
+}
+function rotateCW(s){const r=s.length,c=s[0].length;const o=[];for(let cc=0;cc<c;cc++){o.push([]);for(let rr=r-1;rr>=0;rr--)o[cc].push(s[rr][cc])}return o}
+// In JenGone, "collision" only checks bounds: anti-pieces can pass THROUGH cells
+function bounds(s,c,r){
+  for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+    if(!s[rr][cc])continue;
+    const gr=r+rr, gc=c+cc;
+    if(gc<0||gc>=COLS) return true;
+    if(gr>=ROWS) return true;
+  }
+  return false;
+}
+// Anti-piece "lands" at the row where it has overlapped at least 1 cell, then comes to rest
+// Easiest rule: land at the row where any cell would touch a filled cell, or platform
+function landRow(s,c){
+  // find lowest valid row where piece doesn't go below platform
+  let r = -s.length;
+  while(r < ROWS - s.length){
+    if(bounds(s, c, r+1)) break;
+    // Check if any cell would overlap an existing block at row r+1
+    let touch = false;
+    for(let rr=0;rr<s.length;rr++)for(let cc=0;cc<s[rr].length;cc++){
+      if(s[rr][cc]){
+        const gr=r+1+rr, gc=c+cc;
+        if(gr>=0 && gr<ROWS && grid[gr][gc]) touch = true;
+      }
+    }
+    if(touch) break;
+    r++;
+  }
+  return r;
+}
+function fits(s,c){return !bounds(s,c,0)}
+function spawn(){
+  cur = nxt; nxt = drawPiece();
+}
+function place(){
+  const lr = landRow(cur.shape, cur.col);
+  // delete every cell the anti-piece touches
+  let deleted = 0;
+  for(let rr=0;rr<cur.shape.length;rr++)for(let cc=0;cc<cur.shape[rr].length;cc++){
+    if(cur.shape[rr][cc]){
+      const gr=lr+rr, gc=cur.col+cc;
+      if(gr>=0 && gr<ROWS && gc>=0 && gc<COLS && grid[gr][gc]){
+        grid[gr][gc] = null;
+        deleted++;
+      }
+    }
+  }
+  removed += deleted;
+  score++;
+  target = Math.atan(torqueRaw()/STIFF);
+  if(Math.abs(target) > MAXTILT){phase='over';return}
+  // Check if all cells removed (win)
+  let any=false; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++) if(grid[r][c]) any=true;
+  if(!any){phase='win';return}
+  spawn();
+}
+
+const cv=document.getElementById('g'), ctx=cv.getContext('2d');
+const keys={};
+addEventListener('keydown', e=>{
+  if(keys[e.code]) return; keys[e.code]=true;
+  if(e.code==='KeyR'){reset();return}
+  if(phase!=='play') return;
+  if(e.code==='ArrowLeft' && fits(cur.shape, cur.col-1)) cur.col--;
+  else if(e.code==='ArrowRight' && fits(cur.shape, cur.col+1)) cur.col++;
+  else if(e.code==='ArrowUp'){
+    const r = rotateCW(cur.shape);
+    for(const k of [0,-1,1,-2,2]){if(fits(r, cur.col+k)){cur.shape=r; cur.col+=k; break}}
+  }
+  else if(e.code==='Space') place();
+  e.preventDefault();
+});
+addEventListener('keyup', e=>{keys[e.code]=false});
+
+function drawBlock(x,y,c){
+  ctx.fillStyle=c; ctx.fillRect(x,y,CELL,CELL);
+  ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(x,y,CELL,3); ctx.fillRect(x,y,3,CELL);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x,y+CELL-3,CELL,3); ctx.fillRect(x+CELL-3,y,3,CELL);
+}
+function drawAnti(x,y){
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+  ctx.strokeRect(x+2, y+2, CELL-4, CELL-4);
+  ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(x+5,y+5); ctx.lineTo(x+CELL-5, y+CELL-5);
+  ctx.moveTo(x+CELL-5, y+5); ctx.lineTo(x+5, y+CELL-5);
+  ctx.stroke();
+}
+
+function render(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,540,640);
+
+  ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(score, 14, 28);
+  ctx.fillStyle='#778'; ctx.font='10px sans-serif'; ctx.fillText('TURNS', 14, 42);
+
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif'; ctx.fillText('REMOVED', 14, 70);
+  ctx.fillStyle='#fff'; ctx.font='bold 18px sans-serif'; ctx.fillText(removed, 14, 90);
+
+  // Next
+  ctx.fillStyle='#aac'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('NEXT', 460, 30);
+  if(nxt){
+    const ps=14;
+    for(let r=0;r<nxt.shape.length;r++)for(let c=0;c<nxt.shape[r].length;c++){
+      if(nxt.shape[r][c]){ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(460+c*ps, 40+r*ps, ps-1, ps-1)}
+    }
+  }
+
+  tilt += (target - tilt) * 0.1;
+
+  ctx.fillStyle='#556';
+  ctx.beginPath(); ctx.moveTo(FX-22, FY+25); ctx.lineTo(FX+22, FY+25); ctx.lineTo(FX, FY-2); ctx.closePath(); ctx.fill();
+
+  ctx.save();
+  ctx.translate(FX,FY); ctx.rotate(tilt); ctx.translate(-FX,-FY);
+
+  ctx.fillStyle='#345'; ctx.fillRect(GL-10, PY, GW+20, 14);
+  ctx.fillStyle='rgba(20,20,40,0.6)'; ctx.fillRect(GL,GT,GW,GH);
+  ctx.strokeStyle='rgba(80,80,120,0.18)';
+  for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(GL+c*CELL,GT);ctx.lineTo(GL+c*CELL,PY);ctx.stroke()}
+  for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(GL,GT+r*CELL);ctx.lineTo(GL+GW,GT+r*CELL);ctx.stroke()}
+
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]) drawBlock(GL+c*CELL, GT+r*CELL, grid[r][c].color);
+  }
+
+  if(phase==='play' && cur){
+    const lr = landRow(cur.shape, cur.col);
+    // Ghost (anti-shape on the actual cells it'll delete)
+    ctx.globalAlpha = 0.5;
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawAnti(GL+(cur.col+c)*CELL, GT+(lr+r)*CELL);
+    }
+    ctx.globalAlpha = 1;
+    // Current piece (above grid)
+    for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+      if(cur.shape[r][c]) drawAnti(GL+(cur.col+c)*CELL, GT-CELL*2.5+r*CELL);
+    }
+  }
+  ctx.restore();
+
+  if(phase==='over'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,540,640);
+    ctx.fillStyle='#f55'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('TIPPED', 270, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(removed+' cells removed', 270, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 270, 360);
+  } else if(phase==='win'){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,540,640);
+    ctx.fillStyle='#5d5'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('CLEARED!', 270, 280);
+    ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText(score+' turns • '+removed+' cells', 270, 320);
+    ctx.fillStyle='#aac'; ctx.font='14px sans-serif'; ctx.fillText('press R to restart', 270, 360);
+  }
+}
+
+reset();
+function loop(){render(); requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>
