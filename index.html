@@ -471,6 +471,61 @@ const MODES = {
 
 const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs', 'alchemy'];
 
+// ===== LEVELS =====
+// A level is a specific (platform × mode × winCondition) tuple.
+// Win types: 'pieces' (place N pieces), 'score' (reach score N).
+const LEVELS = [
+  { id: 1, name: 'First Steps', platform: 'wideBase', mode: 'standard',
+    win: { type: 'pieces', target: 10 },
+    description: 'Place 10 pieces. The wide base is forgiving — a good warm-up.',
+    difficulty: 1 },
+
+  { id: 2, name: 'Tight Rope', platform: 'narrowPole', mode: 'standard',
+    win: { type: 'pieces', target: 8 },
+    description: 'Place 8 pieces on a hair-trigger pole. Center mass.',
+    difficulty: 2 },
+
+  { id: 3, name: 'Two Towers', platform: 'twoFulcrum', mode: 'standard',
+    win: { type: 'pieces', target: 12 },
+    description: 'Distribute mass across the bridge. Overhang both fulcra and you fail.',
+    difficulty: 2 },
+
+  { id: 4, name: 'Featherweight', platform: 'seesaw', mode: 'balloons',
+    win: { type: 'pieces', target: 15 },
+    description: 'Use balloons to anchor heavy edges. Place high to lift hardest.',
+    difficulty: 2 },
+
+  { id: 5, name: 'Quietude', platform: 'seesaw', mode: 'zen',
+    win: { type: 'pieces', target: 20 },
+    description: 'No HUD, no urgency. 20 pieces in monochrome.',
+    difficulty: 1 },
+
+  { id: 6, name: 'Demolitionist', platform: 'wideBase', mode: 'bombs',
+    win: { type: 'pieces', target: 10 },
+    description: 'Survive 10 pieces with explosive cargo. Wide base helps absorb the swings.',
+    difficulty: 3 },
+
+  { id: 7, name: 'First Transmutation', platform: 'wideBase', mode: 'alchemy',
+    win: { type: 'score', target: 14 },
+    description: 'Score 14. Compose matched groups; tilt to dump them off.',
+    difficulty: 3 },
+
+  { id: 8, name: 'Floating Spires', platform: 'narrowPole', mode: 'balloons',
+    win: { type: 'pieces', target: 12 },
+    description: 'Balloons are your only ally on this pole. Place them high.',
+    difficulty: 4 },
+
+  { id: 9, name: 'Volatile Pole', platform: 'narrowPole', mode: 'bombs',
+    win: { type: 'pieces', target: 8 },
+    description: 'Bombs on a hair-trigger pole. Detonations rebalance — or kill you.',
+    difficulty: 5 },
+
+  { id: 10, name: 'The Crucible', platform: 'twoFulcrum', mode: 'alchemy',
+    win: { type: 'score', target: 22 },
+    description: 'Master alchemy on a two-fulcrum bridge. Score 22.',
+    difficulty: 5 }
+];
+
 const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
 
 // ===== PIECE DEFINITIONS =====
@@ -560,17 +615,27 @@ function screenToGridCol(mx, my, angle) {
 // ===== GAME STATE =====
 let game = null;
 
-function createGame(platformId, modeId) {
-  const pid = platformId || 'seesaw';
-  const mid = modeId || 'standard';
+function createGame(platformId, modeId, levelId) {
+  // If levelId provided, override platform/mode from level config
+  let level = null;
+  let pid = platformId || 'seesaw';
+  let mid = modeId || 'standard';
+  if (levelId !== undefined && levelId !== null) {
+    level = LEVELS.find(l => l.id === levelId);
+    if (level) { pid = level.platform; mid = level.mode; }
+  }
   return {
     phase: 'menu', // menu | playing | dropping | gameOver
+    menuMode: 'free', // 'free' | 'campaign'
     platform: PLATFORMS[pid],
     platformId: pid,
     mode: MODES[mid],
     modeId: mid,
+    level,
+    levelComplete: false,
     selectedPlatformIdx: PLATFORM_ORDER.indexOf(pid),
     selectedModeIdx: MODE_ORDER.indexOf(mid),
+    selectedLevelIdx: level ? LEVELS.findIndex(l => l.id === level.id) : 0,
     grid: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
     bag: [],
     current: null,    // { type, shape, color, colorDark, colorLight, col }
@@ -749,24 +814,55 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
 
   if (game.phase === 'menu') {
-    if (e.code === 'ArrowLeft') {
-      game.selectedPlatformIdx = (game.selectedPlatformIdx - 1 + PLATFORM_ORDER.length) % PLATFORM_ORDER.length;
-    } else if (e.code === 'ArrowRight') {
-      game.selectedPlatformIdx = (game.selectedPlatformIdx + 1) % PLATFORM_ORDER.length;
-    } else if (e.code === 'Tab' || e.code === 'KeyM') {
-      game.selectedModeIdx = (game.selectedModeIdx + 1) % MODE_ORDER.length;
-    } else if (e.code === 'Enter' || e.code === 'Space') {
-      startGame(PLATFORM_ORDER[game.selectedPlatformIdx], MODE_ORDER[game.selectedModeIdx]);
+    if (e.code === 'KeyC') {
+      // Toggle campaign/free
+      game.menuMode = game.menuMode === 'campaign' ? 'free' : 'campaign';
+    } else if (game.menuMode === 'campaign') {
+      // Level grid navigation: 5 cols x 2 rows
+      if (e.code === 'ArrowLeft') {
+        game.selectedLevelIdx = (game.selectedLevelIdx - 1 + LEVELS.length) % LEVELS.length;
+      } else if (e.code === 'ArrowRight') {
+        game.selectedLevelIdx = (game.selectedLevelIdx + 1) % LEVELS.length;
+      } else if (e.code === 'ArrowDown') {
+        game.selectedLevelIdx = (game.selectedLevelIdx + 5) % LEVELS.length;
+      } else if (e.code === 'ArrowUp') {
+        game.selectedLevelIdx = (game.selectedLevelIdx - 5 + LEVELS.length) % LEVELS.length;
+      } else if (e.code === 'Enter' || e.code === 'Space') {
+        startGame(null, null, LEVELS[game.selectedLevelIdx].id);
+      }
+    } else {
+      // Free play
+      if (e.code === 'ArrowLeft') {
+        game.selectedPlatformIdx = (game.selectedPlatformIdx - 1 + PLATFORM_ORDER.length) % PLATFORM_ORDER.length;
+      } else if (e.code === 'ArrowRight') {
+        game.selectedPlatformIdx = (game.selectedPlatformIdx + 1) % PLATFORM_ORDER.length;
+      } else if (e.code === 'Tab' || e.code === 'KeyM') {
+        game.selectedModeIdx = (game.selectedModeIdx + 1) % MODE_ORDER.length;
+      } else if (e.code === 'Enter' || e.code === 'Space') {
+        startGame(PLATFORM_ORDER[game.selectedPlatformIdx], MODE_ORDER[game.selectedModeIdx]);
+      }
     }
     e.preventDefault();
     return;
   }
 
   if (game.phase === 'gameOver') {
-    if (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter') {
-      startGame();
+    if (e.code === 'Enter' && game.levelComplete) {
+      // Advance to next level if available
+      const next = LEVELS.find(L => L.id === game.level.id + 1);
+      startGame(null, null, next ? next.id : game.level.id);
+    } else if (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter') {
+      // Restart: same level if in campaign, same platform/mode otherwise
+      if (game.level) {
+        startGame(null, null, game.level.id);
+      } else {
+        startGame();
+      }
     } else if (e.code === 'Escape') {
-      game = createGame(game.platformId);
+      // Back to menu (preserves the menuMode you were in)
+      const wasCampaign = !!game.level;
+      game = createGame(game.platformId, game.modeId);
+      if (wasCampaign) game.menuMode = 'campaign';
     }
     e.preventDefault();
     return;
@@ -857,14 +953,42 @@ function getCanvasMouse(e) {
 canvas.addEventListener('click', e => {
   if (game.phase === 'menu') {
     const m = getCanvasMouse(e);
-    // Check mode tabs first
+    // Top-level toggle (Free / Campaign)
+    for (const r of menuTopToggleRects) {
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        game.menuMode = r.mode;
+        return;
+      }
+    }
+    if (game.menuMode === 'campaign') {
+      // Level cards
+      for (const r of menuLevelRects) {
+        if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+          if (game.selectedLevelIdx === r.idx) {
+            startGame(null, null, r.levelId);
+          } else {
+            game.selectedLevelIdx = r.idx;
+          }
+          return;
+        }
+      }
+      // PLAY button
+      if (menuStartRect) {
+        const r = menuStartRect;
+        if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+          startGame(null, null, LEVELS[game.selectedLevelIdx].id);
+          return;
+        }
+      }
+      return;
+    }
+    // Free play
     for (const r of menuModeRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
         game.selectedModeIdx = r.idx;
         return;
       }
     }
-    // Check platform cards
     for (const r of menuPlatformRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
         if (game.selectedPlatformIdx === r.idx) {
@@ -875,7 +999,6 @@ canvas.addEventListener('click', e => {
         return;
       }
     }
-    // Check start button
     if (menuStartRect) {
       const r = menuStartRect;
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
@@ -886,7 +1009,10 @@ canvas.addEventListener('click', e => {
     return;
   }
   if (game.phase === 'gameOver') {
-    if (game.gameOverTimer > 30) startGame();
+    if (game.gameOverTimer > 30) {
+      if (game.level) startGame(null, null, game.level.id);
+      else startGame();
+    }
     return;
   }
   if (game.phase === 'playing' && game.current) {
@@ -923,14 +1049,52 @@ canvas.addEventListener('contextmenu', e => {
 });
 
 // ===== GAME FLOW =====
-function startGame(platformId, modeId) {
-  const pid = platformId || (game ? game.platformId : 'seesaw');
-  const mid = modeId || (game ? game.modeId : 'standard');
-  localStorage.setItem('bb_lastPlatform', pid);
-  localStorage.setItem('bb_lastMode', mid);
-  game = createGame(pid, mid);
+function startGame(platformId, modeId, levelId) {
+  if (levelId !== undefined && levelId !== null) {
+    // Level mode: platform/mode come from level config
+    game = createGame(null, null, levelId);
+    game.menuMode = 'campaign';
+  } else {
+    const pid = platformId || (game ? game.platformId : 'seesaw');
+    const mid = modeId || (game ? game.modeId : 'standard');
+    localStorage.setItem('bb_lastPlatform', pid);
+    localStorage.setItem('bb_lastMode', mid);
+    game = createGame(pid, mid);
+  }
   game.phase = 'playing';
   spawnPiece(game);
+}
+
+// Mark a level as complete; persist to localStorage
+function markLevelComplete(levelId) {
+  let done = [];
+  try { done = JSON.parse(localStorage.getItem('bb_levelsDone') || '[]'); } catch (e) {}
+  if (!done.includes(levelId)) {
+    done.push(levelId);
+    localStorage.setItem('bb_levelsDone', JSON.stringify(done));
+  }
+}
+
+function isLevelComplete(levelId) {
+  try {
+    const done = JSON.parse(localStorage.getItem('bb_levelsDone') || '[]');
+    return done.includes(levelId);
+  } catch (e) { return false; }
+}
+
+// Check if current level's win condition is met. Called after each placement.
+function checkLevelWin(g) {
+  if (!g.level || g.levelComplete || g.phase === 'gameOver') return;
+  const w = g.level.win;
+  let done = false;
+  if (w.type === 'pieces' && g.piecesPlaced >= w.target) done = true;
+  if (w.type === 'score' && g.score >= w.target) done = true;
+  if (done) {
+    g.levelComplete = true;
+    g.phase = 'gameOver'; // reuse the screen path; renderer branches on levelComplete
+    g.gameOverTimer = 0;
+    markLevelComplete(g.level.id);
+  }
 }
 
 function triggerGameOver(g) {
@@ -995,6 +1159,10 @@ function update(g, dt) {
         triggerGameOver(g);
         return;
       }
+
+      // Check level win condition (campaign mode only)
+      checkLevelWin(g);
+      if (g.levelComplete) return;
 
       // Spawn next
       g.phase = 'playing';
@@ -1357,6 +1525,32 @@ function drawNextPieces(g) {
 function drawScore(g) {
   ctx.textAlign = 'left';
 
+  // Level goal banner (top center)
+  if (g.level) {
+    const w = g.level.win;
+    const cur = w.type === 'pieces' ? g.piecesPlaced : g.score;
+    const pct = Math.min(1, cur / w.target);
+    const bw = 280, bh = 28, bx = (CANVAS_W - bw) / 2, by = 12;
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.85)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = '#ffa726';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+    // Progress fill
+    ctx.fillStyle = pct >= 1 ? 'rgba(80,200,80,0.4)' : 'rgba(255,167,38,0.25)';
+    ctx.fillRect(bx + 1, by + 1, (bw - 2) * pct, bh - 2);
+    // Text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('LEVEL ' + g.level.id + ' • ' + g.level.name.toUpperCase(), bx + bw/2, by + 13);
+    ctx.fillStyle = '#ffd';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    const goal = w.type === 'pieces' ? 'Pieces' : 'Score';
+    ctx.fillText(goal + ': ' + cur + ' / ' + w.target, bx + bw/2, by + 25);
+    ctx.textAlign = 'left';
+  }
+
   ctx.fillStyle = '#8888aa';
   ctx.font = '12px "Segoe UI", sans-serif';
   ctx.fillText(g.modeId === 'alchemy' ? 'SCORE' : 'PIECES', 30, 55);
@@ -1418,7 +1612,9 @@ function drawControls(g) {
 // Menu hit-test rects, populated each render
 let menuPlatformRects = [];
 let menuModeRects = [];
+let menuLevelRects = [];
 let menuStartRect = null;
+let menuTopToggleRects = [];
 
 function drawMenu(g) {
   ctx.fillStyle = '#0a0a1a';
@@ -1427,15 +1623,34 @@ function drawMenu(g) {
   // Title
   ctx.textAlign = 'center';
   ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 44px "Segoe UI", sans-serif';
-  ctx.fillText('BALANCE', CANVAS_W / 2, 90);
+  ctx.font = 'bold 38px "Segoe UI", sans-serif';
+  ctx.fillText('BALANCE', CANVAS_W / 2, 70);
   ctx.fillStyle = '#ffa726';
-  ctx.fillText('BLOCKS', CANVAS_W / 2, 138);
+  ctx.fillText('BLOCKS', CANVAS_W / 2, 110);
 
-  // Subtitle
-  ctx.fillStyle = '#8888aa';
-  ctx.font = '14px "Segoe UI", sans-serif';
-  ctx.fillText('Stack pieces without tipping the platform', CANVAS_W / 2, 168);
+  // Top-level toggle: Free Play / Campaign
+  menuTopToggleRects = [];
+  const togW = 130, togH = 28, togGap = 4;
+  const togX = (CANVAS_W - (togW * 2 + togGap)) / 2;
+  const togY = 130;
+  ['free', 'campaign'].forEach((m, i) => {
+    const x = togX + i * (togW + togGap);
+    const sel = g.menuMode === m;
+    menuTopToggleRects.push({ x, y: togY, w: togW, h: togH, mode: m });
+    ctx.fillStyle = sel ? '#00e5ff' : 'rgba(30,30,50,0.6)';
+    ctx.fillRect(x, togY, togW, togH);
+    ctx.strokeStyle = sel ? '#00e5ff' : 'rgba(100,100,140,0.5)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, togY, togW, togH);
+    ctx.fillStyle = sel ? '#0a0a1a' : '#aaaacc';
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    ctx.fillText(m === 'free' ? 'FREE PLAY' : 'CAMPAIGN', x + togW / 2, togY + 18);
+  });
+
+  if (g.menuMode === 'campaign') {
+    drawMenuCampaign(g);
+    return;
+  }
 
   // Mode tabs
   menuModeRects = [];
@@ -1567,6 +1782,115 @@ function drawMenu(g) {
   });
 }
 
+function drawMenuCampaign(g) {
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '13px "Segoe UI", sans-serif';
+  ctx.fillText('Pick a level. Each combines a platform, mode, and goal.', CANVAS_W / 2, 178);
+
+  // Level grid: 5 cols × 2 rows
+  menuLevelRects = [];
+  const cols = 5, rows = 2;
+  const cardW = 130, cardH = 110, gap = 10;
+  const totalW = cardW * cols + gap * (cols - 1);
+  const startX = (CANVAS_W - totalW) / 2;
+  const startY = 200;
+
+  for (let i = 0; i < LEVELS.length; i++) {
+    const lev = LEVELS[i];
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = startX + col * (cardW + gap);
+    const y = startY + row * (cardH + gap);
+    const sel = i === g.selectedLevelIdx;
+    const done = isLevelComplete(lev.id);
+    menuLevelRects.push({ x, y, w: cardW, h: cardH, idx: i, levelId: lev.id });
+
+    // Card bg
+    ctx.fillStyle = sel ? 'rgba(0, 229, 255, 0.14)' : 'rgba(30, 30, 50, 0.6)';
+    ctx.fillRect(x, y, cardW, cardH);
+    ctx.strokeStyle = sel ? '#00e5ff' : (done ? '#5d5' : 'rgba(100, 100, 140, 0.5)');
+    ctx.lineWidth = sel ? 2 : 1;
+    ctx.strokeRect(x, y, cardW, cardH);
+
+    // Level number
+    ctx.fillStyle = '#666688';
+    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('LEVEL ' + lev.id, x + 8, y + 16);
+
+    // Done check
+    if (done) {
+      ctx.fillStyle = '#5d5';
+      ctx.font = 'bold 14px "Segoe UI", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('✓', x + cardW - 8, y + 18);
+    }
+
+    // Difficulty stars
+    ctx.fillStyle = '#888';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    let stars = '';
+    for (let s = 0; s < 5; s++) stars += s < lev.difficulty ? '●' : '○';
+    ctx.fillText(stars, x + cardW - 8, y + 32);
+
+    // Name
+    ctx.fillStyle = sel ? '#fff' : '#ddd';
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(lev.name, x + 8, y + 50);
+
+    // Mode + Platform
+    ctx.fillStyle = '#888';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.fillText(MODES[lev.mode].name + ' / ' + PLATFORMS[lev.platform].name, x + 8, y + 65);
+
+    // Goal
+    ctx.fillStyle = '#aac';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    const goalText = lev.win.type === 'pieces'
+      ? 'Place ' + lev.win.target + ' pieces'
+      : 'Score ' + lev.win.target;
+    ctx.fillText(goalText, x + 8, y + 82);
+
+    // Mini platform icon
+    const iconX = x + cardW / 2;
+    const iconY = y + cardH - 14;
+    ctx.save();
+    drawPlatformIcon(PLATFORMS[lev.platform], iconX, iconY);
+    ctx.restore();
+  }
+
+  // Description of selected level
+  const selLev = LEVELS[g.selectedLevelIdx];
+  ctx.fillStyle = '#cccce0';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  // wrap if long
+  const desc = selLev.description;
+  ctx.fillText(desc, CANVAS_W / 2, startY + rows * (cardH + gap) + 10);
+
+  // PLAY button
+  const btnW = 220, btnH = 40;
+  const btnX = (CANVAS_W - btnW) / 2;
+  const btnY = startY + rows * (cardH + gap) + 25;
+  menuStartRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#ffa726';
+  ctx.fillRect(btnX, btnY, btnW, btnH);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0a0a1a';
+  ctx.font = 'bold 15px "Segoe UI", sans-serif';
+  ctx.fillText('PLAY LEVEL ' + selLev.id, btnX + btnW / 2, btnY + 26);
+
+  // Hint
+  ctx.fillStyle = '#666688';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillText('Click a level or use ← → ↑ ↓ — Enter to play', CANVAS_W / 2, btnY + btnH + 16);
+}
+
 function drawPlatformIcon(p, cx, cy) {
   // Simple iconic representation of each platform type
   ctx.save();
@@ -1605,6 +1929,7 @@ function drawPlatformIcon(p, cx, cy) {
 
 function drawGameOver(g) {
   const isZen = g.modeId === 'zen';
+  const won = g.levelComplete;
 
   // Dim overlay
   const alpha = Math.min(isZen ? 0.85 : 0.7, g.gameOverTimer / 40);
@@ -1614,6 +1939,41 @@ function drawGameOver(g) {
   if (g.gameOverTimer < 20) return;
 
   ctx.textAlign = 'center';
+
+  // Level complete: green-themed celebration
+  if (won) {
+    const popIn = Math.min(1, (g.gameOverTimer - 20) / 25);
+    ctx.fillStyle = `rgba(80, 220, 80, ${popIn})`;
+    ctx.font = 'bold 44px "Segoe UI", sans-serif';
+    ctx.fillText('LEVEL COMPLETE', CANVAS_W / 2, 200);
+    ctx.fillStyle = `rgba(255, 255, 255, ${popIn})`;
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText(g.level.name, CANVAS_W / 2, 240);
+    ctx.fillStyle = `rgba(170, 200, 220, ${popIn})`;
+    ctx.font = '15px "Segoe UI", sans-serif';
+    const w = g.level.win;
+    const text = w.type === 'pieces'
+      ? g.piecesPlaced + ' pieces placed'
+      : 'score: ' + g.score;
+    ctx.fillText(text, CANVAS_W / 2, 270);
+
+    // Find next level
+    const nextLevel = LEVELS.find(L => L.id === g.level.id + 1);
+    if (g.gameOverTimer > 50) {
+      const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#aaaacc';
+      ctx.font = '14px "Segoe UI", sans-serif';
+      if (nextLevel) {
+        ctx.fillText('Enter — next level: ' + nextLevel.name, CANVAS_W / 2, 330);
+      } else {
+        ctx.fillText('Enter to replay', CANVAS_W / 2, 330);
+      }
+      ctx.fillText('Esc to choose level', CANVAS_W / 2, 354);
+      ctx.globalAlpha = 1;
+    }
+    return;
+  }
 
   if (isZen) {
     // Zen game-over: just the score in big serif
