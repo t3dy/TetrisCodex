@@ -51,6 +51,50 @@ function cellContribution(cell, r, c, center) {
   return (c - center) * (cell.weight || 1);
 }
 
+// Alchemical traits: 7 planets matching 7 tetromino types
+const TRAITS = [
+  { id: 0, name: 'Sun',     symbol: '☉', color: '#e8b020', colorLight: '#ffd870', colorDark: '#8e6500' },
+  { id: 1, name: 'Moon',    symbol: '☽', color: '#bfc4d2', colorLight: '#e6e9f0', colorDark: '#6e7280' },
+  { id: 2, name: 'Mercury', symbol: '☿', color: '#7090b8', colorLight: '#a8c0d8', colorDark: '#3e5878' },
+  { id: 3, name: 'Venus',   symbol: '♀', color: '#3da050', colorLight: '#80d090', colorDark: '#1a5028' },
+  { id: 4, name: 'Mars',    symbol: '♂', color: '#d83838', colorLight: '#ff7878', colorDark: '#700404' },
+  { id: 5, name: 'Jupiter', symbol: '♃', color: '#3c70e0', colorLight: '#85a8ff', colorDark: '#0e2c80' },
+  { id: 6, name: 'Saturn',  symbol: '♄', color: '#8848c8', colorLight: '#bb88e0', colorDark: '#3c1668' }
+];
+
+// Flood-fill: find connected groups of cells sharing the same trait.
+// Returns [{trait, cells: [[r,c], ...]}, ...]. Cells without a trait are singletons.
+function findGroups(grid) {
+  const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const groups = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (visited[r][c] || !grid[r][c]) continue;
+      const trait = grid[r][c].trait;
+      if (trait === undefined) {
+        visited[r][c] = true;
+        groups.push({ trait: null, cells: [[r, c]] });
+        continue;
+      }
+      // BFS over same-trait 4-connected cells
+      const cells = [];
+      const stack = [[r, c]];
+      while (stack.length) {
+        const [rr, cc] = stack.pop();
+        if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+        if (visited[rr][cc]) continue;
+        const cell = grid[rr][cc];
+        if (!cell || cell.trait !== trait) continue;
+        visited[rr][cc] = true;
+        cells.push([rr, cc]);
+        stack.push([rr - 1, cc], [rr + 1, cc], [rr, cc - 1], [rr, cc + 1]);
+      }
+      groups.push({ trait, cells });
+    }
+  }
+  return groups;
+}
+
 // ===== PLATFORM TYPES =====
 // Each platform is a config object describing physics + render.
 // Interface:
@@ -346,10 +390,86 @@ const MODES = {
       g.shakeY = (Math.random() - 0.5) * 15 * explosions.length;
       g.flashTimer = Math.max(g.flashTimer, 30);
     }
+  },
+  alchemy: {
+    id: 'alchemy',
+    name: 'Alchemy',
+    description: 'Each cell carries a planetary sign. Same-sign cells fuse into groups. Tilt past 20° and groups slide downhill — over the edge: groups score +size, singletons score -1.',
+    difficulty: 'hard',
+    slideThreshold: Math.PI / 9, // 20°
+    onSpawn(g, piece) {
+      // Assign a random trait to every filled cell of this piece (per-cell, not per-piece)
+      piece.cellInfo = [];
+      for (let r = 0; r < piece.shape.length; r++) {
+        piece.cellInfo[r] = [];
+        for (let c = 0; c < piece.shape[r].length; c++) {
+          if (!piece.shape[r][c]) { piece.cellInfo[r][c] = null; continue; }
+          const t = TRAITS[Math.floor(Math.random() * TRAITS.length)];
+          piece.cellInfo[r][c] = {
+            trait: t.id,
+            color: t.color,
+            colorLight: t.colorLight,
+            colorDark: t.colorDark,
+            symbol: t.symbol
+          };
+        }
+      }
+    },
+    onPiecePlaced(g) {
+      // Compute would-be tilt from the just-placed grid; if past threshold, slide downhill.
+      const phys = computePhysics(g);
+      if (Math.abs(phys.angle) < this.slideThreshold) return;
+      const dir = Math.sign(phys.angle);
+      if (dir === 0) return;
+
+      const groups = findGroups(g.grid);
+      // Slide downhill-most groups first so they vacate space for uphill groups
+      groups.sort((a, b) => {
+        const aEdge = dir > 0
+          ? Math.max.apply(null, a.cells.map(([, c]) => c))
+          : Math.min.apply(null, a.cells.map(([, c]) => c));
+        const bEdge = dir > 0
+          ? Math.max.apply(null, b.cells.map(([, c]) => c))
+          : Math.min.apply(null, b.cells.map(([, c]) => c));
+        return dir > 0 ? bEdge - aEdge : aEdge - bEdge;
+      });
+
+      let scoreDelta = 0;
+      let groupsLost = 0, cellsLost = 0;
+      for (const group of groups) {
+        const newCells = group.cells.map(([r, c]) => [r, c + dir]);
+        const fallsOff = newCells.some(([, c]) => c < 0 || c >= COLS);
+        if (fallsOff) {
+          scoreDelta += group.cells.length >= 2 ? group.cells.length : -1;
+          for (const [rr, cc] of group.cells) g.grid[rr][cc] = null;
+          groupsLost++;
+          cellsLost += group.cells.length;
+          continue;
+        }
+        // Move only if all destination cells are clear (or in this group's own old footprint)
+        const oldKeys = new Set(group.cells.map(([rr, cc]) => rr + ',' + cc));
+        const blocked = newCells.some(([rr, cc]) => g.grid[rr][cc] && !oldKeys.has(rr + ',' + cc));
+        if (blocked) continue;
+        const data = group.cells.map(([rr, cc]) => g.grid[rr][cc]);
+        for (const [rr, cc] of group.cells) g.grid[rr][cc] = null;
+        newCells.forEach(([rr, cc], i) => { g.grid[rr][cc] = data[i]; });
+      }
+
+      if (cellsLost > 0) {
+        g.alchemyBonus = (g.alchemyBonus || 0) + scoreDelta;
+        g.score = g.piecesPlaced + g.alchemyBonus;
+        // Brief notification overlay in the renderer
+        g.alchemyFlash = { delta: scoreDelta, frames: 60 };
+        g.flashTimer = Math.max(g.flashTimer, 20);
+        // Light shake
+        g.shakeX += (Math.random() - 0.5) * 8;
+        g.shakeY += (Math.random() - 0.5) * 4;
+      }
+    }
   }
 };
 
-const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs'];
+const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs', 'alchemy'];
 
 const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
 
@@ -581,6 +701,15 @@ function lockPiece(g, piece, col, row) {
           colorDark: piece.colorDark,
           colorLight: piece.colorLight
         };
+        // Per-cell info from mode (Alchemy: trait-specific color + symbol)
+        if (piece.cellInfo && piece.cellInfo[r] && piece.cellInfo[r][c]) {
+          const ci = piece.cellInfo[r][c];
+          cell.color = ci.color;
+          cell.colorLight = ci.colorLight;
+          cell.colorDark = ci.colorDark;
+          if (ci.symbol !== undefined) cell.symbol = ci.symbol;
+          if (ci.trait !== undefined) cell.trait = ci.trait;
+        }
         // Propagate per-piece flags into the grid cell
         if (piece.balloon) cell.balloon = true;
         if (piece.bomb) { cell.bomb = true; cell.fuse = piece.fuse || 5; }
@@ -897,8 +1026,9 @@ function drawBlock(x, y, size, color, colorLight, colorDark, style) {
   ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
 }
 
-function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, marker) {
-  // marker: { balloon, bomb, fuse } — optional decoration drawn on each filled cell
+function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, marker, cellInfo) {
+  // marker: piece-level {balloon, bomb, fuse}
+  // cellInfo: optional 2D array same shape as `shape`, per-cell {color, colorLight, colorDark, symbol, trait}
   if (alpha !== undefined && alpha < 1) {
     ctx.globalAlpha = alpha;
   }
@@ -906,8 +1036,15 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, mark
     for (let c = 0; c < shape[r].length; c++) {
       if (shape[r][c]) {
         const bx = x + c * CELL, by = y + r * CELL;
-        drawBlock(bx, by, CELL, color, colorLight, colorDark, style);
-        if (marker && style !== 'mono') drawCellMarker(bx, by, marker);
+        const ci = cellInfo && cellInfo[r] && cellInfo[r][c];
+        const col  = ci ? ci.color      : color;
+        const colL = ci ? ci.colorLight : colorLight;
+        const colD = ci ? ci.colorDark  : colorDark;
+        drawBlock(bx, by, CELL, col, colL, colD, style);
+        if (style !== 'mono') {
+          if (ci && ci.symbol) drawCellMarker(bx, by, { symbol: ci.symbol });
+          if (marker) drawCellMarker(bx, by, marker);
+        }
       }
     }
   }
@@ -915,6 +1052,14 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, mark
 }
 
 function drawCellMarker(x, y, marker) {
+  if (marker.symbol) {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = `bold ${Math.floor(CELL * 0.55)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(marker.symbol, x + CELL / 2, y + CELL / 2 + 1);
+    ctx.textBaseline = 'alphabetic';
+  }
   if (marker.balloon) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.lineWidth = 1;
@@ -1008,7 +1153,7 @@ function drawPlatform(g) {
       if (cell) {
         const x = GRID_LEFT + c * CELL, y = GRID_TOP + r * CELL;
         drawBlock(x, y, CELL, cell.color, cell.colorLight, cell.colorDark, blockStyle);
-        if (blockStyle !== 'mono' && (cell.balloon || cell.bomb)) {
+        if (blockStyle !== 'mono' && (cell.balloon || cell.bomb || cell.symbol)) {
           drawCellMarker(x, y, cell);
         }
       }
@@ -1025,7 +1170,7 @@ function drawPlatform(g) {
         GRID_LEFT + cur.col * CELL,
         GRID_TOP + landRow * CELL,
         cur.color, cur.colorLight, cur.colorDark,
-        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle, cur
+        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle, cur, cur.cellInfo
       );
     }
   }
@@ -1038,7 +1183,7 @@ function drawPlatform(g) {
       GRID_LEFT + cur.col * CELL,
       GRID_TOP - CELL * 2.5,
       cur.color, cur.colorLight, cur.colorDark,
-      1, blockStyle, cur
+      1, blockStyle, cur, cur.cellInfo
     );
     // Arrow pointing down (skip in zen)
     if (!suppress.controls) {
@@ -1062,7 +1207,7 @@ function drawPlatform(g) {
       GRID_LEFT + g.dropCol * CELL,
       g.dropY,
       dp.color, dp.colorLight, dp.colorDark,
-      1, blockStyle, dp
+      1, blockStyle, dp, dp.cellInfo
     );
   }
 
@@ -1176,8 +1321,20 @@ function drawNextPieces(g) {
     for (let r = 0; r < p.shape.length; r++) {
       for (let c = 0; c < p.shape[r].length; c++) {
         if (p.shape[r][c]) {
-          drawBlock(ox + c * previewCell, oy + r * previewCell, previewCell,
-            p.color, p.colorLight, p.colorDark);
+          const ci = p.cellInfo && p.cellInfo[r] && p.cellInfo[r][c];
+          const col  = ci ? ci.color      : p.color;
+          const colL = ci ? ci.colorLight : p.colorLight;
+          const colD = ci ? ci.colorDark  : p.colorDark;
+          const px = ox + c * previewCell, py2 = oy + r * previewCell;
+          drawBlock(px, py2, previewCell, col, colL, colD);
+          if (ci && ci.symbol) {
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = 'bold 11px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ci.symbol, px + previewCell/2, py2 + previewCell/2 + 1);
+            ctx.textBaseline = 'alphabetic';
+          }
         }
       }
     }
@@ -1202,19 +1359,41 @@ function drawScore(g) {
 
   ctx.fillStyle = '#8888aa';
   ctx.font = '12px "Segoe UI", sans-serif';
-  ctx.fillText('PIECES', 30, 55);
+  ctx.fillText(g.modeId === 'alchemy' ? 'SCORE' : 'PIECES', 30, 55);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 32px "Segoe UI", sans-serif';
   ctx.fillText(String(g.score), 30, 90);
 
-  ctx.fillStyle = '#666688';
-  ctx.font = '12px "Segoe UI", sans-serif';
-  ctx.fillText('BEST', 30, 120);
+  // Alchemy mode: show bonus separately
+  if (g.modeId === 'alchemy') {
+    const bonus = g.alchemyBonus || 0;
+    ctx.fillStyle = '#888899';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.fillText(g.piecesPlaced + ' pieces', 30, 108);
+    ctx.fillStyle = bonus >= 0 ? '#5d5' : '#f55';
+    ctx.fillText((bonus >= 0 ? '+' : '') + bonus + ' bonus', 30, 122);
+    // Floating notification when a slide just happened
+    if (g.alchemyFlash && g.alchemyFlash.frames > 0) {
+      g.alchemyFlash.frames--;
+      const f = g.alchemyFlash;
+      const fade = Math.min(1, f.frames / 30);
+      ctx.fillStyle = f.delta >= 0 ? `rgba(120,255,120,${fade})` : `rgba(255,120,120,${fade})`;
+      ctx.font = 'bold 22px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      const yOffset = (60 - f.frames) * 0.5;
+      ctx.fillText((f.delta >= 0 ? '+' : '') + f.delta, FULCRUM_X, FULCRUM_Y + 60 - yOffset);
+      ctx.textAlign = 'left';
+    }
+  } else {
+    ctx.fillStyle = '#666688';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.fillText('BEST', 30, 120);
 
-  ctx.fillStyle = '#aaaacc';
-  ctx.font = 'bold 18px "Segoe UI", sans-serif';
-  ctx.fillText(String(g.highScore), 30, 142);
+    ctx.fillStyle = '#aaaacc';
+    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.fillText(String(g.highScore), 30, 142);
+  }
 }
 
 function drawControls(g) {
