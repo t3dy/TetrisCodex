@@ -229,6 +229,51 @@ const PLATFORMS = {
 
 const PLATFORM_ORDER = ['seesaw', 'wideBase', 'narrowPole', 'twoFulcrum'];
 
+// ===== MODES =====
+// A Mode is a bundle of optional hooks. Default 'standard' is no-ops.
+// Hooks (all optional):
+//   onPiecePlaced(g, lockedCells)  - post-placement (settle effects)
+//   onTorqueAdjust(g, baseTorque)  - modify torque before tilt calc
+//   onUpdate(g, dt)                - per-frame update
+//   onSpawn(g, piece)              - decorate piece on spawn
+//   suppressUI: { score, tilt, next, controls } - hide HUD elements
+//   theme: { bg, fg, blockStyle }  - visual overrides
+//   getScore(g)                    - custom scoring (default = piecesPlaced)
+
+const MODES = {
+  standard: {
+    id: 'standard',
+    name: 'Standard',
+    description: 'Pure balance survival. Stack pieces without tipping.',
+    difficulty: 'normal'
+  },
+  zen: {
+    id: 'zen',
+    name: 'Zen',
+    description: 'Stripped-down meditation mode. No HUD. Score appears only at game-over.',
+    difficulty: 'normal',
+    suppressUI: { score: true, tilt: true, next: true, controls: true, fulcrumTriangle: true },
+    theme: {
+      bg: '#000',
+      grid: false,           // no grid lines
+      beamColor: '#222',
+      beamHeight: 2,         // thin line beam
+      blockStyle: 'mono',    // single accent color
+      fulcrumDot: true       // small dot instead of triangle
+    },
+    onSpawn(g, piece) {
+      // In zen, override the piece color to the session accent
+      piece.color = g.zenAccent;
+      piece.colorLight = '#fff';
+      piece.colorDark = g.zenAccent;
+    }
+  }
+};
+
+const MODE_ORDER = ['standard', 'zen'];
+
+const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
+
 // ===== PIECE DEFINITIONS =====
 const PIECE_TYPES = ['I','O','T','S','Z','J','L'];
 
@@ -316,19 +361,23 @@ function screenToGridCol(mx, my, angle) {
 // ===== GAME STATE =====
 let game = null;
 
-function createGame(platformId) {
+function createGame(platformId, modeId) {
   const pid = platformId || 'seesaw';
+  const mid = modeId || 'standard';
   return {
     phase: 'menu', // menu | playing | dropping | gameOver
     platform: PLATFORMS[pid],
     platformId: pid,
+    mode: MODES[mid],
+    modeId: mid,
     selectedPlatformIdx: PLATFORM_ORDER.indexOf(pid),
+    selectedModeIdx: MODE_ORDER.indexOf(mid),
     grid: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
     bag: [],
     current: null,    // { type, shape, color, colorDark, colorLight, col }
     next: [],         // array of 3 upcoming pieces
     score: 0,
-    highScore: parseInt(localStorage.getItem('bb_highscore_' + pid) || '0'),
+    highScore: parseInt(localStorage.getItem('bb_highscore_' + pid + '_' + mid) || '0'),
     tiltAngle: 0,
     targetTilt: 0,
     lastTorqueData: { torque: 0 },
@@ -343,7 +392,8 @@ function createGame(platformId) {
     flashTimer: 0,
     gameOverTimer: 0,
     shakeX: 0,
-    shakeY: 0
+    shakeY: 0,
+    zenAccent: ZEN_ACCENTS[Math.floor(Math.random() * ZEN_ACCENTS.length)]
   };
 }
 
@@ -376,6 +426,8 @@ function spawnPiece(g) {
   fillQueue(g);
   g.current = g.next.shift();
   fillQueue(g);
+  // Mode hook: decorate the piece (e.g. Zen recolors)
+  if (g.mode.onSpawn) g.mode.onSpawn(g, g.current);
   // If can't place at all at start position, adjust
   if (collides(g.grid, g.current.shape, g.current.col, 0)) {
     // Try to shift
@@ -479,8 +531,10 @@ document.addEventListener('keydown', e => {
       game.selectedPlatformIdx = (game.selectedPlatformIdx - 1 + PLATFORM_ORDER.length) % PLATFORM_ORDER.length;
     } else if (e.code === 'ArrowRight') {
       game.selectedPlatformIdx = (game.selectedPlatformIdx + 1) % PLATFORM_ORDER.length;
+    } else if (e.code === 'Tab' || e.code === 'KeyM') {
+      game.selectedModeIdx = (game.selectedModeIdx + 1) % MODE_ORDER.length;
     } else if (e.code === 'Enter' || e.code === 'Space') {
-      startGame(PLATFORM_ORDER[game.selectedPlatformIdx]);
+      startGame(PLATFORM_ORDER[game.selectedPlatformIdx], MODE_ORDER[game.selectedModeIdx]);
     }
     e.preventDefault();
     return;
@@ -581,11 +635,18 @@ function getCanvasMouse(e) {
 canvas.addEventListener('click', e => {
   if (game.phase === 'menu') {
     const m = getCanvasMouse(e);
+    // Check mode tabs first
+    for (const r of menuModeRects) {
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        game.selectedModeIdx = r.idx;
+        return;
+      }
+    }
     // Check platform cards
     for (const r of menuPlatformRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
         if (game.selectedPlatformIdx === r.idx) {
-          startGame(r.pid);
+          startGame(r.pid, MODE_ORDER[game.selectedModeIdx]);
         } else {
           game.selectedPlatformIdx = r.idx;
         }
@@ -596,7 +657,7 @@ canvas.addEventListener('click', e => {
     if (menuStartRect) {
       const r = menuStartRect;
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
-        startGame(PLATFORM_ORDER[game.selectedPlatformIdx]);
+        startGame(PLATFORM_ORDER[game.selectedPlatformIdx], MODE_ORDER[game.selectedModeIdx]);
         return;
       }
     }
@@ -640,10 +701,12 @@ canvas.addEventListener('contextmenu', e => {
 });
 
 // ===== GAME FLOW =====
-function startGame(platformId) {
+function startGame(platformId, modeId) {
   const pid = platformId || (game ? game.platformId : 'seesaw');
+  const mid = modeId || (game ? game.modeId : 'standard');
   localStorage.setItem('bb_lastPlatform', pid);
-  game = createGame(pid);
+  localStorage.setItem('bb_lastMode', mid);
+  game = createGame(pid, mid);
   game.phase = 'playing';
   spawnPiece(game);
 }
@@ -653,7 +716,7 @@ function triggerGameOver(g) {
   g.gameOverTimer = 0;
   if (g.score > g.highScore) {
     g.highScore = g.score;
-    localStorage.setItem('bb_highscore_' + g.platformId, String(g.highScore));
+    localStorage.setItem('bb_highscore_' + g.platformId + '_' + g.modeId, String(g.highScore));
   }
 }
 
@@ -720,7 +783,13 @@ function update(g, dt) {
 }
 
 // ===== RENDERING =====
-function drawBlock(x, y, size, color, colorLight, colorDark) {
+function drawBlock(x, y, size, color, colorLight, colorDark, style) {
+  if (style === 'mono') {
+    // Flat block, slight inset, no bevel
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+    return;
+  }
   ctx.fillStyle = color;
   ctx.fillRect(x, y, size, size);
   // Bevel
@@ -735,14 +804,14 @@ function drawBlock(x, y, size, color, colorLight, colorDark) {
   ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
 }
 
-function drawShape(shape, x, y, color, colorLight, colorDark, alpha) {
+function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style) {
   if (alpha !== undefined && alpha < 1) {
     ctx.globalAlpha = alpha;
   }
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
       if (shape[r][c]) {
-        drawBlock(x + c * CELL, y + r * CELL, CELL, color, colorLight, colorDark);
+        drawBlock(x + c * CELL, y + r * CELL, CELL, color, colorLight, colorDark, style);
       }
     }
   }
@@ -750,8 +819,18 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha) {
 }
 
 function drawPlatform(g) {
+  const theme = g.mode.theme || {};
+  const suppress = g.mode.suppressUI || {};
+
   // Support (fulcrum/base/pole) — drawn in screen space, doesn't rotate
-  g.platform.renderSupport(ctx);
+  if (theme.fulcrumDot) {
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(FULCRUM_X, FULCRUM_Y + 4, 3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (!suppress.fulcrumTriangle) {
+    g.platform.renderSupport(ctx);
+  }
 
   // Rotated group: platform beam + grid + pieces
   ctx.save();
@@ -759,40 +838,48 @@ function drawPlatform(g) {
   ctx.rotate(g.tiltAngle);
   ctx.translate(-FULCRUM_X, -FULCRUM_Y);
 
-  // Platform beam
+  // Platform beam (thin in zen)
   const beamPad = 12;
-  ctx.fillStyle = '#3a3a5a';
-  ctx.fillRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
-  ctx.strokeStyle = '#5a5a7a';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
-
-  // Grid background
-  ctx.fillStyle = 'rgba(20, 20, 40, 0.6)';
-  ctx.fillRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(100, 100, 140, 0.15)';
-  ctx.lineWidth = 1;
-  for (let c = 0; c <= COLS; c++) {
-    const x = GRID_LEFT + c * CELL;
-    ctx.beginPath();
-    ctx.moveTo(x, GRID_TOP);
-    ctx.lineTo(x, PLATFORM_Y);
-    ctx.stroke();
-  }
-  for (let r = 0; r <= ROWS; r++) {
-    const y = GRID_TOP + r * CELL;
-    ctx.beginPath();
-    ctx.moveTo(GRID_LEFT, y);
-    ctx.lineTo(GRID_LEFT + GRID_W, y);
-    ctx.stroke();
+  if (theme.beamHeight) {
+    ctx.fillStyle = theme.beamColor || '#222';
+    ctx.fillRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, theme.beamHeight);
+  } else {
+    ctx.fillStyle = '#3a3a5a';
+    ctx.fillRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
+    ctx.strokeStyle = '#5a5a7a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(GRID_LEFT - beamPad, PLATFORM_Y, GRID_W + beamPad * 2, 16);
   }
 
-  // Grid border
-  ctx.strokeStyle = 'rgba(100, 100, 160, 0.4)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
+  // Grid background + lines (skipped if theme.grid === false)
+  if (theme.grid !== false) {
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.6)';
+    ctx.fillRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
+
+    ctx.strokeStyle = 'rgba(100, 100, 140, 0.15)';
+    ctx.lineWidth = 1;
+    for (let c = 0; c <= COLS; c++) {
+      const x = GRID_LEFT + c * CELL;
+      ctx.beginPath();
+      ctx.moveTo(x, GRID_TOP);
+      ctx.lineTo(x, PLATFORM_Y);
+      ctx.stroke();
+    }
+    for (let r = 0; r <= ROWS; r++) {
+      const y = GRID_TOP + r * CELL;
+      ctx.beginPath();
+      ctx.moveTo(GRID_LEFT, y);
+      ctx.lineTo(GRID_LEFT + GRID_W, y);
+      ctx.stroke();
+    }
+
+    // Grid border
+    ctx.strokeStyle = 'rgba(100, 100, 160, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(GRID_LEFT, GRID_TOP, GRID_W, GRID_H);
+  }
+
+  const blockStyle = theme.blockStyle;
 
   // Placed pieces
   for (let r = 0; r < ROWS; r++) {
@@ -801,7 +888,7 @@ function drawPlatform(g) {
       if (cell) {
         drawBlock(
           GRID_LEFT + c * CELL, GRID_TOP + r * CELL, CELL,
-          cell.color, cell.colorLight, cell.colorDark
+          cell.color, cell.colorLight, cell.colorDark, blockStyle
         );
       }
     }
@@ -817,7 +904,7 @@ function drawPlatform(g) {
         GRID_LEFT + cur.col * CELL,
         GRID_TOP + landRow * CELL,
         cur.color, cur.colorLight, cur.colorDark,
-        0.25
+        blockStyle === 'mono' ? 0.12 : 0.25, blockStyle
       );
     }
   }
@@ -830,18 +917,20 @@ function drawPlatform(g) {
       GRID_LEFT + cur.col * CELL,
       GRID_TOP - CELL * 2.5,
       cur.color, cur.colorLight, cur.colorDark,
-      1
+      1, blockStyle
     );
-    // Arrow pointing down
-    const arrowX = GRID_LEFT + cur.col * CELL + (cur.shape[0].length * CELL) / 2;
-    const arrowY = GRID_TOP - CELL * 0.3;
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.moveTo(arrowX - 6, arrowY - 10);
-    ctx.lineTo(arrowX + 6, arrowY - 10);
-    ctx.lineTo(arrowX, arrowY);
-    ctx.closePath();
-    ctx.fill();
+    // Arrow pointing down (skip in zen)
+    if (!suppress.controls) {
+      const arrowX = GRID_LEFT + cur.col * CELL + (cur.shape[0].length * CELL) / 2;
+      const arrowY = GRID_TOP - CELL * 0.3;
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.moveTo(arrowX - 6, arrowY - 10);
+      ctx.lineTo(arrowX + 6, arrowY - 10);
+      ctx.lineTo(arrowX, arrowY);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   // Dropping piece animation
@@ -852,7 +941,7 @@ function drawPlatform(g) {
       GRID_LEFT + g.dropCol * CELL,
       g.dropY,
       dp.color, dp.colorLight, dp.colorDark,
-      1
+      1, blockStyle
     );
   }
 
@@ -1015,6 +1104,7 @@ function drawControls(g) {
 
 // Menu hit-test rects, populated each render
 let menuPlatformRects = [];
+let menuModeRects = [];
 let menuStartRect = null;
 
 function drawMenu(g) {
@@ -1034,10 +1124,41 @@ function drawMenu(g) {
   ctx.font = '14px "Segoe UI", sans-serif';
   ctx.fillText('Stack pieces without tipping the platform', CANVAS_W / 2, 168);
 
+  // Mode tabs
+  menuModeRects = [];
+  const modeTabH = 24;
+  const modeTabGap = 6;
+  ctx.font = 'bold 11px "Segoe UI", sans-serif';
+  // Measure tabs
+  const tabWidths = MODE_ORDER.map(mid => ctx.measureText(MODES[mid].name.toUpperCase()).width + 22);
+  const totalTabsW = tabWidths.reduce((a,b) => a+b, 0) + modeTabGap * (MODE_ORDER.length - 1);
+  let tabX = (CANVAS_W - totalTabsW) / 2;
+  const tabY = 184;
+  ctx.fillStyle = '#666688';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('MODE', tabX - 8, tabY + modeTabH/2 + 4);
+  ctx.textAlign = 'center';
+  MODE_ORDER.forEach((mid, i) => {
+    const m = MODES[mid];
+    const w = tabWidths[i];
+    const selected = i === g.selectedModeIdx;
+    menuModeRects.push({ x: tabX, y: tabY, w, h: modeTabH, idx: i, mid });
+    ctx.fillStyle = selected ? 'rgba(255, 167, 38, 0.18)' : 'rgba(30, 30, 50, 0.6)';
+    ctx.fillRect(tabX, tabY, w, modeTabH);
+    ctx.strokeStyle = selected ? '#ffa726' : 'rgba(100, 100, 140, 0.4)';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(tabX, tabY, w, modeTabH);
+    ctx.fillStyle = selected ? '#ffa726' : '#aaaacc';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.fillText(m.name.toUpperCase(), tabX + w/2, tabY + 16);
+    tabX += w + modeTabGap;
+  });
+
   // Platform selection
   ctx.fillStyle = '#aaaacc';
   ctx.font = 'bold 14px "Segoe UI", sans-serif';
-  ctx.fillText('CHOOSE A PLATFORM', CANVAS_W / 2, 210);
+  ctx.fillText('CHOOSE A PLATFORM', CANVAS_W / 2, 222);
 
   menuPlatformRects = [];
   const cardW = 150, cardH = 130, gap = 16;
@@ -1076,8 +1197,9 @@ function drawMenu(g) {
     ctx.font = '10px "Segoe UI", sans-serif';
     ctx.fillText(p.difficulty.toUpperCase(), x + cardW / 2, cardY + 95);
 
-    // High score per platform
-    const hs = parseInt(localStorage.getItem('bb_highscore_' + pid) || '0');
+    // High score per platform+mode
+    const selMode = MODE_ORDER[g.selectedModeIdx];
+    const hs = parseInt(localStorage.getItem('bb_highscore_' + pid + '_' + selMode) || '0');
     if (hs > 0) {
       ctx.fillStyle = '#888899';
       ctx.font = '10px "Segoe UI", sans-serif';
@@ -1108,7 +1230,7 @@ function drawMenu(g) {
   // Controls hint
   ctx.fillStyle = '#666688';
   ctx.font = '11px "Segoe UI", sans-serif';
-  ctx.fillText('Click a platform or use ← → to select — Enter or click START to play',
+  ctx.fillText('← → choose platform · Tab cycle mode · Enter or START to play',
     CANVAS_W / 2, 478);
 
   // Mini piece display
@@ -1169,14 +1291,30 @@ function drawPlatformIcon(p, cx, cy) {
 }
 
 function drawGameOver(g) {
+  const isZen = g.modeId === 'zen';
+
   // Dim overlay
-  const alpha = Math.min(0.7, g.gameOverTimer / 40);
-  ctx.fillStyle = `rgba(10, 10, 26, ${alpha})`;
+  const alpha = Math.min(isZen ? 0.85 : 0.7, g.gameOverTimer / 40);
+  ctx.fillStyle = isZen ? `rgba(0, 0, 0, ${alpha})` : `rgba(10, 10, 26, ${alpha})`;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   if (g.gameOverTimer < 20) return;
 
   ctx.textAlign = 'center';
+
+  if (isZen) {
+    // Zen game-over: just the score in big serif
+    const popIn = Math.min(1, (g.gameOverTimer - 20) / 25);
+    ctx.fillStyle = `rgba(255,255,255,${popIn})`;
+    ctx.font = `${100 + popIn * 18}px ui-serif, Georgia, serif`;
+    ctx.fillText(g.score, CANVAS_W / 2, CANVAS_H / 2 + 40);
+    if (g.gameOverTimer > 80) {
+      ctx.fillStyle = '#444';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('R     /     ESC', CANVAS_W / 2, CANVAS_H / 2 + 100);
+    }
+    return;
+  }
 
   // Game over text
   ctx.fillStyle = '#ef5350';
@@ -1221,8 +1359,11 @@ function drawFlash(g) {
 }
 
 function render(g) {
+  const theme = g.mode.theme || {};
+  const suppress = g.mode.suppressUI || {};
+
   // Clear
-  ctx.fillStyle = '#0a0a1a';
+  ctx.fillStyle = theme.bg || '#0a0a1a';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   if (g.phase === 'menu') {
@@ -1230,31 +1371,33 @@ function render(g) {
     return;
   }
 
-  // Background grid pattern
-  ctx.strokeStyle = 'rgba(40, 40, 60, 0.5)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < CANVAS_W; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
-  }
-  for (let y = 0; y < CANVAS_H; y += 40) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
-  }
+  // Background grid pattern (skip in zen)
+  if (!theme.bg) {
+    ctx.strokeStyle = 'rgba(40, 40, 60, 0.5)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < CANVAS_W; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
+    }
+    for (let y = 0; y < CANVAS_H; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
+    }
 
-  // Ground line
-  ctx.fillStyle = '#1a1a3a';
-  ctx.fillRect(0, FULCRUM_Y + 28, CANVAS_W, CANVAS_H - FULCRUM_Y - 28);
-  ctx.strokeStyle = '#3a3a5a';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, FULCRUM_Y + 28);
-  ctx.lineTo(CANVAS_W, FULCRUM_Y + 28);
-  ctx.stroke();
+    // Ground line
+    ctx.fillStyle = '#1a1a3a';
+    ctx.fillRect(0, FULCRUM_Y + 28, CANVAS_W, CANVAS_H - FULCRUM_Y - 28);
+    ctx.strokeStyle = '#3a3a5a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, FULCRUM_Y + 28);
+    ctx.lineTo(CANVAS_W, FULCRUM_Y + 28);
+    ctx.stroke();
+  }
 
   drawPlatform(g);
-  drawTiltMeter(g);
-  drawNextPieces(g);
-  drawScore(g);
-  drawControls(g);
+  if (!suppress.tilt)     drawTiltMeter(g);
+  if (!suppress.next)     drawNextPieces(g);
+  if (!suppress.score)    drawScore(g);
+  if (!suppress.controls) drawControls(g);
   drawFlash(g);
 
   if (g.phase === 'gameOver') {
@@ -1263,7 +1406,10 @@ function render(g) {
 }
 
 // ===== GAME LOOP =====
-game = createGame(localStorage.getItem('bb_lastPlatform') || 'seesaw');
+game = createGame(
+  localStorage.getItem('bb_lastPlatform') || 'seesaw',
+  localStorage.getItem('bb_lastMode') || 'standard'
+);
 let lastTime = 0;
 
 function loop(timestamp) {
