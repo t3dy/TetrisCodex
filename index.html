@@ -64,6 +64,39 @@ const TRAITS = [
 
 // Flood-fill: find connected groups of cells sharing the same trait.
 // Returns [{trait, cells: [[r,c], ...]}, ...]. Cells without a trait are singletons.
+// Parse a human-readable starting grid (array of 10 strings, 10 chars each).
+// Each char is a piece letter (I/O/T/S/Z/J/L), space/. for empty.
+// Special chars: 'b' = bomb cell (fuse 5), '@' = balloon cell.
+// Returns a fresh 10×10 grid.
+function parseStartGrid(rows) {
+  const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  for (let r = 0; r < Math.min(rows.length, ROWS); r++) {
+    const row = rows[r];
+    for (let c = 0; c < Math.min(row.length, COLS); c++) {
+      const ch = row[c];
+      if (ch === ' ' || ch === '.') continue;
+      let cell = null;
+      if (ch === 'b') {
+        cell = { color: '#e22', colorLight: '#f88', colorDark: '#900', bomb: true, fuse: 5 };
+      } else if (ch === '@') {
+        cell = { color: '#9df', colorLight: '#cef', colorDark: '#5ab', balloon: true };
+      } else {
+        const letter = ch.toUpperCase();
+        if (PIECE_COLORS[letter]) {
+          cell = {
+            color: PIECE_COLORS[letter],
+            colorLight: PIECE_COLORS_LIGHT[letter],
+            colorDark: PIECE_COLORS_DARK[letter]
+          };
+        }
+      }
+      if (!cell) continue;
+      grid[r][c] = cell;
+    }
+  }
+  return grid;
+}
+
 function findGroups(grid) {
   const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
   const groups = [];
@@ -523,7 +556,93 @@ const LEVELS = [
   { id: 10, name: 'The Crucible', platform: 'twoFulcrum', mode: 'alchemy',
     win: { type: 'score', target: 22 },
     description: 'Master alchemy on a two-fulcrum bridge. Score 22.',
-    difficulty: 5 }
+    difficulty: 5 },
+
+  // ===== Puzzle levels (pre-built starting towers) =====
+  { id: 11, name: 'Foundation', platform: 'wideBase', mode: 'standard',
+    win: { type: 'pieces', target: 6 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '   OO     ',
+      '   OO     ',
+      '   IIII   '
+    ],
+    description: 'A small tower is already built. Add 6 more pieces without tipping.',
+    difficulty: 1 },
+
+  { id: 12, name: 'Lopsided', platform: 'seesaw', mode: 'standard',
+    win: { type: 'pieces', target: 6 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '       L  ',
+      '      LLL ',
+      '      LL  ',
+      '      LLL '
+    ],
+    description: 'Already at 40° tilt. Counterweight to the left or you fall right.',
+    difficulty: 4 },
+
+  { id: 13, name: 'Two Pillars', platform: 'twoFulcrum', mode: 'standard',
+    win: { type: 'pieces', target: 8 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      ' J      L ',
+      ' JJ    LL ',
+      ' JJ    LL ',
+      ' JJ    LL ',
+      ' II    II '
+    ],
+    description: 'Two pillars sit balanced on the bridge. Add 8 more pieces — beware overhangs.',
+    difficulty: 3 },
+
+  { id: 14, name: 'Top Heavy', platform: 'narrowPole', mode: 'standard',
+    win: { type: 'pieces', target: 5 },
+    startGrid: [
+      '          ',
+      '          ',
+      '    OO    ',
+      '    OO    ',
+      '   OO     ',
+      '   OO     ',
+      '    TT    ',
+      '    TT    ',
+      '    OO    ',
+      '   IIII   '
+    ],
+    description: 'A precarious 8-row tower already exists on the pole. Add 5 pieces.',
+    difficulty: 5 },
+
+  { id: 15, name: 'Salvage Operation', platform: 'seesaw', mode: 'balloons',
+    win: { type: 'pieces', target: 8 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '@@        ',
+      'SSSS      ',
+      'SSSS      ',
+      'IIII      '
+    ],
+    description: 'Heavy left, two balloons holding it up. Use more balloons to recover. 8 pieces.',
+    difficulty: 4 }
 ];
 
 const ZEN_ACCENTS = ['#fff', '#e8d6b3', '#b3d6e8', '#d6b3e8', '#b3e8c4', '#e8b3b3'];
@@ -624,6 +743,13 @@ function createGame(platformId, modeId, levelId) {
     level = LEVELS.find(l => l.id === levelId);
     if (level) { pid = level.platform; mid = level.mode; }
   }
+  const startGrid = level && level.startGrid
+    ? parseStartGrid(level.startGrid)
+    : Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  // Compute initial torque/tilt from the starting grid
+  // (use a temp game stub since cellContribution checks game.mode)
+  let initialTorque = 0, initialAngle = 0;
+  // We'll set this properly after the game object is created (mode hooks reference it)
   return {
     phase: 'menu', // menu | playing | dropping | gameOver
     menuMode: 'free', // 'free' | 'campaign'
@@ -636,7 +762,7 @@ function createGame(platformId, modeId, levelId) {
     selectedPlatformIdx: PLATFORM_ORDER.indexOf(pid),
     selectedModeIdx: MODE_ORDER.indexOf(mid),
     selectedLevelIdx: level ? LEVELS.findIndex(l => l.id === level.id) : 0,
-    grid: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
+    grid: startGrid,
     bag: [],
     current: null,    // { type, shape, color, colorDark, colorLight, col }
     next: [],         // array of 3 upcoming pieces
@@ -818,15 +944,16 @@ document.addEventListener('keydown', e => {
       // Toggle campaign/free
       game.menuMode = game.menuMode === 'campaign' ? 'free' : 'campaign';
     } else if (game.menuMode === 'campaign') {
-      // Level grid navigation: 5 cols x 2 rows
+      // Level grid navigation: 5 cols × 3 rows (15 levels)
+      const COLS_GRID = 5;
       if (e.code === 'ArrowLeft') {
         game.selectedLevelIdx = (game.selectedLevelIdx - 1 + LEVELS.length) % LEVELS.length;
       } else if (e.code === 'ArrowRight') {
         game.selectedLevelIdx = (game.selectedLevelIdx + 1) % LEVELS.length;
       } else if (e.code === 'ArrowDown') {
-        game.selectedLevelIdx = (game.selectedLevelIdx + 5) % LEVELS.length;
+        game.selectedLevelIdx = (game.selectedLevelIdx + COLS_GRID) % LEVELS.length;
       } else if (e.code === 'ArrowUp') {
-        game.selectedLevelIdx = (game.selectedLevelIdx - 5 + LEVELS.length) % LEVELS.length;
+        game.selectedLevelIdx = (game.selectedLevelIdx - COLS_GRID + LEVELS.length) % LEVELS.length;
       } else if (e.code === 'Enter' || e.code === 'Space') {
         startGame(null, null, LEVELS[game.selectedLevelIdx].id);
       }
@@ -1061,6 +1188,11 @@ function startGame(platformId, modeId, levelId) {
     localStorage.setItem('bb_lastMode', mid);
     game = createGame(pid, mid);
   }
+  // Compute initial physics from starting grid (so pre-built levels start at the right tilt)
+  const phys = computePhysics(game);
+  game.targetTilt = phys.angle;
+  game.tiltAngle = phys.angle;
+  game.lastTorqueData = phys.torqueData;
   game.phase = 'playing';
   spawnPiece(game);
 }
@@ -1789,13 +1921,14 @@ function drawMenuCampaign(g) {
   ctx.font = '13px "Segoe UI", sans-serif';
   ctx.fillText('Pick a level. Each combines a platform, mode, and goal.', CANVAS_W / 2, 178);
 
-  // Level grid: 5 cols × 2 rows
+  // Level grid: 5 cols × 3 rows (15 levels)
   menuLevelRects = [];
-  const cols = 5, rows = 2;
-  const cardW = 130, cardH = 110, gap = 10;
+  const cols = 5;
+  const cardW = 130, cardH = 88, gap = 8;
+  const rows = Math.ceil(LEVELS.length / cols);
   const totalW = cardW * cols + gap * (cols - 1);
   const startX = (CANVAS_W - totalW) / 2;
-  const startY = 200;
+  const startY = 192;
 
   for (let i = 0; i < LEVELS.length; i++) {
     const lev = LEVELS[i];
@@ -1804,6 +1937,7 @@ function drawMenuCampaign(g) {
     const y = startY + row * (cardH + gap);
     const sel = i === g.selectedLevelIdx;
     const done = isLevelComplete(lev.id);
+    const isPuzzle = !!lev.startGrid;
     menuLevelRects.push({ x, y, w: cardW, h: cardH, idx: i, levelId: lev.id });
 
     // Card bg
@@ -1813,53 +1947,57 @@ function drawMenuCampaign(g) {
     ctx.lineWidth = sel ? 2 : 1;
     ctx.strokeRect(x, y, cardW, cardH);
 
-    // Level number
+    // Top row: level number (left) + stars (right) + check
     ctx.fillStyle = '#666688';
-    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+    ctx.font = 'bold 9px "Segoe UI", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('LEVEL ' + lev.id, x + 8, y + 16);
+    ctx.fillText('LV ' + lev.id + (isPuzzle ? ' • PUZZLE' : ''), x + 6, y + 14);
 
-    // Done check
     if (done) {
       ctx.fillStyle = '#5d5';
-      ctx.font = 'bold 14px "Segoe UI", sans-serif';
+      ctx.font = 'bold 12px "Segoe UI", sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText('✓', x + cardW - 8, y + 18);
+      ctx.fillText('✓', x + cardW - 6, y + 14);
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.font = '9px "Segoe UI", sans-serif';
+      ctx.textAlign = 'right';
+      let stars = '';
+      for (let s = 0; s < 5; s++) stars += s < lev.difficulty ? '●' : '○';
+      ctx.fillText(stars, x + cardW - 6, y + 14);
     }
-
-    // Difficulty stars
-    ctx.fillStyle = '#888';
-    ctx.font = '11px "Segoe UI", sans-serif';
-    ctx.textAlign = 'right';
-    let stars = '';
-    for (let s = 0; s < 5; s++) stars += s < lev.difficulty ? '●' : '○';
-    ctx.fillText(stars, x + cardW - 8, y + 32);
 
     // Name
     ctx.fillStyle = sel ? '#fff' : '#ddd';
-    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(lev.name, x + 8, y + 50);
+    ctx.fillText(lev.name, x + 6, y + 30);
 
-    // Mode + Platform
+    // Mode (with platform icon)
     ctx.fillStyle = '#888';
     ctx.font = '10px "Segoe UI", sans-serif';
-    ctx.fillText(MODES[lev.mode].name + ' / ' + PLATFORMS[lev.platform].name, x + 8, y + 65);
+    ctx.fillText(MODES[lev.mode].name, x + 6, y + 45);
 
     // Goal
     ctx.fillStyle = '#aac';
     ctx.font = '10px "Segoe UI", sans-serif';
     const goalText = lev.win.type === 'pieces'
-      ? 'Place ' + lev.win.target + ' pieces'
-      : 'Score ' + lev.win.target;
-    ctx.fillText(goalText, x + 8, y + 82);
+      ? lev.win.target + ' pcs'
+      : 'score ' + lev.win.target;
+    ctx.fillText(goalText, x + 6, y + 60);
 
-    // Mini platform icon
-    const iconX = x + cardW / 2;
-    const iconY = y + cardH - 14;
+    // Mini platform icon (right side, vertically centered in lower area)
     ctx.save();
-    drawPlatformIcon(PLATFORMS[lev.platform], iconX, iconY);
+    drawPlatformIcon(PLATFORMS[lev.platform], x + cardW - 28, y + 56);
     ctx.restore();
+
+    // Puzzle marker at bottom right
+    if (isPuzzle) {
+      ctx.fillStyle = '#ffa726';
+      ctx.font = 'bold 9px "Segoe UI", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('▦', x + cardW - 6, y + cardH - 6);
+    }
   }
 
   // Description of selected level
