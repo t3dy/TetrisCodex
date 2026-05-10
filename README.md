@@ -26,7 +26,9 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 - [`MECHANICS_CATALOG.md`](./MECHANICS_CATALOG.md) — Long-form catalog of every mechanic with player-challenge analysis and implementation notes
 - [`TESTING.md`](./TESTING.md) — How to test the game, prototypes, and reset progression
 - [`CHALLENGES.md`](./CHALLENGES.md) — Roadmap for platform contours, hot-seat 2P, challenge cards, more modes
-- [`ALCHEMY_LORE.md`](./ALCHEMY_LORE.md) — Full Alchemy mode vision: 15+ item catalog, cascading effects, tutorial/cutscene framework
+- [`ALCHEMY_LORE.md`](./ALCHEMY_LORE.md) — Full Alchemy mode vision: tunable rules, item registry, tutorial/cutscene framework
+- [`ALCHEMY_ITEMS_40.md`](./ALCHEMY_ITEMS_40.md) — **40 emoji block properties sourced from real alchemical scholarship** (Valentine's Twelve Keys, Atalanta Fugiens, De Jong, Tilton, Principe) with cascading interaction matrix
+- [`ALCHEMY_LAB.md`](./ALCHEMY_LAB.md) — Lab Mode design: configurable alchemy lab as starting platform, player-chosen pieces, pinball cascade reactions; tilting and non-tilting variants
 
 ## Prototypes
 
