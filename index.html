@@ -997,6 +997,13 @@ document.addEventListener('keydown', e => {
 
   if (game.phase !== 'playing' || !game.current) return;
 
+  // Help overlay toggle
+  if (e.code === 'KeyH' || e.code === 'Slash') {
+    game.showHelp = !game.showHelp;
+    e.preventDefault();
+    return;
+  }
+
   const cur = game.current;
   switch (e.code) {
     case 'ArrowLeft':
@@ -1088,14 +1095,11 @@ canvas.addEventListener('click', e => {
       }
     }
     if (game.menuMode === 'campaign') {
-      // Level cards
+      // Level cards: single click starts the level
       for (const r of menuLevelRects) {
         if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
-          if (game.selectedLevelIdx === r.idx) {
-            startGame(null, null, r.levelId);
-          } else {
-            game.selectedLevelIdx = r.idx;
-          }
+          game.selectedLevelIdx = r.idx;
+          startGame(null, null, r.levelId);
           return;
         }
       }
@@ -1118,11 +1122,9 @@ canvas.addEventListener('click', e => {
     }
     for (const r of menuPlatformRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
-        if (game.selectedPlatformIdx === r.idx) {
-          startGame(r.pid, MODE_ORDER[game.selectedModeIdx]);
-        } else {
-          game.selectedPlatformIdx = r.idx;
-        }
+        // Single click starts the game with this platform + current mode
+        game.selectedPlatformIdx = r.idx;
+        startGame(r.pid, MODE_ORDER[game.selectedModeIdx]);
         return;
       }
     }
@@ -1143,6 +1145,11 @@ canvas.addEventListener('click', e => {
     return;
   }
   if (game.phase === 'playing' && game.current) {
+    if (game.showHelp) {
+      // Click anywhere to dismiss the help overlay
+      game.showHelp = false;
+      return;
+    }
     startDrop(game);
   }
 });
@@ -1723,22 +1730,140 @@ function drawScore(g) {
 }
 
 function drawControls(g) {
+  // Compact controls panel in lower-left
+  const panelX = 14, panelY = CANVAS_H - 130;
+  const panelW = 150, panelH = 116;
+  ctx.fillStyle = 'rgba(30, 30, 50, 0.7)';
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = 'rgba(100, 100, 140, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(panelX, panelY, panelW, panelH);
+
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#555577';
+  ctx.fillStyle = '#88aacc';
+  ctx.font = 'bold 10px "Segoe UI", sans-serif';
+  ctx.fillText('CONTROLS', panelX + 8, panelY + 14);
+
+  ctx.fillStyle = '#bbbbcc';
   ctx.font = '11px "Segoe UI", sans-serif';
   const lines = [
-    '\u2190 \u2192  Move',
-    '\u2191 / X  Rotate CW',
-    'Z    Rotate CCW',
+    '\u2190 \u2192   Move',
+    '\u2191 / X  Rotate',
     'Space  Drop',
-    '',
-    'Mouse  Aim',
-    'Click  Drop',
-    'Wheel  Rotate'
+    'Mouse  Aim + click'
   ];
   lines.forEach((line, i) => {
-    ctx.fillText(line, 25, CANVAS_H - 120 + i * 15);
+    ctx.fillText(line, panelX + 8, panelY + 32 + i * 16);
   });
+
+  ctx.fillStyle = '#ffa726';
+  ctx.font = 'bold 10px "Segoe UI", sans-serif';
+  ctx.fillText('Press H for full help', panelX + 8, panelY + panelH - 8);
+}
+
+// Big "press H" overlay shown when game.showHelp is true
+function drawHelpOverlay(g) {
+  if (!g.showHelp) return;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 28px "Segoe UI", sans-serif';
+  ctx.fillText('HOW TO PLAY', CANVAS_W / 2, 80);
+
+  ctx.fillStyle = '#cccce0';
+  ctx.font = '14px "Segoe UI", sans-serif';
+  ctx.fillText('Stack tetrominoes on the platform without tipping it past 45\u00b0.', CANVAS_W / 2, 110);
+
+  // Two-column controls table
+  ctx.textAlign = 'left';
+  const colA = 130, colB = CANVAS_W / 2 + 20;
+  const rowY0 = 160, rowH = 24;
+
+  const left = [
+    ['\u2190 / \u2192', 'Move piece left / right'],
+    ['\u2191 or X', 'Rotate clockwise'],
+    ['Z', 'Rotate counter-clockwise'],
+    ['Space', 'Drop piece into stack'],
+    ['Esc', 'Back to menu (after game over)'],
+    ['R', 'Restart current game']
+  ];
+  const right = [
+    ['Mouse', 'Move piece to column under cursor'],
+    ['Click', 'Drop piece'],
+    ['Wheel', 'Rotate piece'],
+    ['Right-click', 'Rotate piece'],
+    ['H or /', 'Toggle this help'],
+    ['', '']
+  ];
+
+  ctx.fillStyle = '#88aacc';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.fillText('KEYBOARD', colA, 140);
+  ctx.fillText('MOUSE', colB, 140);
+
+  ctx.font = '13px "Segoe UI", sans-serif';
+  left.forEach((row, i) => {
+    ctx.fillStyle = '#ffa726';
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.fillText(row[0], colA, rowY0 + i * rowH);
+    ctx.fillStyle = '#cccce0';
+    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.fillText(row[1], colA + 90, rowY0 + i * rowH);
+  });
+  right.forEach((row, i) => {
+    if (!row[0]) return;
+    ctx.fillStyle = '#ffa726';
+    ctx.font = 'bold 13px "Segoe UI", sans-serif';
+    ctx.fillText(row[0], colB, rowY0 + i * rowH);
+    ctx.fillStyle = '#cccce0';
+    ctx.font = '13px "Segoe UI", sans-serif';
+    ctx.fillText(row[1], colB + 90, rowY0 + i * rowH);
+  });
+
+  // Mode-specific tips
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#88aacc';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.fillText('THIS MODE: ' + g.mode.name.toUpperCase(), CANVAS_W / 2, 380);
+  ctx.fillStyle = '#cccce0';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  // Wrap description
+  const desc = g.mode.description || 'Place pieces to score. Don\'t tip the platform.';
+  const words = desc.split(' ');
+  let line = '';
+  let yy = 405;
+  const maxW = CANVAS_W - 100;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW) {
+      ctx.fillText(line, CANVAS_W / 2, yy);
+      line = w;
+      yy += 18;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, CANVAS_W / 2, yy);
+
+  if (g.level) {
+    ctx.fillStyle = '#ffd';
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    const w = g.level.win;
+    const goalText = w.type === 'pieces'
+      ? 'GOAL: place ' + w.target + ' pieces'
+      : 'GOAL: reach score ' + w.target;
+    ctx.fillText(goalText, CANVAS_W / 2, yy + 30);
+  }
+
+  // Close hint
+  const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = '13px "Segoe UI", sans-serif';
+  ctx.fillText('Press H, /, or click to close', CANVAS_W / 2, CANVAS_H - 30);
+  ctx.globalAlpha = 1;
 }
 
 // Menu hit-test rects, populated each render
@@ -1887,13 +2012,45 @@ function drawMenu(g) {
   ctx.font = 'bold 16px "Segoe UI", sans-serif';
   ctx.fillText('START', btnX + btnW / 2, btnY + 28);
 
-  // Controls hint
-  ctx.fillStyle = '#666688';
-  ctx.font = '11px "Segoe UI", sans-serif';
-  ctx.fillText('← → choose platform · Tab cycle mode · Enter or START to play',
-    CANVAS_W / 2, 478);
+  // Big "click any platform to start" hint
+  ctx.fillStyle = '#ffa726';
+  ctx.font = 'bold 13px "Segoe UI", sans-serif';
+  ctx.fillText('CLICK A PLATFORM TO START — or click START for ' + selPlatform.name, CANVAS_W / 2, 478);
 
-  // Mini piece display
+  // ===== HOW TO PLAY panel =====
+  const hpY = 500;
+  ctx.fillStyle = 'rgba(30, 30, 50, 0.5)';
+  ctx.fillRect(60, hpY, CANVAS_W - 120, 130);
+  ctx.strokeStyle = 'rgba(100, 100, 140, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(60, hpY, CANVAS_W - 120, 130);
+
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('HOW TO PLAY', 76, hpY + 18);
+
+  ctx.fillStyle = '#cccce0';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  const lines = [
+    ['Goal:', "Stack tetrominoes on the platform without tipping it past 45°."],
+    ['Move:', '← →   Rotate: ↑ or X   Drop: Space   (or use mouse + click)'],
+    ['Modes:', 'Bombs detonate, Balloons lift, Alchemy slides matched groups off the edge.'],
+    ['Levels:', 'Click CAMPAIGN above for 15 hand-tuned challenges.']
+  ];
+  lines.forEach((l, i) => {
+    ctx.fillStyle = '#88aacc';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.fillText(l[0], 76, hpY + 40 + i * 22);
+    ctx.fillStyle = '#cccce0';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.fillText(l[1], 130, hpY + 40 + i * 22);
+  });
+  ctx.textAlign = 'center';
+  return; // skip the demo-pieces code below
+  // (unreachable but kept for diff hygiene; actually we want to skip)
+
+  // dead code follows (kept as a no-op return path); below was the old demo display
   const demoTypes = ['T', 'I', 'S', 'L', 'Z', 'J', 'O'];
   const dCellSize = 8;
   let totalDw = 0;
@@ -2024,9 +2181,12 @@ function drawMenuCampaign(g) {
   ctx.fillText('PLAY LEVEL ' + selLev.id, btnX + btnW / 2, btnY + 26);
 
   // Hint
+  ctx.fillStyle = '#ffa726';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.fillText('CLICK ANY LEVEL TO PLAY IT', CANVAS_W / 2, btnY + btnH + 18);
   ctx.fillStyle = '#666688';
   ctx.font = '10px "Segoe UI", sans-serif';
-  ctx.fillText('Click a level or use ← → ↑ ↓ — Enter to play', CANVAS_W / 2, btnY + btnH + 16);
+  ctx.fillText('or arrow keys + Enter • ▦ marks puzzle levels with pre-built towers', CANVAS_W / 2, btnY + btnH + 36);
 }
 
 function drawPlatformIcon(p, cx, cy) {
@@ -2214,6 +2374,9 @@ function render(g) {
   if (g.phase === 'gameOver') {
     drawGameOver(g);
   }
+
+  // Help overlay always renders last so it sits on top
+  drawHelpOverlay(g);
 }
 
 // ===== GAME LOOP =====
