@@ -54,6 +54,11 @@ const DEFAULT_SETTINGS = {
   stiffnessMul: 1.0,   // 0.5 = floppy platform, 2.0 = rigid
   maxTiltMul: 1.0,     // 0.7 = strict game-over threshold, 1.3 = lenient
   lineClear: 'off',    // 'off' | 'classic' — clear full rows after placement
+  // Alchemy mode rules
+  alchemySlideThreshold: Math.PI / 9,  // 20° — tilt at which groups slide
+  alchemyMinGroup: 2,                  // min cells for positive score
+  alchemySingletonPenalty: -1,         // points lost when a singleton slides off
+  alchemyItemRate: 0.15,               // probability a piece spawns with an item cell
 };
 
 // Player colors for hot-seat (1-indexed; index 0 unused)
@@ -116,6 +121,51 @@ const SETTING_SPECS = {
       { label: 'Classic', value: 'classic' },
     ]
   },
+  // ===== Alchemy-specific tunables =====
+  alchemySlideThreshold: {
+    label: 'A: SLIDE TILT',
+    hint: 'Alchemy: tilt angle at which groups start sliding off.',
+    section: 'alchemy',
+    presets: [
+      { label: '10°', value: Math.PI / 18 },
+      { label: '20°', value: Math.PI / 9 },
+      { label: '30°', value: Math.PI / 6 },
+      { label: '45°', value: Math.PI / 4 },
+    ]
+  },
+  alchemyMinGroup: {
+    label: 'A: GROUP SIZE',
+    hint: 'Alchemy: minimum cells in a group for positive score on slide-off.',
+    section: 'alchemy',
+    presets: [
+      { label: '2',   value: 2 },
+      { label: '3',   value: 3 },
+      { label: '4',   value: 4 },
+      { label: '5',   value: 5 },
+    ]
+  },
+  alchemySingletonPenalty: {
+    label: 'A: PENALTY',
+    hint: 'Alchemy: points lost when a singleton slides off the edge.',
+    section: 'alchemy',
+    presets: [
+      { label: 'None', value: 0 },
+      { label: '-1',   value: -1 },
+      { label: '-2',   value: -2 },
+      { label: '-3',   value: -3 },
+    ]
+  },
+  alchemyItemRate: {
+    label: 'A: ITEMS',
+    hint: 'Alchemy: probability per spawn of containing an alchemical item.',
+    section: 'alchemy',
+    presets: [
+      { label: 'None', value: 0 },
+      { label: 'Rare', value: 0.1 },
+      { label: 'Some', value: 0.2 },
+      { label: 'Many', value: 0.4 },
+    ]
+  },
 };
 // Backward compat: FALL_SPEED_PRESETS still referenced in some places
 const FALL_SPEED_PRESETS = SETTING_SPECS.fallSpeed.presets;
@@ -153,6 +203,52 @@ const TRAITS = [
   { id: 5, name: 'Jupiter', symbol: '♃', color: '#3c70e0', colorLight: '#85a8ff', colorDark: '#0e2c80' },
   { id: 6, name: 'Saturn',  symbol: '♄', color: '#8848c8', colorLight: '#bb88e0', colorDark: '#3c1668' }
 ];
+
+// ===== ALCHEMICAL ITEMS =====
+// Items are cell-level properties beyond planet traits. See ALCHEMY_LORE.md
+// for the full vision (15+ items planned). v1 ships 3:
+//   - Salt:             stabilizes — groups containing salt cannot slide off
+//   - Mercury (wild):   counts as ANY trait for group matching
+//   - Philosopher's Stone: on placement, transmutes 4-adjacent cells to Sun
+const ALCHEMY_ITEMS = {
+  salt: {
+    id: 'salt',
+    name: 'Salt',
+    emoji: '✶',
+    color: '#f0f0f0', colorLight: '#ffffff', colorDark: '#a0a0a0',
+    spawnWeight: 3,
+    description: 'The principle of body. Groups with Salt do not slide.'
+  },
+  mercury: {
+    id: 'mercury',
+    name: 'Mercury',
+    emoji: '☿',
+    color: '#c0c8d8', colorLight: '#e8ecf4', colorDark: '#707888',
+    spawnWeight: 2,
+    description: 'The principle of spirit. Counts as any trait for matching.'
+  },
+  philStone: {
+    id: 'philStone',
+    name: "Philosopher's Stone",
+    emoji: '🜔',
+    color: '#ffd040', colorLight: '#fff080', colorDark: '#aa8000',
+    spawnWeight: 1,
+    description: 'The Magnum Opus. Transmutes adjacent cells to Sun on placement.'
+  }
+};
+const ITEM_KEYS = Object.keys(ALCHEMY_ITEMS);
+
+// Weighted random pick of an item, or null if no item spawns
+function rollItem() {
+  if (Math.random() >= settings.alchemyItemRate) return null;
+  const totalWeight = ITEM_KEYS.reduce((s, k) => s + ALCHEMY_ITEMS[k].spawnWeight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const k of ITEM_KEYS) {
+    roll -= ALCHEMY_ITEMS[k].spawnWeight;
+    if (roll <= 0) return ALCHEMY_ITEMS[k];
+  }
+  return null;
+}
 
 // Flood-fill: find connected groups of cells sharing the same trait.
 // Returns [{trait, cells: [[r,c], ...]}, ...]. Cells without a trait are singletons.
@@ -217,6 +313,52 @@ function findGroups(grid) {
         stack.push([rr - 1, cc], [rr + 1, cc], [rr, cc - 1], [rr, cc + 1]);
       }
       groups.push({ trait, cells });
+    }
+  }
+  return groups;
+}
+
+// Alchemy-specific group finder: Mercury cells (item) are WILDCARDS — they
+// join any neighboring group regardless of trait. A Mercury at the seed
+// position matches everything.
+function findGroupsAlchemy(grid) {
+  const isMercury = (cell) => cell && cell.item === 'mercury';
+  const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const groups = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (visited[r][c] || !grid[r][c]) continue;
+      if (grid[r][c].platform) { visited[r][c] = true; continue; }
+      const seedCell = grid[r][c];
+      const seedTrait = seedCell.trait;
+      if (seedTrait === undefined && !isMercury(seedCell)) {
+        visited[r][c] = true;
+        groups.push({ trait: null, cells: [[r, c]] });
+        continue;
+      }
+      // BFS — match by trait OR mercury-wildcard on either side
+      const cells = [];
+      const stack = [[r, c]];
+      // The group's primary trait is the seed's trait, unless seed is mercury
+      // (in which case it inherits the first neighbor's trait it joins)
+      let groupTrait = seedTrait;
+      while (stack.length) {
+        const [rr, cc] = stack.pop();
+        if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+        if (visited[rr][cc]) continue;
+        const cell = grid[rr][cc];
+        if (!cell || cell.platform) continue;
+        const merc = isMercury(cell);
+        const match = merc
+          || (groupTrait === undefined ? true : cell.trait === groupTrait);
+        if (!match) continue;
+        // First non-mercury cell sets the group's trait
+        if (groupTrait === undefined && !merc) groupTrait = cell.trait;
+        visited[rr][cc] = true;
+        cells.push([rr, cc]);
+        stack.push([rr - 1, cc], [rr + 1, cc], [rr, cc - 1], [rr, cc + 1]);
+      }
+      groups.push({ trait: groupTrait, cells });
     }
   }
   return groups;
@@ -659,11 +801,10 @@ const MODES = {
   alchemy: {
     id: 'alchemy',
     name: 'Alchemy',
-    description: 'Each cell carries a planetary sign. Same-sign cells fuse into groups. Tilt past 20° and groups slide downhill — over the edge: groups score +size, singletons score -1.',
+    description: 'Cells carry planetary signs. Same-sign cells fuse into groups; tilt past the threshold and groups slide off. Items (Salt, Mercury, Philosopher\'s Stone) cascade with each other.',
     difficulty: 'hard',
-    slideThreshold: Math.PI / 9, // 20°
     onSpawn(g, piece) {
-      // Assign a random trait to every filled cell of this piece (per-cell, not per-piece)
+      // Per-cell traits
       piece.cellInfo = [];
       for (let r = 0; r < piece.shape.length; r++) {
         piece.cellInfo[r] = [];
@@ -679,16 +820,65 @@ const MODES = {
           };
         }
       }
+      // Optionally bless one random filled cell with an alchemical item.
+      // The item's emoji/color overrides the trait visual; the item flag is
+      // stored separately so the cell still has its trait for group logic
+      // (unless the item is Mercury, which makes the cell a wildcard).
+      const item = rollItem();
+      if (item) {
+        const filled = [];
+        for (let r = 0; r < piece.shape.length; r++)
+          for (let c = 0; c < piece.shape[r].length; c++)
+            if (piece.shape[r][c]) filled.push([r, c]);
+        if (filled.length > 0) {
+          const [r, c] = filled[Math.floor(Math.random() * filled.length)];
+          const ci = piece.cellInfo[r][c];
+          ci.item = item.id;
+          ci.itemEmoji = item.emoji;
+          // Tint the cell with the item's color
+          ci.color = item.color;
+          ci.colorLight = item.colorLight;
+          ci.colorDark = item.colorDark;
+          // Hide the trait symbol so the emoji is clear
+          ci.symbol = item.emoji;
+          piece.hasItem = item;
+        }
+      }
     },
     onPiecePlaced(g) {
-      // Compute would-be tilt from the just-placed grid; if past threshold, slide downhill.
+      // Item effects fire FIRST so transmutations affect the group analysis.
+      // Philosopher's Stone: transmute 4-adjacent cells to Sun (gold).
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = g.grid[r][c];
+          if (cell && cell.item === 'philStone' && !cell._stoneFired) {
+            cell._stoneFired = true;
+            const sun = TRAITS[0];
+            for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+              const rr = r + dr, cc = c + dc;
+              if (rr<0||rr>=ROWS||cc<0||cc>=COLS) continue;
+              const n = g.grid[rr][cc];
+              if (!n || n.platform || n.item === 'salt') continue;
+              n.trait = sun.id;
+              n.color = sun.color;
+              n.colorLight = sun.colorLight;
+              n.colorDark = sun.colorDark;
+              n.symbol = sun.symbol;
+            }
+            // Visual: brief flash
+            g.flashTimer = Math.max(g.flashTimer, 25);
+          }
+        }
+      }
+
+      // Sliding pass — uses tunable settings
       const phys = computePhysics(g);
-      if (Math.abs(phys.angle) < this.slideThreshold) return;
+      const threshold = settings.alchemySlideThreshold;
+      if (Math.abs(phys.angle) < threshold) return;
       const dir = Math.sign(phys.angle);
       if (dir === 0) return;
 
-      const groups = findGroups(g.grid);
-      // Slide downhill-most groups first so they vacate space for uphill groups
+      const groups = findGroupsAlchemy(g.grid);
       groups.sort((a, b) => {
         const aEdge = dir > 0
           ? Math.max.apply(null, a.cells.map(([, c]) => c))
@@ -699,19 +889,26 @@ const MODES = {
         return dir > 0 ? bEdge - aEdge : aEdge - bEdge;
       });
 
+      const minGroup = settings.alchemyMinGroup;
+      const penalty = settings.alchemySingletonPenalty;
       let scoreDelta = 0;
-      let groupsLost = 0, cellsLost = 0;
+      let cellsLost = 0;
       for (const group of groups) {
+        // Salt anchor: groups containing a Salt cell don't slide
+        const hasSalt = group.cells.some(([rr, cc]) => {
+          const cell = g.grid[rr][cc];
+          return cell && cell.item === 'salt';
+        });
+        if (hasSalt) continue;
+
         const newCells = group.cells.map(([r, c]) => [r, c + dir]);
         const fallsOff = newCells.some(([, c]) => c < 0 || c >= COLS);
         if (fallsOff) {
-          scoreDelta += group.cells.length >= 2 ? group.cells.length : -1;
+          scoreDelta += group.cells.length >= minGroup ? group.cells.length : penalty;
           for (const [rr, cc] of group.cells) g.grid[rr][cc] = null;
-          groupsLost++;
           cellsLost += group.cells.length;
           continue;
         }
-        // Move only if all destination cells are clear (or in this group's own old footprint)
         const oldKeys = new Set(group.cells.map(([rr, cc]) => rr + ',' + cc));
         const blocked = newCells.some(([rr, cc]) => g.grid[rr][cc] && !oldKeys.has(rr + ',' + cc));
         if (blocked) continue;
@@ -723,10 +920,8 @@ const MODES = {
       if (cellsLost > 0) {
         g.alchemyBonus = (g.alchemyBonus || 0) + scoreDelta;
         g.score = g.piecesPlaced + (g.alchemyBonus || 0) + (g.lineBonus || 0);
-        // Brief notification overlay in the renderer
         g.alchemyFlash = { delta: scoreDelta, frames: 60 };
         g.flashTimer = Math.max(g.flashTimer, 20);
-        // Light shake
         g.shakeX += (Math.random() - 0.5) * 8;
         g.shakeY += (Math.random() - 0.5) * 4;
       }
@@ -1204,7 +1399,7 @@ function lockPiece(g, piece, col, row) {
           colorDark: piece.colorDark,
           colorLight: piece.colorLight
         };
-        // Per-cell info from mode (Alchemy: trait-specific color + symbol)
+        // Per-cell info from mode (Alchemy: trait-specific color + symbol + item)
         if (piece.cellInfo && piece.cellInfo[r] && piece.cellInfo[r][c]) {
           const ci = piece.cellInfo[r][c];
           cell.color = ci.color;
@@ -1212,6 +1407,8 @@ function lockPiece(g, piece, col, row) {
           cell.colorDark = ci.colorDark;
           if (ci.symbol !== undefined) cell.symbol = ci.symbol;
           if (ci.trait !== undefined) cell.trait = ci.trait;
+          if (ci.item !== undefined) cell.item = ci.item;
+          if (ci.itemEmoji !== undefined) cell.itemEmoji = ci.itemEmoji;
         }
         // Propagate per-piece flags into the grid cell
         if (piece.balloon) cell.balloon = true;
@@ -2239,6 +2436,12 @@ function drawNextPieces(g) {
       ctx.textAlign = 'center';
       ctx.fillText('BOMB!', boxX + 30, py + 70);
     }
+    if (p.hasItem) {
+      ctx.fillStyle = p.hasItem.color;
+      ctx.font = 'bold 9px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.hasItem.emoji + ' ' + p.hasItem.name.toUpperCase(), boxX + 30, py + 70);
+    }
   }
 }
 
@@ -2562,31 +2765,60 @@ function drawFallSpeedSelector(y) {
 function drawMenuSettings(g) {
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 26px "Segoe UI", sans-serif';
-  ctx.fillText('SETTINGS', CANVAS_W / 2, 110);
+  ctx.font = 'bold 22px "Segoe UI", sans-serif';
+  ctx.fillText('SETTINGS', CANVAS_W / 2, 96);
 
   ctx.fillStyle = '#8888aa';
-  ctx.font = '12px "Segoe UI", sans-serif';
-  ctx.fillText('All settings persist across sessions. Apply immediately when clicked.', CANVAS_W / 2, 138);
+  ctx.font = '11px "Segoe UI", sans-serif';
+  ctx.fillText('All settings persist. Click any preset to apply immediately.', CANVAS_W / 2, 114);
 
   menuSettingsRowRects = {};
 
-  let y = 168;
-  const keys = ['playerCount', 'lineClear', 'fallSpeed', 'stiffnessMul', 'maxTiltMul'];
+  let y = 130;
+  const keys = ['playerCount', 'lineClear', 'fallSpeed', 'stiffnessMul', 'maxTiltMul',
+                'alchemySlideThreshold', 'alchemyMinGroup', 'alchemySingletonPenalty', 'alchemyItemRate'];
+  let drewAlchemyHeader = false;
   for (const key of keys) {
-    menuSettingsRowRects[key] = drawSettingRow(y, key, { bigLabel: true });
-    // Hint line below
-    ctx.fillStyle = '#666688';
+    const spec = SETTING_SPECS[key];
+    // Section divider for alchemy settings
+    if (spec.section === 'alchemy' && !drewAlchemyHeader) {
+      y += 8;
+      ctx.strokeStyle = 'rgba(255, 167, 38, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(80, y);
+      ctx.lineTo(CANVAS_W - 80, y);
+      ctx.stroke();
+      ctx.fillStyle = '#ffa726';
+      ctx.font = 'bold 11px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('— ALCHEMY MODE RULES —', CANVAS_W / 2, y + 12);
+      y += 22;
+      drewAlchemyHeader = true;
+    }
+    menuSettingsRowRects[key] = drawSettingRow(y, key, { bigLabel: false });
+    y += 30;
+  }
+
+  // Highlight current alchemy summary
+  if (drewAlchemyHeader) {
+    y += 4;
+    ctx.fillStyle = '#aabbcc';
     ctx.font = '10px "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(SETTING_SPECS[key].hint, CANVAS_W / 2, y + 44);
-    y += 70;
+    const slideDeg = Math.round(settings.alchemySlideThreshold * 180 / Math.PI);
+    ctx.fillText(
+      'Now: slide at ' + slideDeg + '°, groups of ' + settings.alchemyMinGroup +
+      '+, singleton ' + settings.alchemySingletonPenalty + ', items ' +
+      (settings.alchemyItemRate * 100).toFixed(0) + '%',
+      CANVAS_W / 2, y);
+    y += 14;
   }
 
   // BACK button
-  const btnW = 180, btnH = 38;
+  const btnW = 180, btnH = 34;
   const btnX = (CANVAS_W - btnW) / 2;
-  const btnY = y + 20;
+  const btnY = y + 12;
   menuSettingsBackRect = { x: btnX, y: btnY, w: btnW, h: btnH };
   const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
   ctx.globalAlpha = pulse;
