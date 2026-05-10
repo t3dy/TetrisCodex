@@ -48,16 +48,69 @@ const DROP_SPEED = 1200; // pixels per second (hard-drop animation)
 // classic-Tetris auto-fall, letting you slide pieces sideways into overhangs
 // during the fall.
 const DEFAULT_SETTINGS = {
-  fallSpeed: 0,        // cells/sec; 0 = off, classic positioning behavior
+  fallSpeed: 0,        // cells/sec; 0 = off (classic positioning)
   softDropMul: 12,     // multiplier when ArrowDown is held during fall
+  playerCount: 1,      // 1 = solo, 2+ = hot-seat
+  stiffnessMul: 1.0,   // 0.5 = floppy platform, 2.0 = rigid
+  maxTiltMul: 1.0,     // 0.7 = strict game-over threshold, 1.3 = lenient
 };
-const FALL_SPEED_PRESETS = [
-  { label: 'Off',       value: 0 },
-  { label: 'Very Slow', value: 0.6 },
-  { label: 'Slow',      value: 1.5 },
-  { label: 'Medium',    value: 3 },
-  { label: 'Fast',      value: 6 }
+
+// Player colors for hot-seat (1-indexed; index 0 unused)
+const PLAYER_COLORS = [
+  null,
+  { name: 'Player 1', primary: '#4a90e2', light: '#7eb4f0' },
+  { name: 'Player 2', primary: '#e25555', light: '#f08c8c' },
+  { name: 'Player 3', primary: '#55cc66', light: '#8bdf99' },
+  { name: 'Player 4', primary: '#ffcc44', light: '#ffe17a' },
 ];
+
+// Settings UI: each setting has presets shown as cycle-buttons.
+const SETTING_SPECS = {
+  playerCount: {
+    label: 'PLAYERS',
+    hint: 'Hot-seat multiplayer: take turns on the same platform.',
+    presets: [
+      { label: 'Solo',  value: 1 },
+      { label: '2 P',   value: 2 },
+      { label: '3 P',   value: 3 },
+      { label: '4 P',   value: 4 },
+    ]
+  },
+  fallSpeed: {
+    label: 'FALL SPEED',
+    hint: 'Auto-fall lets you slide pieces sideways under overhangs.',
+    presets: [
+      { label: 'Off',       value: 0 },
+      { label: 'Very Slow', value: 0.6 },
+      { label: 'Slow',      value: 1.5 },
+      { label: 'Medium',    value: 3 },
+      { label: 'Fast',      value: 6 }
+    ]
+  },
+  stiffnessMul: {
+    label: 'STIFFNESS',
+    hint: 'How resistant the platform is to tilting. Lower = easier to tip.',
+    presets: [
+      { label: 'Floppy',  value: 0.5 },
+      { label: 'Loose',   value: 0.75 },
+      { label: 'Normal',  value: 1.0 },
+      { label: 'Tight',   value: 1.5 },
+      { label: 'Rigid',   value: 2.0 },
+    ]
+  },
+  maxTiltMul: {
+    label: 'TILT LIMIT',
+    hint: 'How far the platform can tilt before game over.',
+    presets: [
+      { label: 'Strict',  value: 0.7 },
+      { label: 'Normal',  value: 1.0 },
+      { label: 'Lenient', value: 1.3 },
+    ]
+  },
+};
+// Backward compat: FALL_SPEED_PRESETS still referenced in some places
+const FALL_SPEED_PRESETS = SETTING_SPECS.fallSpeed.presets;
+
 let settings = (function loadSettings() {
   try {
     return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem('bb_settings') || '{}'));
@@ -962,14 +1015,24 @@ function createGame(platformId, modeId, levelId) {
       }
     }
   }
-  // Compute initial torque/tilt from the starting grid
-  // (use a temp game stub since cellContribution checks game.mode)
-  let initialTorque = 0, initialAngle = 0;
-  // We'll set this properly after the game object is created (mode hooks reference it)
+  // Clone the platform so we can apply stiffness/maxTilt multipliers without
+  // mutating the global PLATFORMS registry.
+  const basePlatform = PLATFORMS[pid];
+  const platform = Object.assign({}, basePlatform);
+  platform.stiffness = (basePlatform.stiffness || 25) * settings.stiffnessMul;
+  if (basePlatform.softStiffness !== undefined) {
+    platform.softStiffness = basePlatform.softStiffness * settings.stiffnessMul;
+  }
+  platform.maxTilt = (basePlatform.maxTilt || Math.PI / 4) * settings.maxTiltMul;
+
+  // Hot-seat multiplayer setup
+  const playerCount = Math.max(1, Math.min(4, settings.playerCount | 0));
+  const playerScores = Array(playerCount + 1).fill(0); // 1-indexed
+
   return {
     phase: 'menu', // menu | playing | dropping | gameOver
-    menuMode: 'free', // 'free' | 'campaign'
-    platform: PLATFORMS[pid],
+    menuMode: 'free', // 'free' | 'campaign' | 'settings'
+    platform,
     platformId: pid,
     mode: MODES[mid],
     modeId: mid,
@@ -980,7 +1043,7 @@ function createGame(platformId, modeId, levelId) {
     selectedLevelIdx: level ? LEVELS.findIndex(l => l.id === level.id) : 0,
     grid: startGrid,
     bag: [],
-    current: null,    // { type, shape, color, colorDark, colorLight, col }
+    current: null,    // { type, shape, color, colorDark, colorLight, col, playerId }
     next: [],         // array of 3 upcoming pieces
     score: 0,
     highScore: parseInt(localStorage.getItem('bb_highscore_' + pid + '_' + mid) || '0'),
@@ -999,7 +1062,12 @@ function createGame(platformId, modeId, levelId) {
     gameOverTimer: 0,
     shakeX: 0,
     shakeY: 0,
-    zenAccent: ZEN_ACCENTS[Math.floor(Math.random() * ZEN_ACCENTS.length)]
+    zenAccent: ZEN_ACCENTS[Math.floor(Math.random() * ZEN_ACCENTS.length)],
+    // Hot-seat state
+    playerCount,
+    currentPlayer: 1,
+    playerScores,
+    tipperPlayer: 0  // player whose piece tipped the platform, set on game over
   };
 }
 
@@ -1035,6 +1103,8 @@ function spawnPiece(g) {
   fillQueue(g);
   g.current = g.next.shift();
   fillQueue(g);
+  // Hot-seat: tag the spawning piece with the current player
+  g.current.playerId = g.currentPlayer;
   // Fall mode: piece starts above the grid and descends into it
   if (settings.fallSpeed > 0) {
     g.current.row = -g.current.shape.length;
@@ -1126,12 +1196,19 @@ function lockPiece(g, piece, col, row) {
         if (piece.balloon) cell.balloon = true;
         if (piece.bomb) { cell.bomb = true; cell.fuse = piece.fuse || 5; }
         if (piece.weight !== undefined) cell.weight = piece.weight;
+        if (piece.playerId) cell.playerId = piece.playerId;
         g.grid[gr][gc] = cell;
       }
     }
   }
   g.piecesPlaced++;
-  g.score = g.piecesPlaced;
+  // Per-player score in hot-seat; global score otherwise
+  if (g.playerCount > 1) {
+    g.playerScores[piece.playerId] = (g.playerScores[piece.playerId] || 0) + 1;
+    g.score = g.piecesPlaced; // overall counter
+  } else {
+    g.score = g.piecesPlaced;
+  }
   // Mode hook: settle pass (bombs detonate, surfaces slide, etc.)
   // Runs BEFORE physics recompute so cascade effects on torque are reflected immediately.
   if (g.mode.onPiecePlaced) g.mode.onPiecePlaced(g);
@@ -1139,6 +1216,11 @@ function lockPiece(g, piece, col, row) {
   g.targetTilt = phys.angle;
   g.lastTorqueData = phys.torqueData;
   g.flashTimer = 15;
+  // Track the player who just placed (for tipper attribution if this is the tip)
+  g.lastPlacingPlayer = piece.playerId;
+  // Advance to next player (only after lockPiece returns successfully and no game over)
+  // Done by caller (in the dropping update path or lockFromCurrent) since
+  // they check stability first.
 }
 
 function startDrop(g) {
@@ -1169,7 +1251,15 @@ function lockFromCurrent(g) {
   if (lr < 0) { triggerGameOver(g); return; }
   checkLevelWin(g);
   if (g.levelComplete) return;
+  advancePlayer(g);
   spawnPiece(g);
+}
+
+// Hot-seat: advance to the next player. Solo mode = no-op.
+function advancePlayer(g) {
+  if (g.playerCount > 1) {
+    g.currentPlayer = (g.currentPlayer % g.playerCount) + 1;
+  }
 }
 
 // ===== INPUT =====
@@ -1365,6 +1455,35 @@ function getCanvasMouse(e) {
 canvas.addEventListener('click', e => {
   if (game.phase === 'menu') {
     const m = getCanvasMouse(e);
+    // SETTINGS button (top right)
+    if (menuSettingsBtnRect) {
+      const r = menuSettingsBtnRect;
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        game.menuMode = game.menuMode === 'settings' ? 'free' : 'settings';
+        return;
+      }
+    }
+    // Settings page: row clicks
+    if (game.menuMode === 'settings') {
+      for (const key of Object.keys(menuSettingsRowRects)) {
+        for (const r of menuSettingsRowRects[key]) {
+          if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+            settings[key] = r.value;
+            saveSettings();
+            return;
+          }
+        }
+      }
+      // BACK button
+      if (menuSettingsBackRect) {
+        const r = menuSettingsBackRect;
+        if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+          game.menuMode = 'free';
+          return;
+        }
+      }
+      return; // don't pass through to other menu UI
+    }
     // Top-level toggle (Free / Campaign)
     for (const r of menuTopToggleRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
@@ -1372,7 +1491,7 @@ canvas.addEventListener('click', e => {
         return;
       }
     }
-    // Fall speed selector
+    // Fall speed selector (legacy inline row — kept for backward compat if rendered)
     for (const r of menuFallSpeedRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
         settings.fallSpeed = r.value;
@@ -1525,6 +1644,10 @@ function checkLevelWin(g) {
 function triggerGameOver(g) {
   g.phase = 'gameOver';
   g.gameOverTimer = 0;
+  // Record who tipped (the player who just placed, if any)
+  if (g.playerCount > 1 && g.lastPlacingPlayer) {
+    g.tipperPlayer = g.lastPlacingPlayer;
+  }
   if (g.score > g.highScore) {
     g.highScore = g.score;
     localStorage.setItem('bb_highscore_' + g.platformId + '_' + g.modeId, String(g.highScore));
@@ -1608,6 +1731,9 @@ function update(g, dt) {
       checkLevelWin(g);
       if (g.levelComplete) return;
 
+      // Hot-seat: advance to next player
+      advancePlayer(g);
+
       // Spawn next
       g.phase = 'playing';
       spawnPiece(g);
@@ -1638,12 +1764,24 @@ function drawBlock(x, y, size, color, colorLight, colorDark, style) {
   ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
 }
 
+// Draws a player-color border ring around a cell to indicate which player
+// placed it. Called from the placed-cell loop and from drawShape when a piece
+// has playerId set.
+function drawPlayerTint(x, y, playerId) {
+  if (!playerId || !PLAYER_COLORS[playerId]) return;
+  const pc = PLAYER_COLORS[playerId];
+  ctx.strokeStyle = pc.primary;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(x + 2, y + 2, CELL - 4, CELL - 4);
+}
+
 function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, marker, cellInfo) {
-  // marker: piece-level {balloon, bomb, fuse}
+  // marker: piece-level {balloon, bomb, fuse, playerId}
   // cellInfo: optional 2D array same shape as `shape`, per-cell {color, colorLight, colorDark, symbol, trait}
   if (alpha !== undefined && alpha < 1) {
     ctx.globalAlpha = alpha;
   }
+  const playerId = marker && marker.playerId;
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
       if (shape[r][c]) {
@@ -1657,6 +1795,8 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, mark
           if (ci && ci.symbol) drawCellMarker(bx, by, { symbol: ci.symbol });
           if (marker) drawCellMarker(bx, by, marker);
         }
+        // Hot-seat: tint the piece with the player's color
+        if (playerId && game && game.playerCount > 1) drawPlayerTint(bx, by, playerId);
       }
     }
   }
@@ -1768,6 +1908,8 @@ function drawPlatform(g) {
         if (blockStyle !== 'mono' && (cell.balloon || cell.bomb || cell.symbol)) {
           drawCellMarker(x, y, cell);
         }
+        // Hot-seat: tint with the placing player's color
+        if (g.playerCount > 1 && cell.playerId) drawPlayerTint(x, y, cell.playerId);
       }
     }
   }
@@ -1974,6 +2116,43 @@ function drawNextPieces(g) {
 
 function drawScore(g) {
   ctx.textAlign = 'left';
+
+  // Hot-seat: current player banner across the top
+  if (g.playerCount > 1) {
+    const pc = PLAYER_COLORS[g.currentPlayer];
+    const bw = 280, bh = 32, bx = (CANVAS_W - bw) / 2, by = g.level ? 46 : 12;
+    ctx.fillStyle = pc.primary;
+    ctx.fillRect(bx, by, bw, bh);
+    // Pulse glow on the active player banner
+    const pulse = Math.sin(Date.now() / 350) * 0.15 + 0.85;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = pc.light;
+    ctx.fillRect(bx + 1, by + 1, bw - 2, 3);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(pc.name.toUpperCase() + "'S TURN", bx + bw / 2, by + 22);
+    ctx.textAlign = 'left';
+
+    // Per-player scores (small chips at the top-right)
+    const chipX = CANVAS_W - 20;
+    let chipY = 80;
+    for (let p = 1; p <= g.playerCount; p++) {
+      const ppc = PLAYER_COLORS[p];
+      const score = g.playerScores[p] || 0;
+      const text = ppc.name + ': ' + score;
+      ctx.font = (p === g.currentPlayer ? 'bold ' : '') + '11px "Segoe UI", sans-serif';
+      const w = ctx.measureText(text).width;
+      ctx.fillStyle = ppc.primary;
+      ctx.fillRect(chipX - w - 12, chipY - 10, w + 12, 18);
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'right';
+      ctx.fillText(text, chipX - 6, chipY + 3);
+      ctx.textAlign = 'left';
+      chipY += 22;
+    }
+  }
 
   // Level goal banner (top center)
   if (g.level) {
@@ -2184,40 +2363,101 @@ let menuLevelRects = [];
 let menuStartRect = null;
 let menuTopToggleRects = [];
 let menuFallSpeedRects = [];
+let menuSettingsBtnRect = null;
+let menuSettingsRowRects = {}; // { settingKey: [{ x, y, w, h, value }, ...] }
+let menuSettingsBackRect = null;
 
-function drawFallSpeedSelector(y) {
-  // Compact "FALL SPEED: [Off] [Very Slow] [Slow] [Medium] [Fast]" row
-  menuFallSpeedRects = [];
-  const labelText = 'FALL';
-  ctx.font = '10px "Segoe UI", sans-serif';
-  const labelW = ctx.measureText(labelText).width + 8;
-  const btnH = 22, gap = 4;
-  // Measure all button widths
-  ctx.font = 'bold 10px "Segoe UI", sans-serif';
-  const widths = FALL_SPEED_PRESETS.map(p => Math.max(48, ctx.measureText(p.label).width + 16));
+// Generic settings-row drawer. Returns the hit-test rects.
+function drawSettingRow(y, settingKey, options) {
+  options = options || {};
+  const spec = SETTING_SPECS[settingKey];
+  if (!spec) return [];
+  const rects = [];
+  const labelText = spec.label;
+  ctx.font = (options.bigLabel ? 'bold 12px ' : '10px ') + '"Segoe UI", sans-serif';
+  const labelW = ctx.measureText(labelText).width + 14;
+  const btnH = options.bigLabel ? 28 : 22;
+  const gap = 4;
+  ctx.font = 'bold ' + (options.bigLabel ? 12 : 10) + 'px "Segoe UI", sans-serif';
+  const widths = spec.presets.map(p =>
+    Math.max(options.bigLabel ? 70 : 48, ctx.measureText(p.label).width + 16));
   const totalW = labelW + widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1);
   let x = (CANVAS_W - totalW) / 2;
-  // Label
-  ctx.fillStyle = '#666688';
-  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillStyle = '#aabbcc';
+  ctx.font = (options.bigLabel ? 'bold 12px ' : '10px ') + '"Segoe UI", sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(labelText, x + labelW - 8, y + btnH / 2 + 4);
+  ctx.fillText(labelText, x + labelW - 10, y + btnH / 2 + 4);
   ctx.textAlign = 'center';
   x += labelW;
-  FALL_SPEED_PRESETS.forEach((p, i) => {
+  spec.presets.forEach((p, i) => {
     const w = widths[i];
-    const sel = Math.abs(settings.fallSpeed - p.value) < 0.001;
-    menuFallSpeedRects.push({ x, y, w, h: btnH, value: p.value });
+    const sel = Math.abs(settings[settingKey] - p.value) < 0.001;
+    rects.push({ x, y, w, h: btnH, value: p.value, settingKey });
     ctx.fillStyle = sel ? 'rgba(80, 220, 80, 0.18)' : 'rgba(30,30,50,0.5)';
     ctx.fillRect(x, y, w, btnH);
     ctx.strokeStyle = sel ? '#5d5' : 'rgba(100, 100, 140, 0.4)';
     ctx.lineWidth = sel ? 2 : 1;
     ctx.strokeRect(x, y, w, btnH);
     ctx.fillStyle = sel ? '#5d5' : '#bbbbcc';
-    ctx.font = 'bold 10px "Segoe UI", sans-serif';
-    ctx.fillText(p.label, x + w / 2, y + 15);
+    ctx.font = 'bold ' + (options.bigLabel ? 12 : 10) + 'px "Segoe UI", sans-serif';
+    ctx.fillText(p.label, x + w / 2, y + (options.bigLabel ? 18 : 15));
     x += w + gap;
   });
+  return rects;
+}
+
+// Backwards-compat alias used elsewhere on the main menu
+function drawFallSpeedSelector(y) {
+  menuFallSpeedRects = drawSettingRow(y, 'fallSpeed');
+}
+
+// Full settings page rendered as a menu sub-view
+function drawMenuSettings(g) {
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 26px "Segoe UI", sans-serif';
+  ctx.fillText('SETTINGS', CANVAS_W / 2, 110);
+
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText('All settings persist across sessions. Apply immediately when clicked.', CANVAS_W / 2, 138);
+
+  menuSettingsRowRects = {};
+
+  let y = 168;
+  const keys = ['playerCount', 'fallSpeed', 'stiffnessMul', 'maxTiltMul'];
+  for (const key of keys) {
+    menuSettingsRowRects[key] = drawSettingRow(y, key, { bigLabel: true });
+    // Hint line below
+    ctx.fillStyle = '#666688';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(SETTING_SPECS[key].hint, CANVAS_W / 2, y + 44);
+    y += 70;
+  }
+
+  // BACK button
+  const btnW = 180, btnH = 38;
+  const btnX = (CANVAS_W - btnW) / 2;
+  const btnY = y + 20;
+  menuSettingsBackRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillRect(btnX, btnY, btnW, btnH);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0a0a1a';
+  ctx.font = 'bold 15px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('← BACK TO MENU', btnX + btnW / 2, btnY + 25);
+
+  // Hot-seat hint when playerCount > 1
+  if (settings.playerCount > 1) {
+    ctx.fillStyle = '#ffa726';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.fillText('★ HOT-SEAT ACTIVE: ' + settings.playerCount + ' players will alternate turns',
+      CANVAS_W / 2, btnY + btnH + 22);
+  }
 }
 
 function drawMenu(g) {
@@ -2251,8 +2491,39 @@ function drawMenu(g) {
     ctx.fillText(m === 'free' ? 'FREE PLAY' : 'CAMPAIGN', x + togW / 2, togY + 18);
   });
 
-  // Fall speed selector (always visible)
-  drawFallSpeedSelector(162);
+  // Settings button (top right)
+  const sbW = 90, sbH = 28;
+  menuSettingsBtnRect = { x: CANVAS_W - sbW - 16, y: 70, w: sbW, h: sbH };
+  const sb = menuSettingsBtnRect;
+  const sbActive = g.menuMode === 'settings';
+  ctx.fillStyle = sbActive ? '#ffa726' : 'rgba(30,30,50,0.7)';
+  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);
+  ctx.strokeStyle = sbActive ? '#ffa726' : 'rgba(100,100,140,0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sb.x, sb.y, sb.w, sb.h);
+  ctx.fillStyle = sbActive ? '#0a0a1a' : '#aaaacc';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚙ SETTINGS', sb.x + sb.w / 2, sb.y + 18);
+
+  // Indicators showing key non-default settings
+  if (settings.playerCount > 1 || settings.fallSpeed > 0 || settings.stiffnessMul !== 1 || settings.maxTiltMul !== 1) {
+    ctx.fillStyle = '#ffa726';
+    ctx.font = '9px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    const bits = [];
+    if (settings.playerCount > 1) bits.push(settings.playerCount + 'P');
+    if (settings.fallSpeed > 0) bits.push('fall');
+    if (settings.stiffnessMul !== 1) bits.push('stiff×' + settings.stiffnessMul);
+    if (settings.maxTiltMul !== 1) bits.push('tilt×' + settings.maxTiltMul);
+    ctx.fillText(bits.join(' · '), sb.x + sb.w - 4, sb.y + sb.h + 12);
+  }
+
+  // Settings sub-view
+  if (g.menuMode === 'settings') {
+    drawMenuSettings(g);
+    return;
+  }
 
   if (g.menuMode === 'campaign') {
     drawMenuCampaign(g);
@@ -2268,7 +2539,7 @@ function drawMenu(g) {
   const tabWidths = MODE_ORDER.map(mid => ctx.measureText(MODES[mid].name.toUpperCase()).width + 22);
   const totalTabsW = tabWidths.reduce((a,b) => a+b, 0) + modeTabGap * (MODE_ORDER.length - 1);
   let tabX = (CANVAS_W - totalTabsW) / 2;
-  const tabY = 192;
+  const tabY = 174;
   ctx.fillStyle = '#666688';
   ctx.font = '10px "Segoe UI", sans-serif';
   ctx.textAlign = 'right';
@@ -2293,17 +2564,21 @@ function drawMenu(g) {
   // Platform selection
   ctx.fillStyle = '#aaaacc';
   ctx.font = 'bold 14px "Segoe UI", sans-serif';
-  ctx.fillText('CHOOSE A PLATFORM', CANVAS_W / 2, 222);
+  ctx.fillText('CHOOSE A PLATFORM', CANVAS_W / 2, 210);
 
   menuPlatformRects = [];
-  const cardW = 150, cardH = 130, gap = 16;
-  const totalW = cardW * 4 + gap * 3;
+  // 4 cols × 2 rows = 8 platforms (4 flat + 4 contoured)
+  const platCols = 4;
+  const cardW = 150, cardH = 78, gapX = 16, gapY = 10;
+  const totalW = cardW * platCols + gapX * (platCols - 1);
   const startX = (CANVAS_W - totalW) / 2;
-  const cardY = 230;
+  const cardYStart = 226;
 
   PLATFORM_ORDER.forEach((pid, i) => {
     const p = PLATFORMS[pid];
-    const x = startX + i * (cardW + gap);
+    const col = i % platCols, row = Math.floor(i / platCols);
+    const x = startX + col * (cardW + gapX);
+    const cardY = cardYStart + row * (cardH + gapY);
     const selected = i === g.selectedPlatformIdx;
     menuPlatformRects.push({ x, y: cardY, w: cardW, h: cardH, idx: i, pid });
 
@@ -2314,44 +2589,47 @@ function drawMenu(g) {
     ctx.lineWidth = selected ? 2 : 1;
     ctx.strokeRect(x, cardY, cardW, cardH);
 
-    // Mini platform diagram
-    const diagY = cardY + 28;
-    const diagX = x + cardW / 2;
-    drawPlatformIcon(p, diagX, diagY);
+    // Mini platform diagram (left side of card)
+    ctx.save();
+    drawPlatformIcon(p, x + 28, cardY + 32);
+    ctx.restore();
 
-    // Name
-    ctx.fillStyle = selected ? '#ffffff' : '#aaaacc';
-    ctx.font = 'bold 13px "Segoe UI", sans-serif';
-    ctx.fillText(p.name, x + cardW / 2, cardY + 78);
+    // Name (right of icon)
+    ctx.fillStyle = selected ? '#ffffff' : '#dddde0';
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.name, x + 60, cardY + 22);
 
-    // Difficulty
+    // Difficulty + contour marker
     const diffColor = p.difficulty === 'easy' ? '#66bb6a'
       : p.difficulty === 'medium' ? '#ffeb3b'
       : '#ef5350';
     ctx.fillStyle = diffColor;
-    ctx.font = '10px "Segoe UI", sans-serif';
-    ctx.fillText(p.difficulty.toUpperCase(), x + cardW / 2, cardY + 95);
+    ctx.font = '9px "Segoe UI", sans-serif';
+    ctx.fillText(p.difficulty.toUpperCase() + (p.contour ? ' · ◢◣' : ''), x + 60, cardY + 38);
 
     // High score per platform+mode
     const selMode = MODE_ORDER[g.selectedModeIdx];
     const hs = parseInt(localStorage.getItem('bb_highscore_' + pid + '_' + selMode) || '0');
     if (hs > 0) {
       ctx.fillStyle = '#888899';
-      ctx.font = '10px "Segoe UI", sans-serif';
-      ctx.fillText('Best: ' + hs, x + cardW / 2, cardY + 113);
+      ctx.font = '9px "Segoe UI", sans-serif';
+      ctx.fillText('Best: ' + hs, x + 60, cardY + 54);
     }
+    ctx.textAlign = 'center';
   });
 
   // Selected description
   const selPlatform = PLATFORMS[PLATFORM_ORDER[g.selectedPlatformIdx]];
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#cccce0';
-  ctx.font = '13px "Segoe UI", sans-serif';
-  ctx.fillText(selPlatform.description, CANVAS_W / 2, 388);
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText(selPlatform.description, CANVAS_W / 2, 418);
 
   // Start button
-  const btnW = 220, btnH = 44;
+  const btnW = 220, btnH = 40;
   const btnX = (CANVAS_W - btnW) / 2;
-  const btnY = 415;
+  const btnY = 438;
   menuStartRect = { x: btnX, y: btnY, w: btnW, h: btnH };
   const pulse = Math.sin(Date.now() / 400) * 0.2 + 0.8;
   ctx.globalAlpha = pulse;
@@ -2360,41 +2638,41 @@ function drawMenu(g) {
   ctx.globalAlpha = 1;
   ctx.fillStyle = '#0a0a1a';
   ctx.font = 'bold 16px "Segoe UI", sans-serif';
-  ctx.fillText('START', btnX + btnW / 2, btnY + 28);
+  ctx.fillText('START', btnX + btnW / 2, btnY + 26);
 
   // Big "click any platform to start" hint
   ctx.fillStyle = '#ffa726';
-  ctx.font = 'bold 13px "Segoe UI", sans-serif';
-  ctx.fillText('CLICK A PLATFORM TO START — or click START for ' + selPlatform.name, CANVAS_W / 2, 478);
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.fillText('Click any platform to start — or click START for ' + selPlatform.name, CANVAS_W / 2, 498);
 
   // ===== HOW TO PLAY panel =====
-  const hpY = 500;
+  const hpY = 516;
   ctx.fillStyle = 'rgba(30, 30, 50, 0.5)';
-  ctx.fillRect(60, hpY, CANVAS_W - 120, 130);
+  ctx.fillRect(60, hpY, CANVAS_W - 120, 116);
   ctx.strokeStyle = 'rgba(100, 100, 140, 0.3)';
   ctx.lineWidth = 1;
-  ctx.strokeRect(60, hpY, CANVAS_W - 120, 130);
+  ctx.strokeRect(60, hpY, CANVAS_W - 120, 116);
 
   ctx.fillStyle = '#aaaacc';
-  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  ctx.font = 'bold 11px "Segoe UI", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('HOW TO PLAY', 76, hpY + 18);
+  ctx.fillText('HOW TO PLAY', 76, hpY + 16);
 
   ctx.fillStyle = '#cccce0';
-  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.font = '11px "Segoe UI", sans-serif';
   const lines = [
-    ['Goal:', "Stack tetrominoes on the platform without tipping it past 45°."],
-    ['Move:', '← →   Rotate: ↑ or X   Drop: Space   (or use mouse + click)'],
-    ['Modes:', 'Bombs detonate, Balloons lift, Alchemy slides matched groups off the edge.'],
-    ['Levels:', 'Click CAMPAIGN above for 15 hand-tuned challenges.']
+    ['Goal:', 'Stack tetrominoes on the platform without tipping it past 45°.'],
+    ['Move:', '← →   Rotate: ↑ / X   Drop: Space   (or use mouse + click)'],
+    ['Modes:', 'Bombs detonate · Balloons lift · Alchemy slides groups off the edge'],
+    ['Customize:', 'Click ⚙ SETTINGS for hot-seat 2P, fall speed, physics knobs.']
   ];
   lines.forEach((l, i) => {
     ctx.fillStyle = '#88aacc';
     ctx.font = 'bold 11px "Segoe UI", sans-serif';
-    ctx.fillText(l[0], 76, hpY + 40 + i * 22);
+    ctx.fillText(l[0], 76, hpY + 34 + i * 20);
     ctx.fillStyle = '#cccce0';
     ctx.font = '11px "Segoe UI", sans-serif';
-    ctx.fillText(l[1], 130, hpY + 40 + i * 22);
+    ctx.fillText(l[1], 140, hpY + 34 + i * 20);
   });
   ctx.textAlign = 'center';
   return; // skip the demo-pieces code below
@@ -2652,28 +2930,54 @@ function drawGameOver(g) {
     return;
   }
 
-  // Game over text
-  ctx.fillStyle = '#ef5350';
-  ctx.font = 'bold 42px "Segoe UI", sans-serif';
-  ctx.fillText('TIPPED OVER!', CANVAS_W / 2, 220);
-
-  // Score
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '20px "Segoe UI", sans-serif';
-  ctx.fillText('Pieces placed: ' + g.score, CANVAS_W / 2, 280);
-
-  // High score
-  if (g.score >= g.highScore && g.score > 0) {
-    const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-    ctx.globalAlpha = pulse;
-    ctx.fillStyle = '#ffd740';
-    ctx.font = 'bold 22px "Segoe UI", sans-serif';
-    ctx.fillText('NEW BEST!', CANVAS_W / 2, 320);
-    ctx.globalAlpha = 1;
+  // Hot-seat: which player tipped, scoreboard
+  if (g.playerCount > 1) {
+    const tipper = g.tipperPlayer || g.lastPlacingPlayer || g.currentPlayer;
+    const tpc = PLAYER_COLORS[tipper];
+    ctx.fillStyle = tpc.primary;
+    ctx.font = 'bold 36px "Segoe UI", sans-serif';
+    ctx.fillText(tpc.name.toUpperCase() + ' TIPPED IT', CANVAS_W / 2, 200);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.fillText('Final scores', CANVAS_W / 2, 240);
+    // Find winner (highest score, with tip-tiebreaker losing)
+    let winnerId = 0, winnerScore = -1;
+    for (let p = 1; p <= g.playerCount; p++) {
+      if (p === tipper) continue;
+      const s = g.playerScores[p] || 0;
+      if (s > winnerScore) { winnerScore = s; winnerId = p; }
+    }
+    for (let p = 1; p <= g.playerCount; p++) {
+      const ppc = PLAYER_COLORS[p];
+      const y = 270 + (p - 1) * 28;
+      const tag = (p === winnerId ? '★ ' : (p === tipper ? '✕ ' : '  ')) +
+        ppc.name + ': ' + (g.playerScores[p] || 0) + ' pieces';
+      ctx.fillStyle = (p === winnerId) ? '#ffd740' : (p === tipper ? '#888' : ppc.primary);
+      ctx.font = (p === winnerId ? 'bold ' : '') + '17px "Segoe UI", sans-serif';
+      ctx.fillText(tag, CANVAS_W / 2, y);
+    }
   } else {
-    ctx.fillStyle = '#8888aa';
-    ctx.font = '16px "Segoe UI", sans-serif';
-    ctx.fillText('Best: ' + g.highScore, CANVAS_W / 2, 320);
+    // Solo game over (existing UI)
+    ctx.fillStyle = '#ef5350';
+    ctx.font = 'bold 42px "Segoe UI", sans-serif';
+    ctx.fillText('TIPPED OVER!', CANVAS_W / 2, 220);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText('Pieces placed: ' + g.score, CANVAS_W / 2, 280);
+
+    if (g.score >= g.highScore && g.score > 0) {
+      const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#ffd740';
+      ctx.font = 'bold 22px "Segoe UI", sans-serif';
+      ctx.fillText('NEW BEST!', CANVAS_W / 2, 320);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = '#8888aa';
+      ctx.font = '16px "Segoe UI", sans-serif';
+      ctx.fillText('Best: ' + g.highScore, CANVAS_W / 2, 320);
+    }
   }
 
   // Restart
