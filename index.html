@@ -53,6 +53,7 @@ const DEFAULT_SETTINGS = {
   playerCount: 1,      // 1 = solo, 2+ = hot-seat
   stiffnessMul: 1.0,   // 0.5 = floppy platform, 2.0 = rigid
   maxTiltMul: 1.0,     // 0.7 = strict game-over threshold, 1.3 = lenient
+  lineClear: 'off',    // 'off' | 'classic' — clear full rows after placement
 };
 
 // Player colors for hot-seat (1-indexed; index 0 unused)
@@ -105,6 +106,14 @@ const SETTING_SPECS = {
       { label: 'Strict',  value: 0.7 },
       { label: 'Normal',  value: 1.0 },
       { label: 'Lenient', value: 1.3 },
+    ]
+  },
+  lineClear: {
+    label: 'LINE CLEAR',
+    hint: 'Tetris-style: full rows clear and shift mass off the platform.',
+    presets: [
+      { label: 'Off',     value: 'off' },
+      { label: 'Classic', value: 'classic' },
     ]
   },
 };
@@ -713,7 +722,7 @@ const MODES = {
 
       if (cellsLost > 0) {
         g.alchemyBonus = (g.alchemyBonus || 0) + scoreDelta;
-        g.score = g.piecesPlaced + g.alchemyBonus;
+        g.score = g.piecesPlaced + (g.alchemyBonus || 0) + (g.lineBonus || 0);
         // Brief notification overlay in the renderer
         g.alchemyFlash = { delta: scoreDelta, frames: 60 };
         g.flashTimer = Math.max(g.flashTimer, 20);
@@ -1205,13 +1214,13 @@ function lockPiece(g, piece, col, row) {
   // Per-player score in hot-seat; global score otherwise
   if (g.playerCount > 1) {
     g.playerScores[piece.playerId] = (g.playerScores[piece.playerId] || 0) + 1;
-    g.score = g.piecesPlaced; // overall counter
-  } else {
-    g.score = g.piecesPlaced;
   }
+  g.score = g.piecesPlaced + (g.lineBonus || 0) + (g.alchemyBonus || 0);
   // Mode hook: settle pass (bombs detonate, surfaces slide, etc.)
   // Runs BEFORE physics recompute so cascade effects on torque are reflected immediately.
   if (g.mode.onPiecePlaced) g.mode.onPiecePlaced(g);
+  // Line clear (after mode effects so cascades resolve first)
+  clearLines(g);
   const phys = computePhysics(g);
   g.targetTilt = phys.angle;
   g.lastTorqueData = phys.torqueData;
@@ -1260,6 +1269,42 @@ function advancePlayer(g) {
   if (g.playerCount > 1) {
     g.currentPlayer = (g.currentPlayer % g.playerCount) + 1;
   }
+}
+
+// Line clearing: find full rows and remove their non-platform cells.
+// Platform-contour cells stay. Bonus score: 1/3/5/8 for 1/2/3/4 lines.
+// Returns the count of rows cleared.
+function clearLines(g) {
+  if (settings.lineClear !== 'classic') return 0;
+  const cleared = [];
+  for (let r = 0; r < ROWS; r++) {
+    let allFilled = true;
+    let hasPlayerCell = false;
+    for (let c = 0; c < COLS; c++) {
+      if (!g.grid[r][c]) { allFilled = false; break; }
+      if (!g.grid[r][c].platform) hasPlayerCell = true;
+    }
+    // Skip rows that are full only because of platform cells
+    if (allFilled && hasPlayerCell) cleared.push(r);
+  }
+  if (cleared.length === 0) return 0;
+  // Clear non-platform cells in those rows
+  for (const r of cleared) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = g.grid[r][c];
+      if (cell && !cell.platform) g.grid[r][c] = null;
+    }
+  }
+  // Award line-clear bonus
+  const bonuses = [0, 1, 3, 5, 8];
+  const bonus = bonuses[Math.min(cleared.length, 4)];
+  g.lineBonus = (g.lineBonus || 0) + bonus;
+  g.linesCleared = (g.linesCleared || 0) + cleared.length;
+  g.score = g.piecesPlaced + (g.lineBonus || 0) + (g.alchemyBonus || 0);
+  // Visual: flash rows briefly
+  g.lineFlash = { rows: cleared, frames: 30 };
+  g.flashTimer = Math.max(g.flashTimer, 25);
+  return cleared.length;
 }
 
 // ===== INPUT =====
@@ -1386,9 +1431,33 @@ document.addEventListener('keydown', e => {
       }
       break;
     case 'ArrowDown':
-      // In fall mode, ArrowDown is soft-drop (handled per-frame in update).
-      // In floating mode, it acts like Space.
-      if (!inFall) startDrop(game);
+      // Auto-fall mode (settings.fallSpeed > 0): ArrowDown held = soft-drop
+      // multiplier, handled per-frame in update(). No per-press action.
+      if (settings.fallSpeed > 0 && inFall) break;
+      // Manual mode: pressing Down lowers the piece into the grid so you can
+      // slide it sideways under overhangs. First press in floating mode drops
+      // the piece to the top of the grid immediately; subsequent presses step
+      // down one row at a time. When the piece can't move further, it locks.
+      if (!inFall) {
+        // Enter the grid at row 0 (top of grid). The piece's filled cells
+        // start at the top edge.
+        if (collides(game.grid, cur.shape, cur.col, 0)) {
+          // Top is blocked — game over (grid is too full)
+          cur.row = 0;
+          lockFromCurrent(game);
+        } else {
+          cur.row = 0;
+          cur.fallAccum = 0;
+        }
+      } else {
+        // Already in-grid: step down one row, or lock if blocked
+        const newRow = cur.row + 1;
+        if (collides(game.grid, cur.shape, cur.col, newRow)) {
+          lockFromCurrent(game);
+        } else {
+          cur.row = newRow;
+        }
+      }
       break;
   }
   e.preventDefault();
@@ -1898,6 +1967,16 @@ function drawPlatform(g) {
 
   const blockStyle = theme.blockStyle;
 
+  // Line clear flash: overlay a bright bar on cleared rows that fades over 30 frames
+  if (g.lineFlash && g.lineFlash.frames > 0) {
+    const f = g.lineFlash.frames / 30;
+    ctx.fillStyle = `rgba(255, 240, 120, ${f * 0.6})`;
+    for (const rr of g.lineFlash.rows) {
+      ctx.fillRect(GRID_LEFT, GRID_TOP + rr * CELL, GRID_W, CELL);
+    }
+    g.lineFlash.frames--;
+  }
+
   // Placed pieces
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -2180,42 +2259,55 @@ function drawScore(g) {
     ctx.textAlign = 'left';
   }
 
+  const hasBonus = (g.alchemyBonus || 0) || (g.lineBonus || 0);
   ctx.fillStyle = '#8888aa';
   ctx.font = '12px "Segoe UI", sans-serif';
-  ctx.fillText(g.modeId === 'alchemy' ? 'SCORE' : 'PIECES', 30, 55);
+  ctx.fillText(hasBonus ? 'SCORE' : 'PIECES', 30, 55);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 32px "Segoe UI", sans-serif';
   ctx.fillText(String(g.score), 30, 90);
 
-  // Alchemy mode: show bonus separately
-  if (g.modeId === 'alchemy') {
-    const bonus = g.alchemyBonus || 0;
+  // Show breakdown when any bonus is active
+  if (hasBonus) {
+    let bonusY = 108;
     ctx.fillStyle = '#888899';
     ctx.font = '11px "Segoe UI", sans-serif';
-    ctx.fillText(g.piecesPlaced + ' pieces', 30, 108);
-    ctx.fillStyle = bonus >= 0 ? '#5d5' : '#f55';
-    ctx.fillText((bonus >= 0 ? '+' : '') + bonus + ' bonus', 30, 122);
-    // Floating notification when a slide just happened
-    if (g.alchemyFlash && g.alchemyFlash.frames > 0) {
-      g.alchemyFlash.frames--;
-      const f = g.alchemyFlash;
-      const fade = Math.min(1, f.frames / 30);
-      ctx.fillStyle = f.delta >= 0 ? `rgba(120,255,120,${fade})` : `rgba(255,120,120,${fade})`;
-      ctx.font = 'bold 22px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      const yOffset = (60 - f.frames) * 0.5;
-      ctx.fillText((f.delta >= 0 ? '+' : '') + f.delta, FULCRUM_X, FULCRUM_Y + 60 - yOffset);
-      ctx.textAlign = 'left';
+    ctx.fillText(g.piecesPlaced + ' pieces', 30, bonusY);
+    bonusY += 14;
+    if (g.alchemyBonus) {
+      ctx.fillStyle = g.alchemyBonus >= 0 ? '#5d5' : '#f55';
+      ctx.fillText((g.alchemyBonus >= 0 ? '+' : '') + g.alchemyBonus + ' alchemy', 30, bonusY);
+      bonusY += 14;
     }
-  } else {
+    if (g.lineBonus) {
+      ctx.fillStyle = '#ffd740';
+      ctx.fillText('+' + g.lineBonus + ' lines (' + (g.linesCleared || 0) + ')', 30, bonusY);
+      bonusY += 14;
+    }
+  }
+
+  // Best score (only when no bonus is being displayed)
+  if (!hasBonus) {
     ctx.fillStyle = '#666688';
     ctx.font = '12px "Segoe UI", sans-serif';
     ctx.fillText('BEST', 30, 120);
-
     ctx.fillStyle = '#aaaacc';
     ctx.font = 'bold 18px "Segoe UI", sans-serif';
     ctx.fillText(String(g.highScore), 30, 142);
+  }
+
+  // Alchemy floating notification when a slide just happened
+  if (g.modeId === 'alchemy' && g.alchemyFlash && g.alchemyFlash.frames > 0) {
+    g.alchemyFlash.frames--;
+    const f = g.alchemyFlash;
+    const fade = Math.min(1, f.frames / 30);
+    ctx.fillStyle = f.delta >= 0 ? `rgba(120,255,120,${fade})` : `rgba(255,120,120,${fade})`;
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    const yOffset = (60 - f.frames) * 0.5;
+    ctx.fillText((f.delta >= 0 ? '+' : '') + f.delta, FULCRUM_X, FULCRUM_Y + 60 - yOffset);
+    ctx.textAlign = 'left';
   }
 }
 
@@ -2239,11 +2331,12 @@ function drawControls(g) {
   const lines = [
     '\u2190 \u2192   Move',
     '\u2191 / X  Rotate',
-    'Space  Drop',
+    '\u2193   Step down',
+    'Space  Hard drop',
     'Mouse  Aim + click'
   ];
   lines.forEach((line, i) => {
-    ctx.fillText(line, panelX + 8, panelY + 32 + i * 16);
+    ctx.fillText(line, panelX + 8, panelY + 30 + i * 14);
   });
 
   ctx.fillStyle = '#ffa726';
@@ -2275,7 +2368,8 @@ function drawHelpOverlay(g) {
     ['\u2190 / \u2192', 'Move piece left / right'],
     ['\u2191 or X', 'Rotate clockwise'],
     ['Z', 'Rotate counter-clockwise'],
-    ['Space', 'Drop piece into stack'],
+    ['\u2193', 'Step piece into grid (slide under overhangs)'],
+    ['Space', 'Hard drop / lock piece'],
     ['Esc', 'Back to menu (after game over)'],
     ['R', 'Restart current game']
   ];
@@ -2391,7 +2485,10 @@ function drawSettingRow(y, settingKey, options) {
   x += labelW;
   spec.presets.forEach((p, i) => {
     const w = widths[i];
-    const sel = Math.abs(settings[settingKey] - p.value) < 0.001;
+    const cur = settings[settingKey];
+    const sel = typeof p.value === 'number'
+      ? Math.abs(cur - p.value) < 0.001
+      : cur === p.value;
     rects.push({ x, y, w, h: btnH, value: p.value, settingKey });
     ctx.fillStyle = sel ? 'rgba(80, 220, 80, 0.18)' : 'rgba(30,30,50,0.5)';
     ctx.fillRect(x, y, w, btnH);
@@ -2425,7 +2522,7 @@ function drawMenuSettings(g) {
   menuSettingsRowRects = {};
 
   let y = 168;
-  const keys = ['playerCount', 'fallSpeed', 'stiffnessMul', 'maxTiltMul'];
+  const keys = ['playerCount', 'lineClear', 'fallSpeed', 'stiffnessMul', 'maxTiltMul'];
   for (const key of keys) {
     menuSettingsRowRects[key] = drawSettingRow(y, key, { bigLabel: true });
     // Hint line below
@@ -2662,9 +2759,9 @@ function drawMenu(g) {
   ctx.font = '11px "Segoe UI", sans-serif';
   const lines = [
     ['Goal:', 'Stack tetrominoes on the platform without tipping it past 45°.'],
-    ['Move:', '← →   Rotate: ↑ / X   Drop: Space   (or use mouse + click)'],
+    ['Move:', '← →   Rotate: ↑ / X   Drop: Space   ↓ steps down (slip under!)'],
     ['Modes:', 'Bombs detonate · Balloons lift · Alchemy slides groups off the edge'],
-    ['Customize:', 'Click ⚙ SETTINGS for hot-seat 2P, fall speed, physics knobs.']
+    ['Customize:', 'Click ⚙ SETTINGS — hot-seat 2P, fall speed, line clear, physics']
   ];
   lines.forEach((l, i) => {
     ctx.fillStyle = '#88aacc';
