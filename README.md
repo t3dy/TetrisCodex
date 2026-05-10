@@ -24,6 +24,7 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 - [`PARODIES.md`](./PARODIES.md) — 10 parody mechanics translating each comparable game into Balance Tetris vocabulary
 - [`MODESPLAN.md`](./MODESPLAN.md) — Build plan for integrating modes into the main game (Mode interface, build order, what NOT to build yet)
 - [`MECHANICS_CATALOG.md`](./MECHANICS_CATALOG.md) — Long-form catalog of every mechanic with player-challenge analysis and implementation notes
+- [`TESTING.md`](./TESTING.md) — How to test the game, prototypes, and reset progression
 
 ## Prototypes
 
