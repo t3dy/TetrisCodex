@@ -40,7 +40,34 @@ const PLATFORM_Y = 485;
 const GRID_LEFT = FULCRUM_X - GRID_W / 2;
 const GRID_TOP = PLATFORM_Y - GRID_H;
 const TILT_LERP = 0.07;
-const DROP_SPEED = 1200; // pixels per second
+const DROP_SPEED = 1200; // pixels per second (hard-drop animation)
+
+// ===== SETTINGS =====
+// Persisted to localStorage. fallSpeed=0 means "no auto-fall" — pieces float
+// above the grid until you press Space (legacy behavior). Higher values give
+// classic-Tetris auto-fall, letting you slide pieces sideways into overhangs
+// during the fall.
+const DEFAULT_SETTINGS = {
+  fallSpeed: 0,        // cells/sec; 0 = off, classic positioning behavior
+  softDropMul: 12,     // multiplier when ArrowDown is held during fall
+};
+const FALL_SPEED_PRESETS = [
+  { label: 'Off',       value: 0 },
+  { label: 'Very Slow', value: 0.6 },
+  { label: 'Slow',      value: 1.5 },
+  { label: 'Medium',    value: 3 },
+  { label: 'Fast',      value: 6 }
+];
+let settings = (function loadSettings() {
+  try {
+    return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem('bb_settings') || '{}'));
+  } catch (e) {
+    return Object.assign({}, DEFAULT_SETTINGS);
+  }
+})();
+function saveSettings() {
+  localStorage.setItem('bb_settings', JSON.stringify(settings));
+}
 
 // Per-cell torque contribution. Mode can override via mode.cellTorque(cell, r, c, center).
 // Default: (col - center) * (cell.weight || 1).
@@ -819,6 +846,11 @@ function spawnPiece(g) {
   fillQueue(g);
   g.current = g.next.shift();
   fillQueue(g);
+  // Fall mode: piece starts above the grid and descends into it
+  if (settings.fallSpeed > 0) {
+    g.current.row = -g.current.shape.length;
+    g.current.fallAccum = 0;
+  }
   // If can't place at all at start position, adjust
   if (collides(g.grid, g.current.shape, g.current.col, 0)) {
     // Try to shift
@@ -932,6 +964,25 @@ function startDrop(g) {
   g.current = null;
 }
 
+// Used by fall mode: piece is already at cur.row, lock it directly without
+// the dropping-animation phase. Runs all the same post-lock checks.
+function lockFromCurrent(g) {
+  const cur = g.current;
+  const lr = cur.row;
+  if (lr < 0) { triggerGameOver(g); return; }
+  lockPiece(g, cur, cur.col, lr);
+  g.dropRow = lr;
+  // Shake proportional to tilt change
+  const angleDelta = Math.abs(g.targetTilt - g.tiltAngle);
+  g.shakeX = (Math.random() - 0.5) * angleDelta * 20;
+  g.shakeY = (Math.random() - 0.5) * angleDelta * 10;
+  if (!g.platform.isStable(g.targetTilt, g.lastTorqueData)) { triggerGameOver(g); return; }
+  if (lr < 0) { triggerGameOver(g); return; }
+  checkLevelWin(g);
+  if (g.levelComplete) return;
+  spawnPiece(g);
+}
+
 // ===== INPUT =====
 const keys = {};
 
@@ -1005,22 +1056,28 @@ document.addEventListener('keydown', e => {
   }
 
   const cur = game.current;
+  const inFall = cur.row !== undefined; // fall mode is active for this piece
+  // For fall mode, validate moves against the piece's current row (so it can't
+  // pass through existing blocks at that row). For floating mode, just bounds.
+  const canMove = (shape, col) => inFall
+    ? !collides(game.grid, shape, col, cur.row)
+    : isValidCol(game.grid, shape, col);
+
   switch (e.code) {
     case 'ArrowLeft':
-      if (isValidCol(game.grid, cur.shape, cur.col - 1)) cur.col--;
+      if (canMove(cur.shape, cur.col - 1)) cur.col--;
       break;
     case 'ArrowRight':
-      if (isValidCol(game.grid, cur.shape, cur.col + 1)) cur.col++;
+      if (canMove(cur.shape, cur.col + 1)) cur.col++;
       break;
     case 'ArrowUp':
     case 'KeyX': {
       const rotated = rotateCW(cur.shape);
-      let newCol = cur.col;
       // Wall kick: try 0, -1, +1, -2, +2
       for (const kick of [0, -1, 1, -2, 2]) {
-        if (isValidCol(game.grid, rotated, newCol + kick)) {
+        if (canMove(rotated, cur.col + kick)) {
           cur.shape = rotated;
-          cur.col = newCol + kick;
+          cur.col += kick;
           break;
         }
       }
@@ -1028,11 +1085,10 @@ document.addEventListener('keydown', e => {
     }
     case 'KeyZ': {
       const rotated = rotateCCW(cur.shape);
-      let newCol = cur.col;
       for (const kick of [0, -1, 1, -2, 2]) {
-        if (isValidCol(game.grid, rotated, newCol + kick)) {
+        if (canMove(rotated, cur.col + kick)) {
           cur.shape = rotated;
-          cur.col = newCol + kick;
+          cur.col += kick;
           break;
         }
       }
@@ -1040,10 +1096,20 @@ document.addEventListener('keydown', e => {
     }
     case 'Space':
     case 'Enter':
-      startDrop(game);
+      // Hard drop: in fall mode, snap to landing and lock. In floating mode,
+      // start the dropping animation as before.
+      if (inFall) {
+        const lr = findLandingRow(game.grid, cur.shape, cur.col);
+        cur.row = Math.max(lr, cur.row);
+        lockFromCurrent(game);
+      } else {
+        startDrop(game);
+      }
       break;
     case 'ArrowDown':
-      startDrop(game);
+      // In fall mode, ArrowDown is soft-drop (handled per-frame in update).
+      // In floating mode, it acts like Space.
+      if (!inFall) startDrop(game);
       break;
   }
   e.preventDefault();
@@ -1088,7 +1154,12 @@ canvas.addEventListener('mousemove', e => {
       const minCol = -leftFilled;            // leftmost filled cell at col 0
       const maxCol = COLS - 1 - rightFilled; // rightmost filled cell at col COLS-1
       const newCol = Math.max(minCol, Math.min(maxCol, desired));
-      if (isValidCol(game.grid, shape, newCol)) {
+      // In fall mode, also check that no placed cells block the move at the
+      // current row. In floating mode, just bounds.
+      const ok = game.current.row !== undefined
+        ? !collides(game.grid, shape, newCol, game.current.row)
+        : isValidCol(game.grid, shape, newCol);
+      if (ok) {
         game.current.col = newCol;
       }
     }
@@ -1109,6 +1180,14 @@ canvas.addEventListener('click', e => {
     for (const r of menuTopToggleRects) {
       if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
         game.menuMode = r.mode;
+        return;
+      }
+    }
+    // Fall speed selector
+    for (const r of menuFallSpeedRects) {
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        settings.fallSpeed = r.value;
+        saveSettings();
         return;
       }
     }
@@ -1289,6 +1368,25 @@ function update(g, dt) {
     const goLerp = 1 - Math.pow(1 - 0.03, dt * 60);
     g.tiltAngle += (overTilt - g.tiltAngle) * goLerp;
     return;
+  }
+
+  // Fall mode: while playing, descend the current piece at fallSpeed cells/sec.
+  // Soft drop (Down arrow held) multiplies the fall rate.
+  if (g.phase === 'playing' && g.current && g.current.row !== undefined && settings.fallSpeed > 0) {
+    const cur = g.current;
+    const speedMul = keys['ArrowDown'] ? settings.softDropMul : 1;
+    cur.fallAccum += dt * settings.fallSpeed * speedMul;
+    while (cur.fallAccum >= 1) {
+      cur.fallAccum -= 1;
+      const newRow = cur.row + 1;
+      if (collides(g.grid, cur.shape, cur.col, newRow)) {
+        // Can't move down — lock the piece at its current row
+        lockFromCurrent(g);
+        break;
+      } else {
+        cur.row = newRow;
+      }
+    }
   }
 
   if (g.phase === 'dropping') {
@@ -1500,18 +1598,24 @@ function drawPlatform(g) {
     }
   }
 
-  // Current piece (above grid, being positioned)
+  // Current piece. In fall mode it's at cur.row (descending in the grid).
+  // In floating mode it sits 2.5 cells above the grid.
   if (g.phase === 'playing' && g.current) {
     const cur = g.current;
+    const inFall = cur.row !== undefined;
+    const pieceY = inFall
+      ? GRID_TOP + cur.row * CELL
+      : GRID_TOP - CELL * 2.5;
     drawShape(
       cur.shape,
       GRID_LEFT + cur.col * CELL,
-      GRID_TOP - CELL * 2.5,
+      pieceY,
       cur.color, cur.colorLight, cur.colorDark,
       1, blockStyle, cur, cur.cellInfo
     );
-    // Arrow pointing down (skip in zen)
-    if (!suppress.controls) {
+    // Arrow indicator (only useful in floating mode; in fall mode the piece
+    // is visibly already on the grid)
+    if (!inFall && !suppress.controls) {
       const arrowX = GRID_LEFT + cur.col * CELL + (cur.shape[0].length * CELL) / 2;
       const arrowY = GRID_TOP - CELL * 0.3;
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
@@ -1890,6 +1994,42 @@ let menuModeRects = [];
 let menuLevelRects = [];
 let menuStartRect = null;
 let menuTopToggleRects = [];
+let menuFallSpeedRects = [];
+
+function drawFallSpeedSelector(y) {
+  // Compact "FALL SPEED: [Off] [Very Slow] [Slow] [Medium] [Fast]" row
+  menuFallSpeedRects = [];
+  const labelText = 'FALL';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  const labelW = ctx.measureText(labelText).width + 8;
+  const btnH = 22, gap = 4;
+  // Measure all button widths
+  ctx.font = 'bold 10px "Segoe UI", sans-serif';
+  const widths = FALL_SPEED_PRESETS.map(p => Math.max(48, ctx.measureText(p.label).width + 16));
+  const totalW = labelW + widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1);
+  let x = (CANVAS_W - totalW) / 2;
+  // Label
+  ctx.fillStyle = '#666688';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(labelText, x + labelW - 8, y + btnH / 2 + 4);
+  ctx.textAlign = 'center';
+  x += labelW;
+  FALL_SPEED_PRESETS.forEach((p, i) => {
+    const w = widths[i];
+    const sel = Math.abs(settings.fallSpeed - p.value) < 0.001;
+    menuFallSpeedRects.push({ x, y, w, h: btnH, value: p.value });
+    ctx.fillStyle = sel ? 'rgba(80, 220, 80, 0.18)' : 'rgba(30,30,50,0.5)';
+    ctx.fillRect(x, y, w, btnH);
+    ctx.strokeStyle = sel ? '#5d5' : 'rgba(100, 100, 140, 0.4)';
+    ctx.lineWidth = sel ? 2 : 1;
+    ctx.strokeRect(x, y, w, btnH);
+    ctx.fillStyle = sel ? '#5d5' : '#bbbbcc';
+    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+    ctx.fillText(p.label, x + w / 2, y + 15);
+    x += w + gap;
+  });
+}
 
 function drawMenu(g) {
   ctx.fillStyle = '#0a0a1a';
@@ -1922,6 +2062,9 @@ function drawMenu(g) {
     ctx.fillText(m === 'free' ? 'FREE PLAY' : 'CAMPAIGN', x + togW / 2, togY + 18);
   });
 
+  // Fall speed selector (always visible)
+  drawFallSpeedSelector(162);
+
   if (g.menuMode === 'campaign') {
     drawMenuCampaign(g);
     return;
@@ -1936,7 +2079,7 @@ function drawMenu(g) {
   const tabWidths = MODE_ORDER.map(mid => ctx.measureText(MODES[mid].name.toUpperCase()).width + 22);
   const totalTabsW = tabWidths.reduce((a,b) => a+b, 0) + modeTabGap * (MODE_ORDER.length - 1);
   let tabX = (CANVAS_W - totalTabsW) / 2;
-  const tabY = 184;
+  const tabY = 192;
   ctx.fillStyle = '#666688';
   ctx.font = '10px "Segoe UI", sans-serif';
   ctx.textAlign = 'right';
@@ -2093,8 +2236,8 @@ function drawMenuCampaign(g) {
   ctx.textAlign = 'center';
 
   ctx.fillStyle = '#8888aa';
-  ctx.font = '13px "Segoe UI", sans-serif';
-  ctx.fillText('Pick a level. Each combines a platform, mode, and goal.', CANVAS_W / 2, 178);
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText('Pick a level. Each combines a platform, mode, and goal.', CANVAS_W / 2, 200);
 
   // Level grid: 5 cols × 3 rows (15 levels)
   menuLevelRects = [];
@@ -2103,7 +2246,7 @@ function drawMenuCampaign(g) {
   const rows = Math.ceil(LEVELS.length / cols);
   const totalW = cardW * cols + gap * (cols - 1);
   const startX = (CANVAS_W - totalW) / 2;
-  const startY = 192;
+  const startY = 212;
 
   for (let i = 0; i < LEVELS.length; i++) {
     const lev = LEVELS[i];
