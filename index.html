@@ -989,6 +989,18 @@ function screenToGridCol(mx, my, angle) {
   return Math.floor((lx - GRID_LEFT) / CELL);
 }
 
+// Inverse-rotate the mouse Y to find which grid row it sits in (accounting
+// for the platform's current tilt). Used by mouse to position pieces
+// vertically — so you can drag a piece directly under an overhang.
+function screenToGridRow(mx, my, angle) {
+  const dx = mx - FULCRUM_X;
+  const dy = my - FULCRUM_Y;
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  const ly = dx * sin + dy * cos + FULCRUM_Y;
+  return Math.floor((ly - GRID_TOP) / CELL);
+}
+
 // ===== GAME STATE =====
 let game = null;
 
@@ -1479,6 +1491,7 @@ canvas.addEventListener('mousemove', e => {
 
   if (game && game.phase === 'playing' && game.current) {
     const col = screenToGridCol(mouseX, mouseY, game.tiltAngle);
+    const row = screenToGridRow(mouseX, mouseY, game.tiltAngle);
     if (col >= 0 && col < COLS) {
       game.mouseCol = col;
       const shape = game.current.shape;
@@ -1502,13 +1515,42 @@ canvas.addEventListener('mousemove', e => {
       const minCol = -leftFilled;            // leftmost filled cell at col 0
       const maxCol = COLS - 1 - rightFilled; // rightmost filled cell at col COLS-1
       const newCol = Math.max(minCol, Math.min(maxCol, desired));
-      // In fall mode, also check that no placed cells block the move at the
-      // current row. In floating mode, just bounds.
-      const ok = game.current.row !== undefined
-        ? !collides(game.grid, shape, newCol, game.current.row)
-        : isValidCol(game.grid, shape, newCol);
-      if (ok) {
-        game.current.col = newCol;
+
+      // ===== Vertical positioning =====
+      // Auto-fall mode: piece descends automatically — mouse only adjusts col.
+      // Floating mode (fallSpeed=0): mouse Y controls the row too, so the
+      // user can drag the piece directly under overhangs and click to lock.
+      if (settings.fallSpeed > 0 && game.current.row !== undefined) {
+        // Auto-fall: just update col if valid at current row
+        if (!collides(game.grid, shape, newCol, game.current.row)) {
+          game.current.col = newCol;
+        }
+      } else {
+        // Floating mode
+        if (row < 0) {
+          // Mouse above grid: piece floats (cur.row undefined)
+          if (isValidCol(game.grid, shape, newCol)) {
+            game.current.col = newCol;
+            game.current.row = undefined;
+          }
+        } else {
+          // Mouse inside or below grid: try to position piece at (newCol, row)
+          // Clamp row to the grid bottom
+          const targetRow = Math.min(row, ROWS - 1);
+          if (!collides(game.grid, shape, newCol, targetRow)) {
+            game.current.col = newCol;
+            game.current.row = targetRow;
+            game.current.fallAccum = 0;
+          } else if (game.current.row !== undefined &&
+                     !collides(game.grid, shape, newCol, game.current.row)) {
+            // Target row blocked but row change failed — at least move the col
+            game.current.col = newCol;
+          } else if (game.current.row === undefined &&
+                     isValidCol(game.grid, shape, newCol)) {
+            // Still floating above
+            game.current.col = newCol;
+          }
+        }
       }
     }
   }
@@ -1624,7 +1666,14 @@ canvas.addEventListener('click', e => {
       game.showHelp = false;
       return;
     }
-    startDrop(game);
+    // If the piece is already in the grid (via mouse-Y positioning or fall
+    // mode), lock at its current position. Otherwise start the drop animation
+    // from above.
+    if (game.current.row !== undefined) {
+      lockFromCurrent(game);
+    } else {
+      startDrop(game);
+    }
   }
 });
 
@@ -2333,10 +2382,11 @@ function drawControls(g) {
     '\u2191 / X  Rotate',
     '\u2193   Step down',
     'Space  Hard drop',
-    'Mouse  Aim + click'
+    'Mouse  Drag (X+Y)',
+    'Click  Lock'
   ];
   lines.forEach((line, i) => {
-    ctx.fillText(line, panelX + 8, panelY + 30 + i * 14);
+    ctx.fillText(line, panelX + 8, panelY + 28 + i * 13);
   });
 
   ctx.fillStyle = '#ffa726';
@@ -2374,8 +2424,8 @@ function drawHelpOverlay(g) {
     ['R', 'Restart current game']
   ];
   const right = [
-    ['Mouse', 'Move piece to column under cursor'],
-    ['Click', 'Drop piece'],
+    ['Mouse', 'Drag piece — X and Y both follow cursor'],
+    ['Click', 'Lock piece at current position'],
     ['Wheel', 'Rotate piece'],
     ['Right-click', 'Rotate piece'],
     ['H or /', 'Toggle this help'],
@@ -2759,8 +2809,8 @@ function drawMenu(g) {
   ctx.font = '11px "Segoe UI", sans-serif';
   const lines = [
     ['Goal:', 'Stack tetrominoes on the platform without tipping it past 45°.'],
-    ['Move:', '← →   Rotate: ↑ / X   Drop: Space   ↓ steps down (slip under!)'],
-    ['Modes:', 'Bombs detonate · Balloons lift · Alchemy slides groups off the edge'],
+    ['Keys:', '← →   Rotate: ↑ / X   ↓ step down   Space hard-drop'],
+    ['Mouse:', 'Drag piece anywhere (X + Y both follow cursor) — click to lock'],
     ['Customize:', 'Click ⚙ SETTINGS — hot-seat 2P, fall speed, line clear, physics']
   ];
   lines.forEach((l, i) => {
