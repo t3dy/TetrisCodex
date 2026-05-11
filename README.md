@@ -29,6 +29,7 @@ This is a working v1 prototype with the core balance mechanic. The full design i
 - [`ALCHEMY_LORE.md`](./ALCHEMY_LORE.md) — Full Alchemy mode vision: tunable rules, item registry, tutorial/cutscene framework
 - [`ALCHEMY_ITEMS_40.md`](./ALCHEMY_ITEMS_40.md) — **40 emoji block properties sourced from real alchemical scholarship** (Valentine's Twelve Keys, Atalanta Fugiens, De Jong, Tilton, Principe) with cascading interaction matrix
 - [`ALCHEMY_LAB.md`](./ALCHEMY_LAB.md) — Lab Mode design: configurable alchemy lab as starting platform, player-chosen pieces, pinball cascade reactions; tilting and non-tilting variants
+- [`BUTTONS_PALETTE.md`](./BUTTONS_PALETTE.md) — The 12 zodiac × 3 Tria Prima button palette: combinatorial substance creation grounded in Ripley's Twelve Gates × Paracelsian principles
 
 ## Prototypes
 

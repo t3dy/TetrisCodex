@@ -238,6 +238,35 @@ const ALCHEMY_ITEMS = {
 };
 const ITEM_KEYS = Object.keys(ALCHEMY_ITEMS);
 
+// ===== THE ALCHEMICAL BUTTON PALETTE =====
+// 12 zodiac → 12 processes (Ripley's Twelve Gates × the year-cycle).
+// 3 Tria Prima → 3 modifiers (Paracelsian Salt/Sulphur/Mercury).
+// See BUTTONS_PALETTE.md for the full design + scholarly sources.
+const ZODIAC_PROCESSES = [
+  { id: 'aries',       sign: '♈', short: 'Calc', name: 'Aries',       process: 'Calcination',    element: 'fire',  color: '#c84030' },
+  { id: 'taurus',      sign: '♉', short: 'Cong', name: 'Taurus',      process: 'Congelation',    element: 'earth', color: '#806040' },
+  { id: 'gemini',      sign: '♊', short: 'Fix',  name: 'Gemini',      process: 'Fixation',       element: 'air',   color: '#c8c050' },
+  { id: 'cancer',      sign: '♋', short: 'Diss', name: 'Cancer',      process: 'Dissolution',    element: 'water', color: '#4080c8' },
+  { id: 'leo',         sign: '♌', short: 'Dig',  name: 'Leo',         process: 'Digestion',      element: 'fire',  color: '#e08820' },
+  { id: 'virgo',       sign: '♍', short: 'Dist', name: 'Virgo',       process: 'Distillation',   element: 'earth', color: '#608848' },
+  { id: 'libra',       sign: '♎', short: 'Sub',  name: 'Libra',       process: 'Sublimation',    element: 'air',   color: '#a0a0c8' },
+  { id: 'scorpio',     sign: '♏', short: 'Sep',  name: 'Scorpio',     process: 'Separation',     element: 'water', color: '#702050' },
+  { id: 'sagittarius', sign: '♐', short: 'Inc',  name: 'Sagittarius', process: 'Incineration',   element: 'fire',  color: '#b04830' },
+  { id: 'capricorn',   sign: '♑', short: 'Ferm', name: 'Capricorn',   process: 'Fermentation',   element: 'earth', color: '#604030' },
+  { id: 'aquarius',    sign: '♒', short: 'Mult', name: 'Aquarius',    process: 'Multiplication', element: 'air',   color: '#5090b0' },
+  { id: 'pisces',      sign: '♓', short: 'Proj', name: 'Pisces',      process: 'Projection',     element: 'water', color: '#500070' }
+];
+
+const TRIA_PRIMA_BUTTONS = [
+  { id: 'salt',    sign: '✴', short: 'Salt',    name: 'Salt',    quality: 'stable',      color: '#f0f0f0' },
+  { id: 'sulphur', sign: '\u{1F70D}', short: 'Sulph', name: 'Sulphur', quality: 'combustible', color: '#d8703a' },
+  { id: 'mercury', sign: '☿', short: 'Merc',  name: 'Mercury', quality: 'volatile',    color: '#c0c8d8' }
+];
+
+// Keyboard shortcuts for the palette
+const ZODIAC_KEYS = ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'];
+const PRIMA_KEYS  = ['KeyQ','KeyW','KeyE'];
+
 // Weighted random pick of an item, or null if no item spawns
 function rollItem() {
   if (Math.random() >= settings.alchemyItemRate) return null;
@@ -1283,7 +1312,12 @@ function createGame(platformId, modeId, levelId) {
     playerCount,
     currentPlayer: 1,
     playerScores,
-    tipperPlayer: 0  // player whose piece tipped the platform, set on game over
+    tipperPlayer: 0,  // player whose piece tipped the platform, set on game over
+    // Palette state (zodiac + Tria Prima compound spawner)
+    paletteZodiac: null,         // currently armed zodiac id, or null
+    paletteExpiresAt: 0,         // when the armed zodiac auto-clears
+    paletteFlash: null,          // last spawned compound info for visual flash
+    paletteFlashFrames: 0
   };
 }
 
@@ -1339,6 +1373,105 @@ function spawnPiece(g) {
       }
     }
   }
+}
+
+// Build a piece config from a palette selection (zodiac, prima, or compound)
+// and REPLACE g.current with it. Mode-aware: the spawned piece has cell
+// properties that the active mode's onPiecePlaced will interpret.
+function spawnFromPalette(g, zodiacId, primaId) {
+  if (g.phase !== 'playing' || !g.current) return;
+  const z = zodiacId ? ZODIAC_PROCESSES.find(x => x.id === zodiacId) : null;
+  const p = primaId ? TRIA_PRIMA_BUTTONS.find(x => x.id === primaId) : null;
+  if (!z && !p) return;
+
+  // Build colors: blend if both present, else use whichever exists
+  let baseColor;
+  if (z && p) baseColor = blendHex(z.color, p.color, 0.5);
+  else baseColor = (z || p).color;
+  const colorLight = lightenHex(baseColor, 0.3);
+  const colorDark = darkenHex(baseColor, 0.3);
+
+  // Build the symbol shown on the cell
+  let symbol = '';
+  if (z && p) symbol = z.sign + p.sign;
+  else if (z) symbol = z.sign;
+  else if (p) symbol = p.sign;
+
+  // Compose the piece — single cell for compound/principle, but if we want
+  // to spawn an apparatus-shape piece we can extend later
+  const shape = [[1]];
+  const newPiece = {
+    type: 'palette',
+    shape,
+    color: baseColor,
+    colorLight, colorDark,
+    col: Math.floor(COLS / 2),
+    playerId: g.currentPlayer,
+    // Mode-interpretable props
+    paletteZodiac: z ? z.id : null,
+    paletteProcess: z ? z.process.toLowerCase() : null,
+    paletteElement: z ? z.element : null,
+    palettePrima: p ? p.id : null,
+    // Cell-level properties propagated to grid on lock (for Alchemy + Lab)
+    cellInfo: [[ {
+      color: baseColor,
+      colorLight, colorDark,
+      symbol,
+      trait: traitForZodiac(z),
+      item: p ? p.id : null,
+      paletteZodiac: z ? z.id : null,
+      paletteProcess: z ? z.process.toLowerCase() : null
+    } ]],
+    hasItem: p ? ALCHEMY_ITEMS[p.id] : null
+  };
+
+  // Preserve fall-mode state
+  if (settings.fallSpeed > 0) {
+    newPiece.row = (g.current.row !== undefined) ? g.current.row : -1;
+    newPiece.fallAccum = 0;
+  } else if (g.current.row !== undefined) {
+    newPiece.row = g.current.row;
+  }
+
+  g.current = newPiece;
+  g.paletteFlash = { zodiac: z, prima: p };
+  g.paletteFlashFrames = 30;
+}
+
+// Element → trait mapping for the palette
+function traitForZodiac(z) {
+  if (!z) return undefined;
+  // Fire → Mars (id 4); Water → Mercury (2); Air → Jupiter (5); Earth → Saturn (6)
+  const map = { fire: 4, water: 2, air: 5, earth: 6 };
+  return map[z.element];
+}
+
+// Color helpers: blend / lighten / darken hex strings
+function blendHex(a, b, t) {
+  const pa = hexToRgb(a), pb = hexToRgb(b);
+  const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+  const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+  return rgbToHex(r, g, bl);
+}
+function lightenHex(c, t) {
+  const [r, g, b] = hexToRgb(c);
+  return rgbToHex(Math.round(r + (255 - r) * t), Math.round(g + (255 - g) * t), Math.round(b + (255 - b) * t));
+}
+function darkenHex(c, t) {
+  const [r, g, b] = hexToRgb(c);
+  return rgbToHex(Math.round(r * (1 - t)), Math.round(g * (1 - t)), Math.round(b * (1 - t)));
+}
+function hexToRgb(h) {
+  h = h.replace('#', '');
+  if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function rgbToHex(r, g, b) {
+  return '#' + [r,g,b].map(x => {
+    const h = Math.max(0, Math.min(255, x)).toString(16);
+    return h.length === 1 ? '0' + h : h;
+  }).join('');
 }
 
 // ===== COLLISION =====
@@ -1480,6 +1613,44 @@ function advancePlayer(g) {
   }
 }
 
+// Palette: zodiac click. If a zodiac is already armed, spawn with it alone
+// (replace current piece). If no zodiac armed, arm this one with a 3-second
+// timeout, waiting for a Tria Prima follow-up.
+function handlePaletteZodiac(g, zodiacId) {
+  if (g.phase !== 'playing' || !g.current) return;
+  if (g.paletteZodiac === zodiacId) {
+    // Double-click same zodiac → spawn pure-zodiac piece
+    spawnFromPalette(g, zodiacId, null);
+    g.paletteZodiac = null;
+  } else {
+    // Single click → arm it
+    g.paletteZodiac = zodiacId;
+    g.paletteExpiresAt = Date.now() + 3000;
+  }
+}
+
+// Palette: Tria Prima click. If zodiac is armed, spawn compound. Otherwise
+// spawn pure-principle.
+function handlePalettePrima(g, primaId) {
+  if (g.phase !== 'playing' || !g.current) return;
+  const zod = g.paletteZodiac;
+  if (zod && Date.now() < g.paletteExpiresAt) {
+    spawnFromPalette(g, zod, primaId);
+  } else {
+    spawnFromPalette(g, null, primaId);
+  }
+  g.paletteZodiac = null;
+}
+
+// Clear armed zodiac if it expired (called from update loop)
+function checkPaletteExpiry(g) {
+  if (g.paletteZodiac && Date.now() >= g.paletteExpiresAt) {
+    // Auto-fire the pure-zodiac on expiry
+    spawnFromPalette(g, g.paletteZodiac, null);
+    g.paletteZodiac = null;
+  }
+}
+
 // Line clearing: find full rows and remove their non-platform cells.
 // Platform-contour cells stay. Bonus score: 1/3/5/8 for 1/2/3/4 lines.
 // Returns the count of rows cleared.
@@ -1588,6 +1759,20 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Palette: zodiac shortcuts (1-9, 0, -, =) and Tria Prima shortcuts (Q, W, E)
+  const zIdx = ZODIAC_KEYS.indexOf(e.code);
+  if (zIdx >= 0) {
+    handlePaletteZodiac(game, ZODIAC_PROCESSES[zIdx].id);
+    e.preventDefault();
+    return;
+  }
+  const pIdx = PRIMA_KEYS.indexOf(e.code);
+  if (pIdx >= 0) {
+    handlePalettePrima(game, TRIA_PRIMA_BUTTONS[pIdx].id);
+    e.preventDefault();
+    return;
+  }
+
   const cur = game.current;
   const inFall = cur.row !== undefined; // fall mode is active for this piece
   // For fall mode, validate moves against the piece's current row (so it can't
@@ -1687,6 +1872,8 @@ canvas.addEventListener('mousemove', e => {
   mouseY = (e.clientY - rect.top) * scaleY;
 
   if (game && game.phase === 'playing' && game.current) {
+    // Don't drag the piece when the cursor is over the palette button row
+    if (mouseY >= CANVAS_H - 54) return;
     const col = screenToGridCol(mouseX, mouseY, game.tiltAngle);
     const row = screenToGridRow(mouseX, mouseY, game.tiltAngle);
     if (col >= 0 && col < COLS) {
@@ -1863,6 +2050,15 @@ canvas.addEventListener('click', e => {
       game.showHelp = false;
       return;
     }
+    // Palette button row (bottom of canvas)
+    const m = getCanvasMouse(e);
+    for (const r of paletteBtnRects) {
+      if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
+        if (r.kind === 'zodiac') handlePaletteZodiac(game, r.id);
+        else if (r.kind === 'prima') handlePalettePrima(game, r.id);
+        return;
+      }
+    }
     // If the piece is already in the grid (via mouse-Y positioning or fall
     // mode), lock at its current position. Otherwise start the drop animation
     // from above.
@@ -1972,6 +2168,10 @@ function triggerGameOver(g) {
 // ===== UPDATE =====
 function update(g, dt) {
   if (g.phase === 'menu') return;
+
+  // Palette expiry check (auto-fire armed zodiac after 3s)
+  checkPaletteExpiry(g);
+  if (g.paletteFlashFrames > 0) g.paletteFlashFrames--;
 
   // dt-scaled lerp factor: 1 - (1 - base)^(dt * 60) approximates frame-rate-independent lerp
   const tiltLerp = 1 - Math.pow(1 - TILT_LERP, dt * 60);
@@ -2565,7 +2765,7 @@ function drawScore(g) {
 
 function drawControls(g) {
   // Compact controls panel in lower-left
-  const panelX = 14, panelY = CANVAS_H - 130;
+  const panelX = 14, panelY = CANVAS_H - 180;  // shifted up to clear the palette row
   const panelW = 150, panelH = 116;
   ctx.fillStyle = 'rgba(30, 30, 50, 0.7)';
   ctx.fillRect(panelX, panelY, panelW, panelH);
@@ -2598,6 +2798,103 @@ function drawControls(g) {
 }
 
 // Big "press H" overlay shown when game.showHelp is true
+// Persistent palette button row at the very bottom of the canvas
+let paletteBtnRects = [];
+
+function drawPaletteButtons(g) {
+  if (g.phase !== 'playing') return;
+  paletteBtnRects = [];
+  const rowY = CANVAS_H - 50;
+  const btnW = 38, btnH = 38, gap = 2;
+  const totalZ = 12 * btnW + 11 * gap;
+  const divider = 12; // space between zodiac and Tria Prima groups
+  const totalP = 3 * btnW + 2 * gap;
+  const totalW = totalZ + divider + totalP;
+  let x = (CANVAS_W - totalW) / 2;
+
+  // Subtle background strip
+  ctx.fillStyle = 'rgba(15, 15, 30, 0.85)';
+  ctx.fillRect(0, rowY - 4, CANVAS_W, 50);
+  ctx.strokeStyle = 'rgba(80, 80, 120, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, rowY - 4); ctx.lineTo(CANVAS_W, rowY - 4); ctx.stroke();
+
+  // Zodiac buttons
+  ZODIAC_PROCESSES.forEach((z, i) => {
+    const armed = g.paletteZodiac === z.id;
+    paletteBtnRects.push({ x, y: rowY, w: btnW, h: btnH, kind: 'zodiac', id: z.id });
+    drawPaletteButton(x, rowY, btnW, btnH, z.sign, z.short, z.color, armed, String(i+1));
+    x += btnW + gap;
+  });
+
+  // Divider
+  ctx.strokeStyle = 'rgba(200, 160, 80, 0.5)';
+  ctx.beginPath();
+  ctx.moveTo(x + divider / 2, rowY + 4);
+  ctx.lineTo(x + divider / 2, rowY + btnH - 4);
+  ctx.stroke();
+  x += divider;
+
+  // Tria Prima buttons
+  TRIA_PRIMA_BUTTONS.forEach((p, i) => {
+    paletteBtnRects.push({ x, y: rowY, w: btnW, h: btnH, kind: 'prima', id: p.id });
+    const armed = false; // Prima never "armed"
+    drawPaletteButton(x, rowY, btnW, btnH, p.sign, p.short, p.color, armed, ['Q','W','E'][i]);
+    x += btnW + gap;
+  });
+
+  // Compound flash indicator at top of row
+  if (g.paletteFlashFrames > 0 && g.paletteFlash) {
+    const fade = g.paletteFlashFrames / 30;
+    const z = g.paletteFlash.zodiac, p = g.paletteFlash.prima;
+    let txt = '';
+    if (z && p) txt = z.sign + ' ' + z.process + ' + ' + p.sign + ' ' + p.name + ' = compound';
+    else if (z) txt = z.sign + ' ' + z.process;
+    else if (p) txt = p.sign + ' ' + p.name;
+    ctx.fillStyle = `rgba(255, 240, 200, ${fade})`;
+    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(txt, CANVAS_W / 2, rowY - 8);
+  }
+
+  // Armed-zodiac hint
+  if (g.paletteZodiac) {
+    const z = ZODIAC_PROCESSES.find(x => x.id === g.paletteZodiac);
+    const msLeft = Math.max(0, g.paletteExpiresAt - Date.now());
+    ctx.fillStyle = '#ffa726';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Now click Salt / Sulphur / Mercury (or wait — ' + (msLeft/1000).toFixed(1) + 's)',
+      CANVAS_W / 2, rowY - 8);
+  }
+}
+
+function drawPaletteButton(x, y, w, h, sign, short, color, armed, hotkey) {
+  ctx.fillStyle = armed ? color : 'rgba(30, 30, 50, 0.85)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = armed ? '#ffd070' : color;
+  ctx.lineWidth = armed ? 2 : 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  // Glyph
+  ctx.fillStyle = armed ? '#0a0a1a' : color;
+  ctx.font = 'bold 16px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(sign, x + w / 2, y + h / 2 - 3);
+  ctx.textBaseline = 'alphabetic';
+  // Process abbreviation
+  ctx.fillStyle = armed ? '#0a0a1a' : '#888899';
+  ctx.font = '8px "Segoe UI", sans-serif';
+  ctx.fillText(short, x + w / 2, y + h - 4);
+  // Hotkey corner label
+  ctx.fillStyle = armed ? 'rgba(10,10,26,0.7)' : 'rgba(255, 255, 255, 0.25)';
+  ctx.font = '7px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(hotkey, x + 2, y + 8);
+  ctx.textAlign = 'center';
+}
+
 function drawHelpOverlay(g) {
   if (!g.showHelp) return;
   ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
@@ -3418,6 +3715,9 @@ function render(g) {
   if (!suppress.score)    drawScore(g);
   if (!suppress.controls) drawControls(g);
   drawFlash(g);
+
+  // Palette button row at the bottom (during play, all modes)
+  drawPaletteButtons(g);
 
   if (g.phase === 'gameOver') {
     drawGameOver(g);
