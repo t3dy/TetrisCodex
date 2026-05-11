@@ -38,4 +38,7 @@ The game now has a dedicated Markdown design trail in `docs/`:
 - [`docs/ALCHEMY_SOURCE_PIPELINE.md`](docs/ALCHEMY_SOURCE_PIPELINE.md)
 - [`docs/INSPIRATIONS.md`](docs/INSPIRATIONS.md)
 - [`docs/WILDHUNT.md`](docs/WILDHUNT.md)
+- [`docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md`](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)
+- [`docs/WILDHUNT_LEVEL_CONCEITS.md`](docs/WILDHUNT_LEVEL_CONCEITS.md)
 - [`docs/PHYSICS_LAB.md`](docs/PHYSICS_LAB.md)
+- [`docs/MOAT_DRAWBRIDGE_PUZZLES.md`](docs/MOAT_DRAWBRIDGE_PUZZLES.md)

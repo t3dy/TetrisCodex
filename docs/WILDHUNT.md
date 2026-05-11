@@ -2,6 +2,11 @@
 
 Gameplay ideas for a Wild Hunt mode situated in Trithemius's treatment of the legend.
 
+## Companion Design Docs
+
+- `WILDHUNT_EMOJI_BLOCK_SYSTEM.md` defines the emoji block graphics, block classes, source motifs, behavior tags, and alchemical counters.
+- `WILDHUNT_LEVEL_CONCEITS.md` turns the scholarship into level families and a campaign sequence.
+
 ## Source Anchor
 
 Local source found:
