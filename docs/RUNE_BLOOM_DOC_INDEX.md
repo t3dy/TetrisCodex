@@ -1,0 +1,60 @@
+# Rune Bloom Documentation Index
+
+This folder is the living design record for Rune Bloom. The game is intentionally separate from the balance-platform project, but it can still harvest ideas from the existing generated design corpus: alchemy, zodiac processes, challenge structures, prototype habits, and mechanic taxonomy.
+
+## Current Docs
+
+- `RUNE_BLOOM_IMPLEMENTATION_LOG.md`  
+  What was built, why, and what changed in each pass.
+
+- `RUNE_BLOOM_CORE_DESIGN.md`  
+  The rules, player fantasy, loop, verbs, win/loss state, and control model.
+
+- `RUNE_BLOOM_MECHANIC_TAXONOMY.md`  
+  Classes of mechanics available for the game, with what they ask of the player.
+
+- `RUNE_BLOOM_ASSET_CLASSES.md`  
+  Visual, audio, UI, data, and gameplay asset families.
+
+- `RUNE_BLOOM_ALCHEMY_ADAPTATION.md`  
+  Translation of the existing alchemy/zodiac generated material into Rune Bloom mechanics.
+
+- `RUNE_BLOOM_LEVEL_AND_MODE_ROADMAP.md`  
+  Level types, campaign structure, mode ideas, and challenge arcs.
+
+- `RUNE_BLOOM_DATA_SCHEMA.md`  
+  Proposed JSON-style data shapes for pieces, runes, reactions, levels, and unlocks.
+
+- `RUNE_BLOOM_NEXT_STEPS.md`  
+  Practical build order from the current playable prototype onward.
+
+- `RUNE_BLOOM_MODE_ATLAS.md`  
+  The landing-page mode catalog, mode classes, tuning knobs, and future mode ideas.
+
+- `ALCHEMICAL_GAME_WORLD_BIBLE.md`  
+  Shared world organization for Balance Tetris, Rune Bloom, and future alchemical games.
+
+- `COMBINATORIAL_ALCHEMY_PALETTE_SPEC.md`  
+  High-priority zodiac plus Tria Prima button grammar.
+
+- `EMOJI_BLOCK_PROPERTY_TAXONOMY.md`  
+  Gameplay property classes for alchemical emoji blocks.
+
+- `ALCHEMY_SOURCE_PIPELINE.md`  
+  How local database/source scholarship becomes game blocks and mechanics.
+
+- `INSPIRATIONS.md`  
+  Puzzle-game mechanical inspirations mapped onto alchemical processes.
+
+## Documentation Rule Going Forward
+
+Every substantial feature should get a Markdown note before or alongside implementation:
+
+1. Mechanic definition
+2. Asset class affected
+3. Player-facing behavior
+4. Data representation
+5. Tuning parameters
+6. Open questions
+
+The point is not bureaucracy. The point is to keep the design legible while it grows.

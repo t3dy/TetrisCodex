@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rune Bloom</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: #071013;
+    color: #e9fff7;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    font-family: Inter, "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: min(100vw, 980px);
+    height: auto;
+    image-rendering: auto;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="980" height="680"></canvas>
+<script>
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const SIZE = 9;
+const CELL = 54;
+const BOARD_X = 42;
+const BOARD_Y = 58;
+const BOARD_W = SIZE * CELL;
+const SIDE_X = BOARD_X + BOARD_W + 46;
+const WIN_SCORE = 220;
+const BLIGHT_EVERY = 3;
+
+const ELEMENTS = [
+  { id: 'aqua', name: 'Aqua', color: '#2dd4bf', light: '#99f6e4', dark: '#0f766e' },
+  { id: 'ember', name: 'Ember', color: '#f97316', light: '#fed7aa', dark: '#9a3412' },
+  { id: 'moss', name: 'Moss', color: '#84cc16', light: '#d9f99d', dark: '#3f6212' },
+  { id: 'star', name: 'Star', color: '#a78bfa', light: '#ddd6fe', dark: '#5b21b6' }
+];
+
+const SHAPES = [
+  { id: 'sprig', cells: [[0,0], [1,0], [2,0], [1,1]] },
+  { id: 'hook', cells: [[0,0], [0,1], [0,2], [1,2]] },
+  { id: 'bar', cells: [[0,0], [1,0], [2,0], [3,0]] },
+  { id: 'square', cells: [[0,0], [1,0], [0,1], [1,1]] },
+  { id: 'step', cells: [[1,0], [2,0], [0,1], [1,1]] },
+  { id: 'spire', cells: [[1,0], [0,1], [1,1], [2,1]] },
+  { id: 'seed', cells: [[0,0], [1,0], [2,0]] }
+];
+
+const GAME_MODES = [
+  { id: 'garden', name: 'Garden', tag: 'classic', goal: 220, blightEvery: 3, bloomLength: 4, desc: 'The baseline bloom-and-blight score chase.' },
+  { id: 'zen', name: 'Zen Garden', tag: 'gentle', goal: 180, blightEvery: 0, bloomLength: 4, desc: 'No blight. A relaxed spatial garden.' },
+  { id: 'siege', name: 'Blight Siege', tag: 'hard', goal: 260, blightEvery: 2, blightCount: 2, bloomLength: 4, desc: 'Blight spreads fast and in pairs.' },
+  { id: 'ember', name: 'Ember Orchard', tag: 'fire', goal: 210, blightEvery: 3, bloomLength: 4, elements: ['ember', 'moss'], desc: 'Only Ember and Moss appear. Faster color planning.' },
+  { id: 'aqua', name: 'Aqua Channels', tag: 'flow', goal: 210, blightEvery: 4, bloomLength: 4, elements: ['aqua', 'star'], desc: 'Aqua and Star pieces make clean channels.' },
+  { id: 'moss', name: 'Moss Thicket', tag: 'dense', goal: 240, blightEvery: 3, bloomLength: 5, elements: ['moss', 'aqua', 'ember'], desc: 'Longer blooms. More room, more patience.' },
+  { id: 'star', name: 'Star Lines', tag: 'diagonal', goal: 230, blightEvery: 3, bloomLength: 4, diagonalBloom: true, elements: ['star', 'aqua', 'ember'], desc: 'Diagonal runs bloom too.' },
+  { id: 'tiny', name: 'Small Bed', tag: 'tight', goal: 150, blightEvery: 3, bloomLength: 4, startBlight: 'corners', desc: 'Corner blight creates a compact puzzle feel.' },
+  { id: 'wildfront', name: 'Wildfront', tag: 'frontier', goal: 240, blightEvery: 3, bloomLength: 4, adjacency: 'diagonal', desc: 'Diagonal contact counts for growth.' },
+  { id: 'monastery', name: 'Monastery', tag: 'strict', goal: 260, blightEvery: 4, bloomLength: 5, adjacency: 'matching', desc: 'Pieces must touch their own element.' },
+  { id: 'bars', name: 'Line Choir', tag: 'shape', goal: 190, blightEvery: 3, bloomLength: 4, shapes: ['bar', 'seed'], desc: 'Mostly straight line-making.' },
+  { id: 'knots', name: 'Knotwork', tag: 'shape', goal: 230, blightEvery: 3, bloomLength: 4, shapes: ['hook', 'step', 'sprig', 'spire'], desc: 'Angular pieces, awkward fits.' },
+  { id: 'squares', name: 'Mosaic', tag: 'shape', goal: 190, blightEvery: 4, bloomLength: 4, shapes: ['square', 'step'], desc: 'Chunky geometric packing.' },
+  { id: 'cascade', name: 'Cascade Rite', tag: 'chain', goal: 300, blightEvery: 3, bloomLength: 4, chainBonus: 36, desc: 'Chain blooms pay double.' },
+  { id: 'purifier', name: 'Purifier', tag: 'cleanse', goal: 220, blightEvery: 2, bloomLength: 4, purifyBonus: 28, startBlight: 'edges', desc: 'Blight is dangerous, but cleansing scores big.' },
+  { id: 'projection', name: 'Projection', tag: 'ray', goal: 250, blightEvery: 3, bloomLength: 4, projection: true, desc: 'Every bloom also purifies along its row and column.' },
+  { id: 'fourseeds', name: 'Four Seeds', tag: 'open', goal: 260, blightEvery: 3, bloomLength: 4, startSeeds: 'corners', desc: 'Grow from four corners at once.' },
+  { id: 'cross', name: 'Crossroads', tag: 'pattern', goal: 230, blightEvery: 3, bloomLength: 4, startSeeds: 'cross', desc: 'The garden begins as a central cross.' },
+  { id: 'scar', name: 'Ash Scar', tag: 'blocked', goal: 230, blightEvery: 4, bloomLength: 4, startBlight: 'diagonal', desc: 'A diagonal scar splits the board.' },
+  { id: 'rush', name: 'Rush Bloom', tag: 'quick', goal: 120, blightEvery: 2, bloomLength: 3, desc: 'Short blooms, low goal, brisk danger.' },
+  { id: 'longform', name: 'Longform', tag: 'endless', goal: 500, blightEvery: 4, bloomLength: 4, desc: 'A longer score climb.' },
+  { id: 'duet', name: 'Duet', tag: 'limited', goal: 200, blightEvery: 3, bloomLength: 4, elementCount: 2, desc: 'Only two random elements each run.' },
+  { id: 'triad', name: 'Triad', tag: 'limited', goal: 240, blightEvery: 3, bloomLength: 4, elementCount: 3, desc: 'Three-element planning.' },
+  { id: 'labseed', name: 'Lab Seed', tag: 'alchemy', goal: 240, blightEvery: 3, bloomLength: 4, startSeeds: 'lab', desc: 'A first alchemical layout with three principles implied.' }
+];
+
+let modeButtons = [];
+
+const keys = {};
+let game;
+let mouse = { x: 0, y: 0, col: 4, row: 4 };
+
+function makeGame(modeId = 'garden') {
+  const mode = GAME_MODES.find(m => m.id === modeId) || GAME_MODES[0];
+  const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+  applyStartPattern(grid, mode);
+  const g = {
+    phase: 'menu',
+    mode,
+    selectedMode: Math.max(0, GAME_MODES.findIndex(m => m.id === mode.id)),
+    grid,
+    score: 0,
+    turn: 0,
+    chain: 0,
+    cursor: { col: 3, row: 3 },
+    current: makePiece(mode),
+    next: [makePiece(mode), makePiece(mode), makePiece(mode)],
+    message: mode.desc,
+    flash: [],
+    particles: [],
+    blightPulse: 0,
+    best: Number(localStorage.getItem('rune_bloom_best_' + mode.id) || 0),
+    runElements: chooseRunElements(mode)
+  };
+  g.current = makePiece(mode, g.runElements);
+  g.next = [makePiece(mode, g.runElements), makePiece(mode, g.runElements), makePiece(mode, g.runElements)];
+  snapCursorToValid(g);
+  return g;
+}
+
+function chooseRunElements(mode) {
+  if (!mode.elementCount) return null;
+  const ids = ELEMENTS.map(e => e.id);
+  const shuffled = ids.slice().sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, mode.elementCount);
+}
+
+function applyStartPattern(grid, mode) {
+  grid[4][4] = { kind: 'rune', element: 0, seed: true };
+  if (mode.startSeeds === 'corners') {
+    [[1,1,0], [1,7,1], [7,1,2], [7,7,3]].forEach(([r, c, e]) => {
+      grid[r][c] = { kind: 'rune', element: e, seed: true };
+    });
+  }
+  if (mode.startSeeds === 'cross') {
+    [[4,3,0], [4,5,1], [3,4,2], [5,4,3]].forEach(([r, c, e]) => {
+      grid[r][c] = { kind: 'rune', element: e, seed: true };
+    });
+  }
+  if (mode.startSeeds === 'lab') {
+    [[4,3,0], [4,4,1], [4,5,2]].forEach(([r, c, e]) => {
+      grid[r][c] = { kind: 'rune', element: e, seed: true };
+    });
+  }
+  if (mode.startBlight === 'corners') {
+    [[0,0], [0,8], [8,0], [8,8]].forEach(([r, c]) => { grid[r][c] = { kind: 'blight' }; });
+  }
+  if (mode.startBlight === 'edges') {
+    [[0,2], [0,6], [2,0], [6,0], [8,2], [8,6], [2,8], [6,8]].forEach(([r, c]) => {
+      grid[r][c] = { kind: 'blight' };
+    });
+  }
+  if (mode.startBlight === 'diagonal') {
+    [[1,1], [2,2], [3,3], [5,5], [6,6], [7,7]].forEach(([r, c]) => { grid[r][c] = { kind: 'blight' }; });
+  }
+}
+
+function makePiece(mode, runElements) {
+  const shapes = mode && mode.shapes ? SHAPES.filter(s => mode.shapes.includes(s.id)) : SHAPES;
+  const allowedIds = runElements || (mode && mode.elements) || ELEMENTS.map(e => e.id);
+  const allowedElements = ELEMENTS.map((e, i) => ({ e, i })).filter(x => allowedIds.includes(x.e.id));
+  return {
+    shape: structuredClone(shapes[Math.floor(Math.random() * shapes.length)]),
+    element: allowedElements[Math.floor(Math.random() * allowedElements.length)].i,
+    rot: 0
+  };
+}
+
+function nextPiece(g) {
+  g.current = g.next.shift();
+  g.next.push(makePiece(g.mode, g.runElements));
+  if (!canPlace(g, g.current, g.cursor.col, g.cursor.row)) snapCursorToValid(g);
+}
+
+function snapCursorToValid(g) {
+  const center = (SIZE - 1) / 2;
+  let best = null;
+  let bestDist = Infinity;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (!canPlace(g, g.current, c, r)) continue;
+      const dist = Math.abs(c - center) + Math.abs(r - center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { col: c, row: r };
+      }
+    }
+  }
+  if (best) g.cursor = best;
+  else {
+    g.cursor.col = Math.max(0, Math.min(SIZE - 1, g.cursor.col));
+    g.cursor.row = Math.max(0, Math.min(SIZE - 1, g.cursor.row));
+  }
+}
+
+function rotateCells(cells, dir) {
+  let out = cells.map(([x, y]) => dir > 0 ? [y, -x] : [-y, x]);
+  const minX = Math.min(...out.map(c => c[0]));
+  const minY = Math.min(...out.map(c => c[1]));
+  return out.map(([x, y]) => [x - minX, y - minY]);
+}
+
+function rotatePiece(piece, dir) {
+  piece.shape.cells = rotateCells(piece.shape.cells, dir);
+  piece.rot = (piece.rot + (dir > 0 ? 1 : 3)) % 4;
+}
+
+function pieceCells(piece, col, row) {
+  return piece.shape.cells.map(([x, y]) => [row + y, col + x]);
+}
+
+function inBounds(r, c) {
+  return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+}
+
+function hasNeighbor(g, piece, cells) {
+  const dirs = g.mode.adjacency === 'diagonal'
+    ? [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
+    : [[1,0], [-1,0], [0,1], [0,-1]];
+  for (const [r, c] of cells) {
+    for (const [dr, dc] of dirs) {
+      const rr = r + dr, cc = c + dc;
+      const cell = inBounds(rr, cc) ? g.grid[rr][cc] : null;
+      if (!cell || cell.kind !== 'rune') continue;
+      if (g.mode.adjacency === 'matching') {
+        const own = cells.some(([cr, cc2]) => cr === r && cc2 === c);
+        if (own && cell.element === piece.element) return true;
+      } else {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function canPlace(g, piece, col, row) {
+  const cells = pieceCells(piece, col, row);
+  if (cells.some(([r, c]) => !inBounds(r, c) || g.grid[r][c])) return false;
+  return hasNeighbor(g, piece, cells);
+}
+
+function anyPlacement(g, piece) {
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (canPlace(g, piece, c, r)) return true;
+    }
+  }
+  return false;
+}
+
+function placeCurrent(g) {
+  if (g.phase === 'menu') {
+    startSelectedMode(g);
+    return;
+  }
+  if (g.phase !== 'playing') return;
+  const { col, row } = g.cursor;
+  if (!canPlace(g, g.current, col, row)) {
+    g.message = 'That glyph needs empty ground touching your garden.';
+    g.blightPulse = 18;
+    return;
+  }
+
+  const el = ELEMENTS[g.current.element];
+  for (const [r, c] of pieceCells(g.current, col, row)) {
+    g.grid[r][c] = { kind: 'rune', element: g.current.element, age: 0 };
+    burst(g, c, r, el.color, 4);
+  }
+
+  g.turn++;
+  resolveBlooms(g);
+  if (g.mode.blightEvery && g.turn % g.mode.blightEvery === 0) {
+    const count = g.mode.blightCount || 1;
+    for (let i = 0; i < count; i++) spreadBlight(g);
+  }
+  nextPiece(g);
+
+  if (g.score >= g.mode.goal) {
+    g.phase = 'won';
+    g.message = 'The garden woke up.';
+  } else if (!anyPlacement(g, g.current)) {
+    g.phase = 'lost';
+    g.message = 'No legal glyphs remain.';
+  }
+  saveBest(g);
+}
+
+function resolveBlooms(g) {
+  const marks = new Set();
+  for (let r = 0; r < SIZE; r++) scanLine(g, marks, [...Array(SIZE)].map((_, c) => [r, c]));
+  for (let c = 0; c < SIZE; c++) scanLine(g, marks, [...Array(SIZE)].map((_, r) => [r, c]));
+  if (g.mode.diagonalBloom) {
+    scanDiagonals(g, marks);
+  }
+
+  if (marks.size === 0) {
+    g.chain = 0;
+    g.message = g.mode.blightEvery && g.turn % g.mode.blightEvery === 0 ? 'The blight answers.' : 'Keep shaping runs of ' + g.mode.bloomLength + '.';
+    return;
+  }
+
+  g.chain++;
+  const cleared = [...marks].map(k => k.split(',').map(Number));
+  let blightCleared = 0;
+  for (const [r, c] of cleared) {
+    const cell = g.grid[r][c];
+    if (!cell || cell.kind !== 'rune') continue;
+    burst(g, c, r, ELEMENTS[cell.element].light, 12);
+    g.grid[r][c] = null;
+    for (const [dr, dc] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+      const rr = r + dr, cc = c + dc;
+      if (inBounds(rr, cc) && g.grid[rr][cc] && g.grid[rr][cc].kind === 'blight') {
+        g.grid[rr][cc] = null;
+        blightCleared++;
+        burst(g, cc, rr, '#f8fafc', 8);
+      }
+    }
+    if (g.mode.projection) {
+      for (let i = 0; i < SIZE; i++) {
+        for (const [rr, cc] of [[r, i], [i, c]]) {
+          if (g.grid[rr][cc] && g.grid[rr][cc].kind === 'blight') {
+            g.grid[rr][cc] = null;
+            blightCleared++;
+            burst(g, cc, rr, '#f8fafc', 6);
+          }
+        }
+      }
+    }
+  }
+  const gained = cleared.length * cleared.length + blightCleared * (g.mode.purifyBonus || 12) + (g.chain - 1) * (g.mode.chainBonus || 18);
+  g.score += gained;
+  g.flash.push({ text: '+' + gained, x: BOARD_X + BOARD_W / 2, y: 38, life: 55 });
+  g.message = blightCleared ? 'Bloom purified nearby blight.' : 'Bloom!';
+
+  // Cascades are part of the pleasure: newly exposed runs can bloom too.
+  resolveBlooms(g);
+}
+
+function scanLine(g, marks, coords) {
+  let run = [];
+  let last = -1;
+  for (const [r, c] of coords.concat([[-1, -1]])) {
+    const cell = inBounds(r, c) ? g.grid[r][c] : null;
+    const elem = cell && cell.kind === 'rune' ? cell.element : -1;
+    if (elem === last && elem >= 0) {
+      run.push([r, c]);
+    } else {
+      if (run.length >= g.mode.bloomLength) for (const p of run) marks.add(p[0] + ',' + p[1]);
+      run = elem >= 0 ? [[r, c]] : [];
+      last = elem;
+    }
+  }
+}
+
+function scanDiagonals(g, marks) {
+  const lines = [];
+  for (let start = 0; start < SIZE; start++) {
+    const a = [], b = [];
+    for (let r = 0, c = start; r < SIZE && c < SIZE; r++, c++) a.push([r, c]);
+    for (let r = 0, c = start; r < SIZE && c >= 0; r++, c--) b.push([r, c]);
+    if (a.length >= g.mode.bloomLength) lines.push(a);
+    if (b.length >= g.mode.bloomLength) lines.push(b);
+  }
+  for (let start = 1; start < SIZE; start++) {
+    const a = [], b = [];
+    for (let r = start, c = 0; r < SIZE && c < SIZE; r++, c++) a.push([r, c]);
+    for (let r = start, c = SIZE - 1; r < SIZE && c >= 0; r++, c--) b.push([r, c]);
+    if (a.length >= g.mode.bloomLength) lines.push(a);
+    if (b.length >= g.mode.bloomLength) lines.push(b);
+  }
+  for (const line of lines) scanLine(g, marks, line);
+}
+
+function spreadBlight(g) {
+  const candidates = [];
+  for (let i = 0; i < SIZE; i++) {
+    candidates.push([0, i], [SIZE - 1, i], [i, 0], [i, SIZE - 1]);
+  }
+  const near = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (!g.grid[r][c] || g.grid[r][c].kind !== 'blight') continue;
+      for (const [dr, dc] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+        const rr = r + dr, cc = c + dc;
+        if (inBounds(rr, cc) && !g.grid[rr][cc]) near.push([rr, cc]);
+      }
+    }
+  }
+  const pool = near.length && Math.random() < 0.7 ? near : candidates.filter(([r, c]) => !g.grid[r][c]);
+  if (!pool.length) return;
+  const [r, c] = pool[Math.floor(Math.random() * pool.length)];
+  if (!g.grid[r][c]) {
+    g.grid[r][c] = { kind: 'blight' };
+    g.blightPulse = 24;
+    burst(g, c, r, '#e2e8f0', 9);
+  }
+}
+
+function burst(g, c, r, color, count) {
+  const cx = BOARD_X + c * CELL + CELL / 2;
+  const cy = BOARD_Y + r * CELL + CELL / 2;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 0.8 + Math.random() * 2.2;
+    g.particles.push({ x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color, life: 28 + Math.random() * 18 });
+  }
+}
+
+function saveBest(g) {
+  if (g.score > g.best) {
+    g.best = g.score;
+    localStorage.setItem('rune_bloom_best_' + g.mode.id, String(g.best));
+  }
+}
+
+function restart() {
+  game = makeGame(game ? game.mode.id : 'garden');
+}
+
+function startSelectedMode(g) {
+  game = makeGame(GAME_MODES[g.selectedMode].id);
+  game.phase = 'playing';
+}
+
+function gridFromMouse(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width;
+  const sy = canvas.height / rect.height;
+  mouse.x = (e.clientX - rect.left) * sx;
+  mouse.y = (e.clientY - rect.top) * sy;
+  mouse.col = Math.floor((mouse.x - BOARD_X) / CELL);
+  mouse.row = Math.floor((mouse.y - BOARD_Y) / CELL);
+  if (game && game.phase === 'playing' && inBounds(mouse.row, mouse.col)) {
+    game.cursor.col = mouse.col;
+    game.cursor.row = mouse.row;
+  }
+}
+
+canvas.addEventListener('mousemove', gridFromMouse);
+canvas.addEventListener('click', e => {
+  gridFromMouse(e);
+  if (game.phase === 'menu') {
+    for (const b of modeButtons) {
+      if (mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h) {
+        game.selectedMode = b.idx;
+        startSelectedMode(game);
+        return;
+      }
+    }
+    startSelectedMode(game);
+  } else if (game.phase === 'won' || game.phase === 'lost') restart();
+  else placeCurrent(game);
+});
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (game.phase === 'playing') rotatePiece(game.current, 1);
+});
+canvas.addEventListener('wheel', e => {
+  if (game.phase !== 'playing') return;
+  e.preventDefault();
+  rotatePiece(game.current, e.deltaY > 0 ? 1 : -1);
+});
+
+document.addEventListener('keydown', e => {
+  if (keys[e.code]) return;
+  keys[e.code] = true;
+  if (e.code === 'KeyR') { restart(); return; }
+  if (game.phase === 'menu') {
+    const cols = 4;
+    if (e.code === 'ArrowLeft') game.selectedMode = (game.selectedMode - 1 + GAME_MODES.length) % GAME_MODES.length;
+    if (e.code === 'ArrowRight') game.selectedMode = (game.selectedMode + 1) % GAME_MODES.length;
+    if (e.code === 'ArrowUp') game.selectedMode = (game.selectedMode - cols + GAME_MODES.length) % GAME_MODES.length;
+    if (e.code === 'ArrowDown') game.selectedMode = (game.selectedMode + cols) % GAME_MODES.length;
+    if (e.code === 'Space' || e.code === 'Enter') startSelectedMode(game);
+    e.preventDefault();
+    return;
+  }
+  if (game.phase === 'won' || game.phase === 'lost') {
+    if (e.code === 'Space' || e.code === 'Enter') restart();
+    return;
+  }
+  if (game.phase !== 'playing') return;
+  if (e.code === 'ArrowLeft') game.cursor.col = Math.max(0, game.cursor.col - 1);
+  if (e.code === 'ArrowRight') game.cursor.col = Math.min(SIZE - 1, game.cursor.col + 1);
+  if (e.code === 'ArrowUp') game.cursor.row = Math.max(0, game.cursor.row - 1);
+  if (e.code === 'ArrowDown') game.cursor.row = Math.min(SIZE - 1, game.cursor.row + 1);
+  if (e.code === 'KeyQ' || e.code === 'KeyZ') rotatePiece(game.current, -1);
+  if (e.code === 'KeyE' || e.code === 'KeyX') rotatePiece(game.current, 1);
+  if (e.code === 'Space' || e.code === 'Enter') placeCurrent(game);
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+function update() {
+  if (!game) return;
+  for (const row of game.grid) for (const cell of row) if (cell && cell.age !== undefined) cell.age++;
+  game.blightPulse = Math.max(0, game.blightPulse - 1);
+  game.particles = game.particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.035; p.life--;
+    return p.life > 0;
+  });
+  game.flash = game.flash.filter(f => { f.y -= 0.5; f.life--; return f.life > 0; });
+}
+
+function draw() {
+  ctx.fillStyle = '#071013';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawBackdrop();
+  drawBoard();
+  drawSidebar();
+  drawParticles();
+  if (game.phase === 'menu') drawModeMenu();
+  if (game.phase === 'won') drawOverlay('GARDEN AWAKENED', 'Score ' + game.score + '   Best ' + game.best, 'Click, Space, or R to grow again');
+  if (game.phase === 'lost') drawOverlay('GARDEN SEALED', game.message + '   Score ' + game.score, 'Click, Space, or R to retry');
+}
+
+function drawBackdrop() {
+  const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grd.addColorStop(0, '#0b1f24');
+  grd.addColorStop(0.55, '#071013');
+  grd.addColorStop(1, '#0b1712');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 38) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x - 80, canvas.height); ctx.stroke();
+  }
+}
+
+function drawBoard() {
+  ctx.fillStyle = 'rgba(4, 10, 12, 0.72)';
+  roundRect(BOARD_X - 12, BOARD_Y - 12, BOARD_W + 24, BOARD_W + 24, 8, true);
+  ctx.strokeStyle = '#1f3b3f';
+  ctx.lineWidth = 2;
+  roundRect(BOARD_X - 12, BOARD_Y - 12, BOARD_W + 24, BOARD_W + 24, 8, false);
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const x = BOARD_X + c * CELL;
+      const y = BOARD_Y + r * CELL;
+      ctx.fillStyle = (r + c) % 2 ? 'rgba(15, 31, 35, 0.78)' : 'rgba(11, 25, 29, 0.78)';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.13)';
+      ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+      const cell = game.grid[r][c];
+      if (cell) drawCell(x, y, cell);
+    }
+  }
+
+  if (game.phase === 'playing') drawGhost();
+}
+
+function drawCell(x, y, cell) {
+  if (cell.kind === 'blight') {
+    const pulse = game.blightPulse ? Math.sin(Date.now() / 70) * 0.12 + 0.88 : 0.75;
+    ctx.fillStyle = `rgba(226, 232, 240, ${pulse})`;
+    roundRect(x + 7, y + 7, CELL - 14, CELL - 14, 4, true);
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 15, y + 15); ctx.lineTo(x + CELL - 15, y + CELL - 15);
+    ctx.moveTo(x + CELL - 15, y + 15); ctx.lineTo(x + 15, y + CELL - 15);
+    ctx.stroke();
+    return;
+  }
+  const el = ELEMENTS[cell.element];
+  const pad = cell.seed ? 4 : 6;
+  ctx.fillStyle = el.dark;
+  roundRect(x + pad, y + pad, CELL - pad * 2, CELL - pad * 2, 6, true);
+  const rg = ctx.createRadialGradient(x + 18, y + 16, 2, x + CELL / 2, y + CELL / 2, CELL * 0.62);
+  rg.addColorStop(0, el.light);
+  rg.addColorStop(0.35, el.color);
+  rg.addColorStop(1, el.dark);
+  ctx.fillStyle = rg;
+  roundRect(x + pad + 2, y + pad + 2, CELL - pad * 2 - 4, CELL - pad * 2 - 4, 5, true);
+  ctx.strokeStyle = cell.seed ? '#fef3c7' : 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = cell.seed ? 3 : 1;
+  ctx.strokeRect(x + pad + 8, y + pad + 8, CELL - pad * 2 - 16, CELL - pad * 2 - 16);
+}
+
+function drawGhost() {
+  const valid = canPlace(game, game.current, game.cursor.col, game.cursor.row);
+  const el = ELEMENTS[game.current.element];
+  ctx.globalAlpha = valid ? 0.72 : 0.36;
+  for (const [r, c] of pieceCells(game.current, game.cursor.col, game.cursor.row)) {
+    if (!inBounds(r, c)) continue;
+    const x = BOARD_X + c * CELL, y = BOARD_Y + r * CELL;
+    ctx.fillStyle = valid ? el.color : '#ef4444';
+    roundRect(x + 8, y + 8, CELL - 16, CELL - 16, 5, true);
+    ctx.strokeStyle = valid ? el.light : '#fecaca';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 12, y + 12, CELL - 24, CELL - 24);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSidebar() {
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#dffdf4';
+  ctx.font = '800 34px "Segoe UI", sans-serif';
+  ctx.fillText('Rune Bloom', SIDE_X, 72);
+  ctx.fillStyle = '#8fb7af';
+  ctx.font = '14px "Segoe UI", sans-serif';
+  ctx.fillText('A crystalline garden puzzle', SIDE_X, 96);
+
+  stat('SCORE', game.score, 132);
+  stat('BEST', game.best, 196);
+  stat('TURN', game.turn, 260);
+  stat('GOAL', game.mode.goal, 324);
+
+  drawPiecePreview(game.current, SIDE_X, 380, 34, 'CURRENT');
+  for (let i = 0; i < game.next.length; i++) {
+    drawPiecePreview(game.next[i], SIDE_X + i * 86, 504, 18, i === 0 ? 'NEXT' : '');
+  }
+
+  ctx.fillStyle = '#c5e7df';
+  ctx.font = '13px "Segoe UI", sans-serif';
+  wrapText(game.message, SIDE_X, 596, 310, 18);
+
+  ctx.fillStyle = '#7b9993';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText('Mouse: move, click place, wheel rotate', SIDE_X, 640);
+  ctx.fillText('Keys: arrows, Q/E rotate, Space place, R reset', SIDE_X, 660);
+
+  for (const f of game.flash) {
+    ctx.globalAlpha = Math.min(1, f.life / 20);
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = '800 24px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function stat(label, value, y) {
+  ctx.fillStyle = 'rgba(14, 31, 34, 0.8)';
+  roundRect(SIDE_X, y - 30, 142, 48, 6, true);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  roundRect(SIDE_X, y - 30, 142, 48, 6, false);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.font = '700 11px "Segoe UI", sans-serif';
+  ctx.fillText(label, SIDE_X + 12, y - 12);
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = '800 24px "Segoe UI", sans-serif';
+  ctx.fillText(String(value), SIDE_X + 12, y + 12);
+}
+
+function drawPiecePreview(piece, x, y, size, label) {
+  if (label) {
+    ctx.fillStyle = '#7b9993';
+    ctx.font = '700 11px "Segoe UI", sans-serif';
+    ctx.fillText(label, x, y - 12);
+  }
+  const el = ELEMENTS[piece.element];
+  for (const [cx, cy] of piece.shape.cells) {
+    ctx.fillStyle = el.dark;
+    roundRect(x + cx * size, y + cy * size, size - 3, size - 3, 4, true);
+    ctx.fillStyle = el.color;
+    roundRect(x + cx * size + 3, y + cy * size + 3, size - 9, size - 9, 3, true);
+  }
+  const maxY = Math.max(...piece.shape.cells.map(([, cy]) => cy));
+  ctx.fillStyle = el.light;
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.fillText(el.name, x, y + (maxY + 1) * size + 16);
+}
+
+function drawParticles() {
+  for (const p of game.particles) {
+    ctx.globalAlpha = Math.min(1, p.life / 24);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawOverlay(title, subtitle, action) {
+  ctx.fillStyle = 'rgba(3, 7, 10, 0.76)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ccfbf1';
+  ctx.font = '900 58px "Segoe UI", sans-serif';
+  ctx.fillText(title, canvas.width / 2, 242);
+  ctx.fillStyle = '#d1fae5';
+  ctx.font = '18px "Segoe UI", sans-serif';
+  ctx.fillText(subtitle, canvas.width / 2, 288);
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = '800 18px "Segoe UI", sans-serif';
+  ctx.fillText(action, canvas.width / 2, 340);
+  ctx.fillStyle = '#9fbdb6';
+  ctx.font = '14px "Segoe UI", sans-serif';
+  ctx.fillText('Make same-color horizontal or vertical runs of four to bloom and clear space.', canvas.width / 2, 392);
+  ctx.fillText('Every three turns the blight spreads from the edge. Blooms purify adjacent blight.', canvas.width / 2, 418);
+}
+
+function drawModeMenu() {
+  ctx.fillStyle = 'rgba(3, 7, 10, 0.84)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ccfbf1';
+  ctx.font = '900 48px "Segoe UI", sans-serif';
+  ctx.fillText('RUNE BLOOM', canvas.width / 2, 62);
+  ctx.fillStyle = '#d1fae5';
+  ctx.font = '15px "Segoe UI", sans-serif';
+  ctx.fillText('Choose a game mode. Same garden heart, many rule worlds.', canvas.width / 2, 92);
+
+  modeButtons = [];
+  const cols = 4;
+  const cardW = 214;
+  const cardH = 78;
+  const gap = 14;
+  const startX = (canvas.width - (cols * cardW + (cols - 1) * gap)) / 2;
+  const startY = 122;
+  GAME_MODES.forEach((mode, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const x = startX + col * (cardW + gap);
+    const y = startY + row * (cardH + gap);
+    const selected = idx === game.selectedMode;
+    modeButtons.push({ x, y, w: cardW, h: cardH, idx });
+
+    ctx.fillStyle = selected ? 'rgba(20, 184, 166, 0.22)' : 'rgba(8, 27, 31, 0.88)';
+    roundRect(x, y, cardW, cardH, 7, true);
+    ctx.strokeStyle = selected ? '#5eead4' : 'rgba(148, 163, 184, 0.25)';
+    ctx.lineWidth = selected ? 2 : 1;
+    roundRect(x, y, cardW, cardH, 7, false);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = selected ? '#f8fafc' : '#d9fdf5';
+    ctx.font = '800 15px "Segoe UI", sans-serif';
+    ctx.fillText(mode.name, x + 12, y + 22);
+
+    ctx.fillStyle = tagColor(mode.tag);
+    ctx.font = '800 9px "Segoe UI", sans-serif';
+    ctx.fillText(mode.tag.toUpperCase(), x + 12, y + 38);
+
+    ctx.fillStyle = '#9fbdb6';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    wrapText(mode.desc, x + 12, y + 55, cardW - 24, 13);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '800 12px "Segoe UI", sans-serif';
+    ctx.fillText(String(mode.goal), x + cardW - 12, y + 22);
+  });
+
+  const sel = GAME_MODES[game.selectedMode];
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = '800 16px "Segoe UI", sans-serif';
+  ctx.fillText('Click a mode, or use arrows and Space. Selected: ' + sel.name, canvas.width / 2, 648);
+}
+
+function tagColor(tag) {
+  const map = {
+    classic: '#5eead4', gentle: '#a7f3d0', hard: '#fb7185', fire: '#fb923c',
+    flow: '#38bdf8', dense: '#a3e635', diagonal: '#c4b5fd', tight: '#facc15',
+    frontier: '#67e8f9', strict: '#f9a8d4', shape: '#fdba74', chain: '#fde68a',
+    cleanse: '#e2e8f0', ray: '#93c5fd', open: '#86efac', pattern: '#f0abfc',
+    blocked: '#cbd5e1', quick: '#fda4af', endless: '#fef08a', limited: '#bfdbfe',
+    alchemy: '#fcd34d'
+  };
+  return map[tag] || '#ccfbf1';
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, y);
+}
+
+function roundRect(x, y, w, h, r, fill) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  if (fill) ctx.fill(); else ctx.stroke();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+restart();
+loop();
+</script>
+</body>
+</html>
