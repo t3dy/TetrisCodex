@@ -40,5 +40,6 @@ The game now has a dedicated Markdown design trail in `docs/`:
 - [`docs/WILDHUNT.md`](docs/WILDHUNT.md)
 - [`docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md`](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)
 - [`docs/WILDHUNT_LEVEL_CONCEITS.md`](docs/WILDHUNT_LEVEL_CONCEITS.md)
+- [`docs/WILDHUNT_IMPLEMENTATION_LOG.md`](docs/WILDHUNT_IMPLEMENTATION_LOG.md)
 - [`docs/PHYSICS_LAB.md`](docs/PHYSICS_LAB.md)
 - [`docs/MOAT_DRAWBRIDGE_PUZZLES.md`](docs/MOAT_DRAWBRIDGE_PUZZLES.md)

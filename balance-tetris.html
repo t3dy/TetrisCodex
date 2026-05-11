@@ -311,6 +311,10 @@ function alchemyExitScore(group, dir, minGroup, singletonPenalty) {
   };
 }
 
+function recomputeScore(g) {
+  g.score = g.piecesPlaced + (g.lineBonus || 0) + (g.alchemyBonus || 0) + (g.wildBonus || 0);
+}
+
 // ===== ALCHEMICAL ITEMS =====
 // Items are cell-level properties beyond planet traits. See ALCHEMY_LORE.md
 // for the full vision (15+ items planned). v1 ships 3:
@@ -377,6 +381,65 @@ const TRIA_PRIMA_BUTTONS = [
   { id: 'sulphur', sign: '\u{1F70D}', short: 'Sulph', name: 'Sulphur', quality: 'combustible', color: '#d8703a' },
   { id: 'mercury', sign: '☿', short: 'Merc',  name: 'Mercury', quality: 'volatile',    color: '#c0c8d8' }
 ];
+
+// ===== WILD HUNT BLOCKS =====
+// First playable slice from docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md.
+// These are cell-level "chronicle entries": omen beats, apparitions, illusions,
+// date tokens, and alchemical counters.
+const WILD_HUNT_TILES = {
+  hounds: {
+    id: 'hounds', symbol: '🐕', name: 'Hounds of the Air', wildClass: 'omen',
+    color: '#5d7d88', colorLight: '#a8cbd4', colorDark: '#263b45',
+    weight: 0.8, volatile: true, chronicleValue: 8
+  },
+  wind: {
+    id: 'wind', symbol: '🌬️', name: 'Night Wind', wildClass: 'omen',
+    color: '#6b8aa0', colorLight: '#c9d8e4', colorDark: '#314556',
+    weight: 0.4, volatile: true, chronicleValue: 8
+  },
+  hoofbeat: {
+    id: 'hoofbeat', symbol: '🐎', name: 'Hoofbeat', wildClass: 'omen',
+    color: '#7b6655', colorLight: '#cfb199', colorDark: '#3b2d25',
+    weight: 1.5, volatile: false, chronicleValue: 10
+  },
+  date878: {
+    id: 'date878', symbol: '878', name: 'Year 878', wildClass: 'chronicle',
+    color: '#c8a96b', colorLight: '#f4df9a', colorDark: '#6d5524',
+    weight: 1, volatile: false, chronicleValue: 20
+  },
+  apparition: {
+    id: 'apparition', symbol: '🫥', name: 'Apparition', wildClass: 'apparition',
+    color: '#897bb0', colorLight: '#cec4f0', colorDark: '#3e315d',
+    weight: 0.6, volatile: true, chronicleValue: 25
+  },
+  deadHost: {
+    id: 'deadHost', symbol: '💀', name: 'Dead Host', wildClass: 'host',
+    color: '#87908b', colorLight: '#d2ddd5', colorDark: '#3b453f',
+    weight: 1.2, volatile: false, chronicleValue: 18
+  },
+  huntsman: {
+    id: 'huntsman', symbol: '🏇', name: 'Wild Huntsman', wildClass: 'huntsman',
+    color: '#583f67', colorLight: '#c0a1d0', colorDark: '#24152d',
+    weight: 2.2, volatile: false, chronicleValue: 50
+  },
+  mirrorHunt: {
+    id: 'mirrorHunt', symbol: '🪞', name: 'Mirror Hunt', wildClass: 'illusion',
+    color: '#627486', colorLight: '#d1dce8', colorDark: '#24313f',
+    weight: 0.5, volatile: true, deceptive: true, chronicleValue: 12
+  },
+  alembic: {
+    id: 'alembic', symbol: '⚗️', name: 'Alembic Lens', wildClass: 'counter',
+    color: '#3f8068', colorLight: '#a6e6d0', colorDark: '#184532',
+    weight: 1, volatile: false, chronicleValue: 0
+  }
+};
+
+const WILD_SPAWN_BAG = [
+  'hounds', 'wind', 'hoofbeat', 'apparition', 'apparition',
+  'deadHost', 'mirrorHunt', 'date878', 'alembic'
+];
+
+const WILD_BEAT_BAG = ['hounds', 'wind', 'hoofbeat', 'horn', 'deadHost', 'hounds', 'wind'];
 
 const ALCHEMY_PROCESS_TILES = {
   aries:       { emoji: '🔥', apparatus: 'Crucible',    verb: 'Calcination',    effect: 'reduces neighbors to ash' },
@@ -964,6 +1027,63 @@ const MODES = {
       g.flashTimer = Math.max(g.flashTimer, 30);
     }
   },
+  wildhunt: {
+    id: 'wildhunt',
+    name: 'Wild Hunt',
+    description: 'Trithemius mode: hounds, wind, hoofbeats, apparitions, and date tokens. Chronicle the Hunt before the platform throws it into rumor.',
+    difficulty: 'hard',
+    theme: {
+      bg: '#060a12',
+      beamColor: '#2f273f'
+    },
+    onSpawn(g, piece) {
+      ensureWildHunt(g);
+      piece.cellInfo = [];
+      for (let r = 0; r < piece.shape.length; r++) {
+        piece.cellInfo[r] = [];
+        for (let c = 0; c < piece.shape[r].length; c++) {
+          if (!piece.shape[r][c]) { piece.cellInfo[r][c] = null; continue; }
+          const tile = pickWildHuntTile(g);
+          piece.cellInfo[r][c] = wildTileCell(tile);
+        }
+      }
+    },
+    onPiecePlaced(g) {
+      ensureWildHunt(g);
+      applyPaletteAlchemy(g);
+      applyWildChronicle(g);
+      applyWildCounters(g);
+      g.hunt.meter++;
+      g.hunt.dawn = Math.min(12, g.hunt.dawn + 1);
+      if (g.hunt.meter >= 3) {
+        g.hunt.meter = 0;
+        fireWildBeat(g, nextWildBeat(g));
+      }
+      recomputeScore(g);
+    },
+    onUpdate(g, dt) {
+      ensureWildHunt(g);
+      if (g.hunt.beatFlash > 0) g.hunt.beatFlash = Math.max(0, g.hunt.beatFlash - dt * 60);
+      if (g.hunt.riderFrames > 0) g.hunt.riderFrames = Math.max(0, g.hunt.riderFrames - dt * 60);
+      if (g.hunt.windFrames > 0 && g.phase === 'playing' && g.current) {
+        g.hunt.windFrames = Math.max(0, g.hunt.windFrames - dt * 60);
+        g.current.huntWindAccum = (g.current.huntWindAccum || 0) + dt * g.hunt.windDir * 1.8;
+        while (Math.abs(g.current.huntWindAccum) >= 1) {
+          const dir = Math.sign(g.current.huntWindAccum);
+          const row = g.current.row !== undefined ? g.current.row : 0;
+          if (!collides(g.grid, g.current.shape, g.current.col + dir, row)) g.current.col += dir;
+          g.current.huntWindAccum -= dir;
+        }
+      }
+    },
+    onTorqueAdjust(g, torqueData) {
+      ensureWildHunt(g);
+      if (g.hunt.riderFrames > 0) {
+        torqueData.torque += g.hunt.riderTorque * (g.hunt.riderFrames / 60);
+      }
+      return torqueData;
+    }
+  },
   alchemy: {
     id: 'alchemy',
     name: 'Alchemy',
@@ -1105,7 +1225,7 @@ const MODES = {
 
       if (cellsLost > 0) {
         g.alchemyBonus = (g.alchemyBonus || 0) + scoreDelta;
-        g.score = g.piecesPlaced + (g.alchemyBonus || 0) + (g.lineBonus || 0);
+        recomputeScore(g);
         g.alchemyFlash = {
           delta: scoreDelta,
           frames: 60,
@@ -1119,7 +1239,7 @@ const MODES = {
   }
 };
 
-const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs', 'alchemy'];
+const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs', 'alchemy', 'wildhunt'];
 
 // ===== LEVELS =====
 // A level is a specific (platform × mode × winCondition) tuple.
@@ -1722,6 +1842,231 @@ function applyPaletteAlchemy(g) {
   }
 }
 
+function ensureWildHunt(g) {
+  if (!g.hunt) {
+    g.hunt = {
+      dawn: 0,
+      meter: 0,
+      credibility: 100,
+      chronicleEntries: 0,
+      lastBeat: 'quiet',
+      beatFlash: 0,
+      beatBag: [],
+      spawnBag: [],
+      windDir: 0,
+      windFrames: 0,
+      riderTorque: 0,
+      riderFrames: 0,
+      forcedTile: null
+    };
+  }
+  return g.hunt;
+}
+
+function pickWildHuntTile(g) {
+  const h = ensureWildHunt(g);
+  if (h.forcedTile) {
+    const id = h.forcedTile;
+    h.forcedTile = null;
+    return WILD_HUNT_TILES[id] || WILD_HUNT_TILES.apparition;
+  }
+  if (h.spawnBag.length === 0) h.spawnBag = shuffled(WILD_SPAWN_BAG);
+  return WILD_HUNT_TILES[h.spawnBag.pop()] || WILD_HUNT_TILES.apparition;
+}
+
+function nextWildBeat(g) {
+  const h = ensureWildHunt(g);
+  if (h.beatBag.length === 0) h.beatBag = shuffled(WILD_BEAT_BAG);
+  return h.beatBag.pop();
+}
+
+function wildTileCell(tile) {
+  return {
+    color: tile.color,
+    colorLight: tile.colorLight,
+    colorDark: tile.colorDark,
+    symbol: tile.symbol,
+    weight: tile.weight,
+    wildId: tile.id,
+    wildName: tile.name,
+    wildClass: tile.wildClass,
+    wildVolatile: !!tile.volatile,
+    wildDeceptive: !!tile.deceptive,
+    chronicleValue: tile.chronicleValue || 0
+  };
+}
+
+function wildCellFromId(id) {
+  const tile = WILD_HUNT_TILES[id] || WILD_HUNT_TILES.apparition;
+  const cell = wildTileCell(tile);
+  return {
+    color: cell.color,
+    colorLight: cell.colorLight,
+    colorDark: cell.colorDark,
+    symbol: cell.symbol,
+    weight: cell.weight,
+    wildId: cell.wildId,
+    wildName: cell.wildName,
+    wildClass: cell.wildClass,
+    wildVolatile: cell.wildVolatile,
+    wildDeceptive: cell.wildDeceptive,
+    chronicleValue: cell.chronicleValue
+  };
+}
+
+function fireWildBeat(g, beat) {
+  const h = ensureWildHunt(g);
+  h.lastBeat = beat;
+  h.beatFlash = 60;
+  if (beat === 'hounds') {
+    wildShove(g, wildShoveDir(g));
+    h.credibility = Math.max(0, h.credibility - 2);
+  } else if (beat === 'wind') {
+    h.windDir = Math.random() < 0.5 ? -1 : 1;
+    h.windFrames = 150;
+    h.credibility = Math.max(0, h.credibility - 1);
+  } else if (beat === 'hoofbeat') {
+    g.shakeX += (Math.random() - 0.5) * 26 * settings.shakeMul;
+    g.shakeY += (Math.random() - 0.5) * 14 * settings.shakeMul;
+    h.credibility = Math.max(0, h.credibility - 1);
+  } else if (beat === 'horn') {
+    h.forcedTile = 'huntsman';
+    h.riderTorque = Math.random() < 0.5 ? -8 : 8;
+    h.riderFrames = 90;
+  } else if (beat === 'deadHost') {
+    seedWildHost(g);
+    h.credibility = Math.max(0, h.credibility - 3);
+  }
+  const phys = computePhysics(g);
+  g.targetTilt = phys.angle;
+  g.lastTorqueData = phys.torqueData;
+  if (h.credibility <= 0) triggerGameOver(g);
+}
+
+function wildShoveDir(g) {
+  if (Math.abs(g.targetTilt) > 0.05) return Math.sign(g.targetTilt);
+  return Math.random() < 0.5 ? -1 : 1;
+}
+
+function wildShove(g, dir) {
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = g.grid[r][c];
+      if (!cell || cell.platform || cell.item === 'salt') continue;
+      if (cell.wildVolatile || cell.wildClass === 'apparition' || cell.wildClass === 'illusion') {
+        cells.push([r, c]);
+      }
+    }
+  }
+  cells.sort((a, b) => dir > 0 ? b[1] - a[1] : a[1] - b[1]);
+  let lost = 0;
+  for (const [r, c] of cells) {
+    const cell = g.grid[r][c];
+    if (!cell) continue;
+    const nc = c + dir;
+    if (nc < 0 || nc >= COLS) {
+      const value = cell.chronicled ? (cell.chronicleValue || 10) : -6;
+      g.wildBonus = (g.wildBonus || 0) + value;
+      g.grid[r][c] = null;
+      lost++;
+    } else if (!g.grid[r][nc]) {
+      g.grid[r][nc] = cell;
+      g.grid[r][c] = null;
+    }
+  }
+  if (lost || cells.length) {
+    g.shakeX += dir * 7 * settings.shakeMul;
+    g.flashTimer = Math.max(g.flashTimer, 20);
+    recomputeScore(g);
+  }
+}
+
+function seedWildHost(g) {
+  const side = Math.random() < 0.5 ? 0 : COLS - 1;
+  const dir = side === 0 ? 1 : -1;
+  let placed = 0;
+  for (let r = ROWS - 1; r >= 0 && placed < 3; r--) {
+    const c = side + placed * dir;
+    if (c >= 0 && c < COLS && !g.grid[r][c]) {
+      g.grid[r][c] = wildCellFromId('deadHost');
+      placed++;
+    }
+  }
+}
+
+function applyWildChronicle(g) {
+  const h = ensureWildHunt(g);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = g.grid[r][c];
+      if (!cell || cell.platform || cell.wildClass !== 'chronicle' || cell._chronicleFired) continue;
+      let chronicled = 0;
+      for (const [rr, cc] of neighbors4(r, c)) {
+        const n = g.grid[rr][cc];
+        if (!n || n.platform || n.chronicled) continue;
+        if (['apparition', 'host', 'huntsman', 'illusion', 'omen'].includes(n.wildClass)) {
+          n.chronicled = true;
+          n.wildDeceptive = false;
+          n.colorLight = '#fff1a8';
+          n.symbol = n.symbol || '📖';
+          chronicled++;
+          h.chronicleEntries++;
+          h.credibility = Math.min(100, h.credibility + 4);
+          g.wildBonus = (g.wildBonus || 0) + (n.chronicleValue || 12);
+        }
+      }
+      if (chronicled) {
+        cell._chronicleFired = true;
+        cell.symbol = '📖';
+      }
+    }
+  }
+}
+
+function applyWildCounters(g) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = g.grid[r][c];
+      if (!cell || cell.platform || cell._wildCounterFired) continue;
+      const process = cell.paletteProcess;
+      const isAlembic = cell.wildId === 'alembic';
+      if (isAlembic || process === 'distillation' || process === 'dissolution') {
+        cell._wildCounterFired = true;
+        for (let rr = 0; rr < ROWS; rr++) {
+          const n = g.grid[rr][c];
+          if (n && n.wildDeceptive) {
+            n.wildDeceptive = false;
+            n.symbol = '👁️';
+            n.colorLight = '#f1f7ff';
+            g.wildBonus = (g.wildBonus || 0) + 8;
+          }
+        }
+      } else if (process === 'calcination' || process === 'incineration') {
+        cell._wildCounterFired = true;
+        for (const [rr, cc] of neighbors4(r, c)) {
+          const n = g.grid[rr][cc];
+          if (n && n.wildClass === 'illusion' && !n.wildDeceptive) {
+            makeAsh(n);
+            n.symbol = '⚱️';
+            g.wildBonus = (g.wildBonus || 0) + 14;
+          }
+        }
+      } else if (process === 'fixation' || process === 'congelation' || cell.palettePrima === 'salt') {
+        cell._wildCounterFired = true;
+        for (const [rr, cc] of neighbors4(r, c)) {
+          const n = g.grid[rr][cc];
+          if (n && n.wildClass) {
+            n.item = 'salt';
+            n.wildVolatile = false;
+            n.chronicled = true;
+          }
+        }
+      }
+    }
+  }
+}
+
 // Color helpers: blend / lighten / darken hex strings
 function blendHex(a, b, t) {
   const pa = hexToRgb(a), pb = hexToRgb(b);
@@ -1789,7 +2134,10 @@ function isValidCol(grid, shape, col) {
 // ===== PHYSICS =====
 // Routes through the active platform.
 function computePhysics(g) {
-  const td = g.platform.computeTorque(g.grid);
+  let td = g.platform.computeTorque(g.grid);
+  if (g.mode && g.mode.onTorqueAdjust) {
+    td = g.mode.onTorqueAdjust(g, Object.assign({}, td)) || td;
+  }
   const angle = g.platform.tiltAngle(td);
   return { torqueData: td, angle };
 }
@@ -1825,6 +2173,13 @@ function lockPiece(g, piece, col, row) {
           if (ci.palettePrima !== undefined) cell.palettePrima = ci.palettePrima;
           if (ci.paletteQuality !== undefined) cell.paletteQuality = ci.paletteQuality;
           if (ci.apparatus !== undefined) cell.apparatus = ci.apparatus;
+          if (ci.weight !== undefined) cell.weight = ci.weight;
+          if (ci.wildId !== undefined) cell.wildId = ci.wildId;
+          if (ci.wildName !== undefined) cell.wildName = ci.wildName;
+          if (ci.wildClass !== undefined) cell.wildClass = ci.wildClass;
+          if (ci.wildVolatile !== undefined) cell.wildVolatile = ci.wildVolatile;
+          if (ci.wildDeceptive !== undefined) cell.wildDeceptive = ci.wildDeceptive;
+          if (ci.chronicleValue !== undefined) cell.chronicleValue = ci.chronicleValue;
         }
         // Propagate per-piece flags into the grid cell
         if (piece.balloon) cell.balloon = true;
@@ -1840,7 +2195,7 @@ function lockPiece(g, piece, col, row) {
   if (g.playerCount > 1) {
     g.playerScores[piece.playerId] = (g.playerScores[piece.playerId] || 0) + 1;
   }
-  g.score = g.piecesPlaced + (g.lineBonus || 0) + (g.alchemyBonus || 0);
+  recomputeScore(g);
   // Mode hook: settle pass (bombs detonate, surfaces slide, etc.)
   // Runs BEFORE physics recompute so cascade effects on torque are reflected immediately.
   if (g.mode.onPiecePlaced) g.mode.onPiecePlaced(g);
@@ -1963,7 +2318,7 @@ function clearLines(g) {
   const bonus = bonuses[Math.min(cleared.length, 4)];
   g.lineBonus = (g.lineBonus || 0) + bonus;
   g.linesCleared = (g.linesCleared || 0) + cleared.length;
-  g.score = g.piecesPlaced + (g.lineBonus || 0) + (g.alchemyBonus || 0);
+  recomputeScore(g);
   // Visual: flash rows briefly
   g.lineFlash = { rows: cleared, frames: 30 };
   g.flashTimer = Math.max(g.flashTimer, 25);
@@ -2471,6 +2826,8 @@ function update(g, dt) {
   // Flash decay
   if (g.flashTimer > 0) g.flashTimer = Math.max(0, g.flashTimer - dt * 60);
 
+  if (g.mode && g.mode.onUpdate) g.mode.onUpdate(g, dt);
+
   if (g.phase === 'gameOver') {
     g.gameOverTimer += dt * 60;
     // Exaggerate tilt on game over
@@ -2944,7 +3301,27 @@ function drawNextPieces(g) {
       ctx.textAlign = 'center';
       ctx.fillText(p.hasItem.emoji + ' ' + p.hasItem.name.toUpperCase(), boxX + 30, py + 70);
     }
+    if (g.modeId === 'wildhunt') {
+      const label = firstWildLabel(p);
+      if (label) {
+        ctx.fillStyle = '#d7c38a';
+        ctx.font = 'bold 8px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label.toUpperCase(), boxX + 30, py + 70);
+      }
+    }
   }
+}
+
+function firstWildLabel(piece) {
+  if (!piece.cellInfo) return '';
+  for (let r = 0; r < piece.cellInfo.length; r++) {
+    for (let c = 0; c < piece.cellInfo[r].length; c++) {
+      const ci = piece.cellInfo[r][c];
+      if (ci && ci.wildName) return ci.wildName;
+    }
+  }
+  return '';
 }
 
 function drawScore(g) {
@@ -3013,7 +3390,7 @@ function drawScore(g) {
     ctx.textAlign = 'left';
   }
 
-  const hasBonus = (g.alchemyBonus || 0) || (g.lineBonus || 0);
+  const hasBonus = (g.alchemyBonus || 0) || (g.lineBonus || 0) || (g.wildBonus || 0);
   ctx.fillStyle = '#8888aa';
   ctx.font = '12px "Segoe UI", sans-serif';
   ctx.fillText(hasBonus ? 'SCORE' : 'PIECES', 30, 55);
@@ -3037,6 +3414,11 @@ function drawScore(g) {
     if (g.lineBonus) {
       ctx.fillStyle = '#ffd740';
       ctx.fillText('+' + g.lineBonus + ' lines (' + (g.linesCleared || 0) + ')', 30, bonusY);
+      bonusY += 14;
+    }
+    if (g.wildBonus) {
+      ctx.fillStyle = g.wildBonus >= 0 ? '#d7c38a' : '#f55';
+      ctx.fillText((g.wildBonus >= 0 ? '+' : '') + g.wildBonus + ' chronicle', 30, bonusY);
       bonusY += 14;
     }
   }
@@ -3071,12 +3453,53 @@ function drawScore(g) {
     }
     ctx.textAlign = 'left';
   }
+
+  if (g.modeId === 'wildhunt') drawWildHuntHUD(g);
+}
+
+function drawWildHuntHUD(g) {
+  const h = ensureWildHunt(g);
+  const x = 28, y = 168, w = 150, hgt = 132;
+  ctx.fillStyle = 'rgba(18, 14, 28, 0.78)';
+  ctx.fillRect(x, y, w, hgt);
+  ctx.strokeStyle = h.beatFlash > 0 ? '#d7c38a' : 'rgba(160, 140, 100, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, hgt);
+
+  ctx.fillStyle = '#d7c38a';
+  ctx.font = 'bold 11px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('WILD HUNT', x + 8, y + 16);
+
+  ctx.fillStyle = '#aeb7c8';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillText('Dawn', x + 8, y + 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x + 48, y + 28, 88, 10);
+  ctx.fillStyle = '#f4d78a';
+  ctx.fillRect(x + 48, y + 28, 88 * Math.min(1, h.dawn / 12), 10);
+
+  ctx.fillStyle = '#aeb7c8';
+  ctx.fillText('Cred', x + 8, y + 56);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x + 48, y + 48, 88, 10);
+  ctx.fillStyle = h.credibility > 40 ? '#78d58a' : '#ef6b6b';
+  ctx.fillRect(x + 48, y + 48, 88 * Math.max(0, h.credibility) / 100, 10);
+
+  ctx.fillStyle = '#ccd6e0';
+  ctx.font = 'bold 12px "Segoe UI", sans-serif';
+  const beatName = h.lastBeat === 'quiet' ? 'quiet' : h.lastBeat;
+  ctx.fillText('Beat: ' + beatName, x + 8, y + 80);
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillStyle = '#9ea8b8';
+  ctx.fillText('Entries: ' + h.chronicleEntries, x + 8, y + 99);
+  ctx.fillText('Next omen in ' + (3 - h.meter), x + 8, y + 116);
 }
 
 function drawControls(g) {
   // Compact controls panel in lower-left
   const panelX = 14, panelY = CANVAS_H - 180;  // shifted up to clear the palette row
-  const panelW = 150, panelH = g.modeId === 'alchemy' ? 152 : 116;
+  const panelW = 150, panelH = (g.modeId === 'alchemy' || g.modeId === 'wildhunt') ? 152 : 116;
   ctx.fillStyle = 'rgba(30, 30, 50, 0.7)';
   ctx.fillRect(panelX, panelY, panelW, panelH);
   ctx.strokeStyle = 'rgba(100, 100, 140, 0.4)';
@@ -3102,6 +3525,11 @@ function drawControls(g) {
     lines.splice(4, 0, 'Alchemy: ☽♀♄ left');
     lines.splice(5, 0, '         ☉♂♃ right');
     lines.splice(6, 0, '         ☿ either');
+  }
+  if (g.modeId === 'wildhunt') {
+    lines.splice(4, 0, 'Hunt: date phantoms');
+    lines.splice(5, 0, '      distill mirrors');
+    lines.splice(6, 0, '      brace omens');
   }
   lines.forEach((line, i) => {
     ctx.fillText(line, panelX + 8, panelY + 28 + i * 13);
@@ -4044,9 +4472,10 @@ function render(g) {
 }
 
 // ===== GAME LOOP =====
+const hashMode = location.hash === '#wildhunt' ? 'wildhunt' : null;
 game = createGame(
   localStorage.getItem('bb_lastPlatform') || 'seesaw',
-  localStorage.getItem('bb_lastMode') || 'standard'
+  hashMode || localStorage.getItem('bb_lastMode') || 'standard'
 );
 let lastTime = 0;
 

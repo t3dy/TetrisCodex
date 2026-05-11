@@ -55,6 +55,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `WILDHUNT_LEVEL_CONCEITS.md`  
   Level families and a campaign sequence based on chronology, localization, phantom armies, cursed hunters, aerial sorcerers, and sensory deception.
 
+- `WILDHUNT_IMPLEMENTATION_LOG.md`  
+  Build log for the first playable Wild Hunt slice in Balance Tetris.
+
 - `PHYSICS_LAB.md`  
   Balance Tetris user-facing physics controls for gravity, wind, friction, slipperiness, and slide behavior.
 
