@@ -46,6 +46,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `INSPIRATIONS.md`  
   Puzzle-game mechanical inspirations mapped onto alchemical processes.
 
+- `WILDHUNT.md`  
+  Trithemius / Wild Hunt gameplay mode ideas focused on chronology, apparition, sound, and sensory deception.
+
+- `PHYSICS_LAB.md`  
+  Balance Tetris user-facing physics controls for gravity, wind, friction, slipperiness, and slide behavior.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

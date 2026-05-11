@@ -37,3 +37,5 @@ The game now has a dedicated Markdown design trail in `docs/`:
 - [`docs/EMOJI_BLOCK_PROPERTY_TAXONOMY.md`](docs/EMOJI_BLOCK_PROPERTY_TAXONOMY.md)
 - [`docs/ALCHEMY_SOURCE_PIPELINE.md`](docs/ALCHEMY_SOURCE_PIPELINE.md)
 - [`docs/INSPIRATIONS.md`](docs/INSPIRATIONS.md)
+- [`docs/WILDHUNT.md`](docs/WILDHUNT.md)
+- [`docs/PHYSICS_LAB.md`](docs/PHYSICS_LAB.md)
