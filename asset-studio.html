@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemical Asset Studio</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #081014;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1180px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 34px 0;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(30px, 5vw, 58px);
+    line-height: 0.95;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .lead {
+    max-width: 830px;
+    margin: 0 0 24px;
+    color: #a7c9c2;
+    font-size: 18px;
+    line-height: 1.45;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 390px) 1fr;
+    gap: 18px;
+  }
+  .panel {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: #0f1d22;
+    overflow: hidden;
+  }
+  .panel header {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  }
+  h2 {
+    margin: 0;
+    color: #fef3c7;
+    font-size: 15px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  .body { padding: 16px 18px; }
+  label {
+    display: block;
+    margin: 12px 0 6px;
+    color: #b9d6d0;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  input, select, textarea, button {
+    font: inherit;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    border-radius: 6px;
+    background: #071216;
+    color: #ecfeff;
+  }
+  textarea {
+    min-height: 128px;
+    resize: vertical;
+    line-height: 1.35;
+  }
+  input[type="range"] {
+    padding: 0;
+  }
+  button {
+    min-height: 38px;
+    border: 1px solid rgba(148, 163, 184, 0.34);
+    border-radius: 6px;
+    background: #132a31;
+    color: #ecfeff;
+    cursor: pointer;
+    font-weight: 800;
+  }
+  button:hover, button:focus {
+    outline: 2px solid #5eead4;
+    background: #173840;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .preview {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 18px;
+    align-items: center;
+  }
+  .tile {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border: 2px solid rgba(94, 234, 212, 0.72);
+    border-radius: 8px;
+    background: #061018;
+    font-size: 52px;
+  }
+  .name {
+    margin: 0 0 6px;
+    font-size: 28px;
+    font-weight: 900;
+  }
+  .meta {
+    margin: 0;
+    color: #a7c9c2;
+    line-height: 1.45;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .stat {
+    padding: 11px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 6px;
+    background: #09161a;
+  }
+  .stat b {
+    display: block;
+    color: #fef3c7;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+  .stat span {
+    color: #ecfeff;
+    font-size: 20px;
+    font-weight: 900;
+  }
+  .library {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .asset-card {
+    min-height: 112px;
+    padding: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    background: #09161a;
+    cursor: pointer;
+  }
+  .asset-card:hover {
+    outline: 2px solid #5eead4;
+  }
+  .asset-card .emoji {
+    font-size: 28px;
+  }
+  .asset-card h3 {
+    margin: 8px 0 4px;
+    font-size: 15px;
+  }
+  .asset-card p {
+    margin: 0;
+    color: #9dbab4;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  pre {
+    margin: 0;
+    min-height: 280px;
+    max-height: 500px;
+    overflow: auto;
+    padding: 14px;
+    border-radius: 8px;
+    background: #061018;
+    color: #d1fae5;
+    font: 12px/1.4 Consolas, "Courier New", monospace;
+  }
+  .two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .hint {
+    color: #7ca09a;
+    font-size: 12px;
+    line-height: 1.35;
+    margin: 10px 0 0;
+  }
+  @media (max-width: 900px) {
+    .layout, .preview, .two {
+      grid-template-columns: 1fr;
+    }
+    h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Alchemical Asset Studio</h1>
+  <p class="lead">
+    Create emoji-block assets for Balance Tetris, Wild Hunt, VALIS Space Taxi, Rune Bloom, and future modes.
+    Define their source identity, alchemical family, physical properties, beam reactions, and cascade behavior.
+  </p>
+
+  <section class="layout">
+    <div class="panel">
+      <header><h2>Asset Form</h2></header>
+      <div class="body">
+        <label for="assetName">Name</label>
+        <input id="assetName" value="VALIS Crystal">
+
+        <div class="two">
+          <div>
+            <label for="emoji">Emoji</label>
+            <input id="emoji" value="💎👁️">
+          </div>
+          <div>
+            <label for="assetClass">Class</label>
+            <select id="assetClass">
+              <option>block</option>
+              <option>cargo</option>
+              <option>passenger</option>
+              <option>ship</option>
+              <option>platform</option>
+              <option>hazard</option>
+              <option>apparatus</option>
+              <option>beam-effect</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label for="family">Alchemical family</label>
+            <select id="family">
+              <option>revelation</option>
+              <option>salt</option>
+              <option>mercury</option>
+              <option>sulphur</option>
+              <option>prima-materia</option>
+              <option>wildhunt</option>
+              <option>synthetic</option>
+              <option>residue</option>
+              <option>bridge</option>
+            </select>
+          </div>
+          <div>
+            <label for="mode">Primary mode</label>
+            <select id="mode">
+              <option>valis-taxi</option>
+              <option>balance-tetris</option>
+              <option>alchemy</option>
+              <option>wildhunt</option>
+              <option>moat-bridge</option>
+              <option>rune-bloom</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="behavior">Behavior</label>
+        <textarea id="behavior">Reveals hidden supports, powers beam upgrades, and fractures if dropped hard.</textarea>
+
+        <div class="two">
+          <div>
+            <label for="mass">Mass</label>
+            <input id="mass" type="range" min="0" max="3" step="0.05" value="0.7">
+          </div>
+          <div>
+            <label for="friction">Friction</label>
+            <input id="friction" type="range" min="0" max="3" step="0.05" value="0.9">
+          </div>
+        </div>
+        <div class="two">
+          <div>
+            <label for="volatility">Volatility</label>
+            <input id="volatility" type="range" min="0" max="3" step="0.05" value="0.25">
+          </div>
+          <div>
+            <label for="beamAffinity">Beam affinity</label>
+            <input id="beamAffinity" type="range" min="0" max="3" step="0.05" value="2.4">
+          </div>
+        </div>
+
+        <label for="source">Source note</label>
+        <textarea id="source">PKD/VALIS motif: revelation beam, hidden reality, rescue signal. Alchemical analogue: crystalline lens or illuminated stone.</textarea>
+
+        <div class="buttons">
+          <button id="addBtn">Add</button>
+          <button id="sampleBtn">Samples</button>
+          <button id="copyBtn">Copy JSON</button>
+        </div>
+        <p class="hint" id="status">Ready.</p>
+      </div>
+    </div>
+
+    <div>
+      <section class="panel">
+        <header><h2>Preview</h2></header>
+        <div class="body">
+          <div class="preview">
+            <div class="tile" id="tile">💎👁️</div>
+            <div>
+              <p class="name" id="previewName">VALIS Crystal</p>
+              <p class="meta" id="previewMeta">revelation block for valis-taxi</p>
+              <p class="meta" id="previewBehavior">Reveals hidden supports, powers beam upgrades, and fractures if dropped hard.</p>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="stat"><b>Mass</b><span id="massVal">0.70</span></div>
+            <div class="stat"><b>Friction</b><span id="frictionVal">0.90</span></div>
+            <div class="stat"><b>Volatility</b><span id="volatilityVal">0.25</span></div>
+            <div class="stat"><b>Beam</b><span id="beamVal">2.40</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:18px;">
+        <header><h2>Library</h2></header>
+        <div class="body">
+          <div class="library" id="library"></div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:18px;">
+        <header><h2>Asset JSON</h2></header>
+        <div class="body">
+          <pre id="json"></pre>
+        </div>
+      </section>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+const fields = {
+  assetName: document.getElementById('assetName'),
+  emoji: document.getElementById('emoji'),
+  assetClass: document.getElementById('assetClass'),
+  family: document.getElementById('family'),
+  mode: document.getElementById('mode'),
+  behavior: document.getElementById('behavior'),
+  mass: document.getElementById('mass'),
+  friction: document.getElementById('friction'),
+  volatility: document.getElementById('volatility'),
+  beamAffinity: document.getElementById('beamAffinity'),
+  source: document.getElementById('source'),
+};
+
+const library = [];
+
+function currentAsset() {
+  const name = fields.assetName.value.trim() || 'Unnamed Asset';
+  return {
+    schema: 'alchemical-asset/v1',
+    id: slugify(name),
+    name,
+    emoji: fields.emoji.value.trim() || '□',
+    class: fields.assetClass.value,
+    primaryMode: fields.mode.value,
+    alchemy: {
+      family: fields.family.value,
+      mass: Number(fields.mass.value),
+      friction: Number(fields.friction.value),
+      volatility: Number(fields.volatility.value),
+      beamAffinity: Number(fields.beamAffinity.value),
+    },
+    behavior: fields.behavior.value.trim(),
+    sourceNote: fields.source.value.trim(),
+    tags: [fields.family.value, fields.mode.value, fields.assetClass.value],
+  };
+}
+
+function update() {
+  const asset = currentAsset();
+  document.getElementById('tile').textContent = asset.emoji;
+  document.getElementById('previewName').textContent = asset.name;
+  document.getElementById('previewMeta').textContent = `${asset.alchemy.family} ${asset.class} for ${asset.primaryMode}`;
+  document.getElementById('previewBehavior').textContent = asset.behavior;
+  document.getElementById('massVal').textContent = asset.alchemy.mass.toFixed(2);
+  document.getElementById('frictionVal').textContent = asset.alchemy.friction.toFixed(2);
+  document.getElementById('volatilityVal').textContent = asset.alchemy.volatility.toFixed(2);
+  document.getElementById('beamVal').textContent = asset.alchemy.beamAffinity.toFixed(2);
+  document.getElementById('json').textContent = JSON.stringify({ asset, library }, null, 2);
+}
+
+function addAsset() {
+  const asset = currentAsset();
+  const existing = library.findIndex(item => item.id === asset.id);
+  if (existing >= 0) library[existing] = asset;
+  else library.push(asset);
+  renderLibrary();
+  setStatus(`Added ${asset.name}.`);
+  update();
+}
+
+function renderLibrary() {
+  const root = document.getElementById('library');
+  root.innerHTML = '';
+  for (const asset of library) {
+    const card = document.createElement('button');
+    card.className = 'asset-card';
+    card.type = 'button';
+    card.innerHTML = `<div class="emoji">${asset.emoji}</div><h3>${asset.name}</h3><p>${asset.alchemy.family} ${asset.class}<br>${asset.primaryMode}</p>`;
+    card.addEventListener('click', () => loadAsset(asset));
+    root.appendChild(card);
+  }
+}
+
+function loadAsset(asset) {
+  fields.assetName.value = asset.name;
+  fields.emoji.value = asset.emoji;
+  fields.assetClass.value = asset.class;
+  fields.family.value = asset.alchemy.family;
+  fields.mode.value = asset.primaryMode;
+  fields.behavior.value = asset.behavior;
+  fields.mass.value = asset.alchemy.mass;
+  fields.friction.value = asset.alchemy.friction;
+  fields.volatility.value = asset.alchemy.volatility;
+  fields.beamAffinity.value = asset.alchemy.beamAffinity;
+  fields.source.value = asset.sourceNote;
+  setStatus(`Loaded ${asset.name}.`);
+  update();
+}
+
+function loadSamples() {
+  const samples = [
+    ['Fixed Salt Vault', '🧂🔒', 'block', 'salt', 'alchemy', 2.1, 1.8, 0.1, 0.4, 'Anchors neighbors and resists slide cascades.', 'Tria Prima Salt: fixity, body, crystallization.'],
+    ['Volatile Mercury Crate', '☿📦', 'cargo', 'mercury', 'valis-taxi', 0.8, 0.35, 2.2, 0.9, 'Slides easily and can exit either side for neutral/profit scoring.', 'Tria Prima Mercury: volatile spirit, mobility, mediation.'],
+    ['Wild Hunt Hound', '🐕', 'block', 'wildhunt', 'wildhunt', 1.1, 0.75, 1.1, 0.2, 'Chases omen paths and marks apparition routes.', 'Trithemius/Wild Hunt mode asset.'],
+    ['Black Iron Ingot', '▦⛓️', 'cargo', 'revelation', 'valis-taxi', 2.4, 1.2, 0.35, 1.8, 'Locks platform cells until disrupted by the VALIS beam.', 'PKD/VALIS motif: Black Iron Prison.'],
+    ['Moat Stone', '🪨🌉', 'block', 'bridge', 'moat-bridge', 1.8, 1.35, 0.05, 0.1, 'Forms flat drawbridge paths for horses and coaches.', 'Moat Drawbridge puzzle asset.'],
+  ];
+  for (const s of samples) {
+    library.push({
+      schema: 'alchemical-asset/v1',
+      id: slugify(s[0]),
+      name: s[0],
+      emoji: s[1],
+      class: s[2],
+      primaryMode: s[4],
+      alchemy: { family: s[3], mass: s[5], friction: s[6], volatility: s[7], beamAffinity: s[8] },
+      behavior: s[9],
+      sourceNote: s[10],
+      tags: [s[3], s[4], s[2]],
+    });
+  }
+  renderLibrary();
+  setStatus('Loaded sample asset library.');
+  update();
+}
+
+async function copyJson() {
+  const text = document.getElementById('json').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus('Copied asset JSON.');
+  } catch {
+    setStatus('Copy unavailable; JSON is visible below.');
+  }
+}
+
+function setStatus(text) {
+  document.getElementById('status').textContent = text;
+}
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'asset';
+}
+
+for (const field of Object.values(fields)) field.addEventListener('input', update);
+document.getElementById('addBtn').addEventListener('click', addAsset);
+document.getElementById('sampleBtn').addEventListener('click', loadSamples);
+document.getElementById('copyBtn').addEventListener('click', copyJson);
+update();
+</script>
+</body>
+</html>

@@ -82,6 +82,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `LEVEL_BUILDER_CONSTRUCTION_KIT.md`  
   WYSIWYG construction kit for authoring levels across Balance Tetris, Alchemy, Wild Hunt, VALIS Taxi, Moat Drawbridge, Rune Bloom, and future modes.
 
+- `DEV_TOOLS_AND_WEBSITE_ROADMAP.md`  
+  Roadmap for Asset Studio, Physics Preset Lab, Platform Forge, Cascade Editor, source annotation, campaign planning, and website pages.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

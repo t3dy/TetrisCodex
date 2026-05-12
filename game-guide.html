@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemical Game World Guide</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #071013;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1120px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 44px 0 70px;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  nav a {
+    color: #d1fae5;
+    text-decoration: none;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    background: #0f1d22;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  h1 {
+    max-width: 880px;
+    margin: 0 0 14px;
+    font-size: clamp(32px, 6vw, 70px);
+    line-height: 0.92;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .lead {
+    max-width: 850px;
+    margin: 0 0 34px;
+    color: #a7c9c2;
+    font-size: 19px;
+    line-height: 1.5;
+  }
+  section {
+    margin-top: 42px;
+  }
+  h2 {
+    margin: 0 0 16px;
+    color: #fef3c7;
+    font-size: 30px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    min-height: 210px;
+    padding: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: #0f1d22;
+  }
+  .emoji {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+  h3 {
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+  p {
+    margin: 0;
+    color: #bad7d1;
+    line-height: 1.45;
+  }
+  .tag {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: #5eead4;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+  th, td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    color: #fef3c7;
+    background: #102329;
+  }
+  td {
+    color: #bad7d1;
+    background: #0d1a1f;
+  }
+  .cta {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 10px 13px;
+    border: 1px solid #5eead4;
+    border-radius: 6px;
+    color: #ecfeff;
+    text-decoration: none;
+    font-weight: 900;
+    background: #164e63;
+  }
+  @media (max-width: 700px) {
+    h1 { font-size: 32px; }
+    nav a { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="balance-tetris.html">Balance Tetris</a>
+    <a href="valis-space-taxi.html">VALIS Taxi</a>
+    <a href="level-builder.html">Level Builder</a>
+    <a href="asset-studio.html">Asset Studio</a>
+  </nav>
+
+  <h1>Alchemical Game World Guide</h1>
+  <p class="lead">
+    This arcade is a family of physics puzzles built from emoji blocks, alchemical properties,
+    strange platforms, scholar-sourced motifs, and creator tools. The games share assets and rules,
+    but each mode asks the player to use balance, motion, revelation, transformation, or construction differently.
+  </p>
+
+  <section>
+    <h2>Game Modes</h2>
+    <div class="grid">
+      <article class="card">
+        <div class="emoji">⚖️🜍</div>
+        <h3>Balance Tetris</h3>
+        <span class="tag">main branch</span>
+        <p>Stack tetromino-like matter on a tilting platform. In alchemy variants, profit comes from tipping the correct substances off the correct side.</p>
+      </article>
+      <article class="card">
+        <div class="emoji">♈☿</div>
+        <h3>Alchemy Palette</h3>
+        <span class="tag">world grammar</span>
+        <p>Zodiac process buttons and Salt/Sulphur/Mercury modifiers create apparatus tiles, fixed substances, combustible oils, and volatile matter.</p>
+      </article>
+      <article class="card">
+        <div class="emoji">🐕📜</div>
+        <h3>Wild Hunt</h3>
+        <span class="tag">legend mode</span>
+        <p>Hounds, hoofbeats, apparitions, wind, date tokens, and chronicle scoring reshape Balance Tetris into a folklore-driven campaign.</p>
+      </article>
+      <article class="card">
+        <div class="emoji">🚕✨</div>
+        <h3>VALIS Space Taxi</h3>
+        <span class="tag">vehicle mode</span>
+        <p>Pilot a craft through variable gravity, land on tilting alchemical pads, reveal hidden cargo with a beam, and prevent lab cascades.</p>
+      </article>
+      <article class="card">
+        <div class="emoji">🌉🐎</div>
+        <h3>Moat Drawbridge</h3>
+        <span class="tag">puzzle branch</span>
+        <p>Build a stack tall and flat enough to become a crossing for horses, coaches, and royal cargo after the bridge tips over the moat.</p>
+      </article>
+      <article class="card">
+        <div class="emoji">✶🌿</div>
+        <h3>Rune Bloom</h3>
+        <span class="tag">separate experiment</span>
+        <p>A crystalline tile-placement garden with glyph pieces, bloom clearing, blight spread, and many fast mode variants.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Asset Families</h2>
+    <table>
+      <thead><tr><th>Family</th><th>Examples</th><th>Mechanical Role</th></tr></thead>
+      <tbody>
+        <tr><td>Salt / Fixed</td><td>🧂🔒 Fixed Salt Vault</td><td>Heavy, stable, high-friction support that resists transformation and sliding.</td></tr>
+        <tr><td>Mercury / Volatile</td><td>☿📦 Volatile Mercury Crate</td><td>Slippery, mobile, good for side-dumping and taxi cargo hazards.</td></tr>
+        <tr><td>Sulphur / Oily</td><td>🟡🔥 Oily Sulphur Tank</td><td>Combustive material that can trigger lab cascades, heat chains, and ashfall.</td></tr>
+        <tr><td>Revelation</td><td>💎👁️ VALIS Crystal</td><td>Beam relays, hidden-property reveal, prison unlocks, and truth-state scoring.</td></tr>
+        <tr><td>Wild Hunt</td><td>🐕 Hound, 🐎 Hoofbeat</td><td>Motion, omen timing, apparition routes, chronicle scoring, and wind pressure.</td></tr>
+        <tr><td>Bridge / Moat</td><td>🪨🌉 Moat Stone</td><td>Flatness, span support, crossing paths, and collapse risk.</td></tr>
+        <tr><td>Kipple / Residue</td><td>🗑️📦 Kipple Bale</td><td>Debris, junk ballast, cleanup scoring, nuisance mass, and disposal challenges.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Creator Tools</h2>
+    <div class="grid">
+      <article class="card">
+        <div class="emoji">🛠️🧱</div>
+        <h3>Level Builder</h3>
+        <p>WYSIWYG construction kit for placing blocks, platforms, pads, receivers, objectives, and physics settings.</p>
+        <a class="cta" href="level-builder.html">Open Builder</a>
+      </article>
+      <article class="card">
+        <div class="emoji">🎨⚗️</div>
+        <h3>Asset Studio</h3>
+        <p>Create emoji-block definitions with mass, friction, volatility, beam affinity, source notes, and mode tags.</p>
+        <a class="cta" href="asset-studio.html">Open Studio</a>
+      </article>
+      <article class="card">
+        <div class="emoji">📚🔎</div>
+        <h3>Source Pipeline</h3>
+        <p>Turn alchemical scholarship, QueryPat motifs, and local database notes into sourced game assets and mechanics.</p>
+        <a class="cta" href="docs/ALCHEMY_SOURCE_PIPELINE.md">Read Pipeline</a>
+      </article>
+    </div>
+  </section>
+</main>
+</body>
+</html>
