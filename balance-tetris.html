@@ -497,6 +497,22 @@ function parseStartGrid(rows) {
         cell = { color: '#e22', colorLight: '#f88', colorDark: '#900', bomb: true, fuse: 5 };
       } else if (ch === '@') {
         cell = { color: '#9df', colorLight: '#cef', colorDark: '#5ab', balloon: true };
+      } else if (ch === 'a') {
+        cell = wildCellFromId('apparition');
+      } else if (ch === 'd') {
+        cell = wildCellFromId('date878');
+      } else if (ch === 'n') {
+        cell = wildCellFromId('deadHost');
+      } else if (ch === 'm') {
+        cell = wildCellFromId('mirrorHunt');
+      } else if (ch === 'r') {
+        cell = wildCellFromId('huntsman');
+      } else if (ch === 'q') {
+        cell = wildCellFromId('hounds');
+      } else if (ch === 'w') {
+        cell = wildCellFromId('wind');
+      } else if (ch === 'v') {
+        cell = wildCellFromId('alembic');
       } else {
         const letter = ch.toUpperCase();
         if (PIECE_COLORS[letter]) {
@@ -1405,6 +1421,61 @@ const LEVELS = [
   { id: 20, name: 'Quicksilver Valley', platform: 'bowl', mode: 'alchemy',
     win: { type: 'score', target: 18 },
     description: 'Alchemy in a bowl. Same-trait cells naturally collect at the bottom. Score 18.',
+    difficulty: 4 },
+
+  // ===== Wild Hunt campaign starters =====
+  { id: 21, name: 'Year 878', platform: 'wideBase', mode: 'wildhunt',
+    win: { type: 'chronicle', target: 1 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '    ad    ',
+      '          '
+    ],
+    wildHunt: { dawnTarget: 8, credibility: 100, spawnBag: ['date878', 'apparition', 'alembic', 'wind', 'hounds'] },
+    description: 'First chronicle lesson: date an apparition, then keep the platform upright.',
+    difficulty: 2 },
+
+  { id: 22, name: 'Hounds Air', platform: 'bowl', mode: 'wildhunt',
+    win: { type: 'dawn', target: 9 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      ' q      q ',
+      '  a    a  ',
+      '          '
+    ],
+    wildHunt: { dawnTarget: 9, credibility: 90, beatBag: ['hounds', 'wind', 'hounds', 'hoofbeat', 'hounds'] },
+    description: 'Survive to dawn while hounds shove volatile apparitions across a bowl.',
+    difficulty: 3 },
+
+  { id: 23, name: 'Cursed Rider', platform: 'twoFulcrum', mode: 'wildhunt',
+    win: { type: 'score', target: 80 },
+    startGrid: [
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '          ',
+      '   dr     ',
+      '   n n    ',
+      '          '
+    ],
+    wildHunt: { dawnTarget: 10, credibility: 85, beatBag: ['horn', 'hoofbeat', 'hounds', 'deadHost', 'wind'] },
+    description: 'Chronicle the Huntsman, then profit before his rider torque ruins the bridge.',
     difficulty: 4 }
 ];
 
@@ -1509,6 +1580,26 @@ function screenToGridRow(mx, my, angle) {
 // ===== GAME STATE =====
 let game = null;
 
+function createInitialWildHunt(level) {
+  const cfg = (level && level.wildHunt) || {};
+  return {
+    dawn: 0,
+    dawnTarget: cfg.dawnTarget || 12,
+    meter: 0,
+    credibility: cfg.credibility || 100,
+    chronicleEntries: 0,
+    lastBeat: 'quiet',
+    beatFlash: 0,
+    beatBag: cfg.beatBag ? shuffled(cfg.beatBag) : [],
+    spawnBag: cfg.spawnBag ? shuffled(cfg.spawnBag) : [],
+    windDir: 0,
+    windFrames: 0,
+    riderTorque: 0,
+    riderFrames: 0,
+    forcedTile: cfg.forcedTile || null
+  };
+}
+
 function createGame(platformId, modeId, levelId) {
   // If levelId provided, override platform/mode from level config
   let level = null;
@@ -1598,7 +1689,8 @@ function createGame(platformId, modeId, levelId) {
     paletteZodiac: null,         // currently armed zodiac id, or null
     paletteExpiresAt: 0,         // when the armed zodiac auto-clears
     paletteFlash: null,          // last spawned compound info for visual flash
-    paletteFlashFrames: 0
+    paletteFlashFrames: 0,
+    hunt: mid === 'wildhunt' ? createInitialWildHunt(level) : null
   };
 }
 
@@ -1966,8 +2058,7 @@ function wildShove(g, dir) {
     if (!cell) continue;
     const nc = c + dir;
     if (nc < 0 || nc >= COLS) {
-      const value = cell.chronicled ? (cell.chronicleValue || 10) : -6;
-      g.wildBonus = (g.wildBonus || 0) + value;
+      g.wildBonus = (g.wildBonus || 0) + wildExitValue(cell, dir);
       g.grid[r][c] = null;
       lost++;
     } else if (!g.grid[r][nc]) {
@@ -1980,6 +2071,16 @@ function wildShove(g, dir) {
     g.flashTimer = Math.max(g.flashTimer, 20);
     recomputeScore(g);
   }
+}
+
+function wildExitValue(cell, dir) {
+  if (!cell.chronicled) return cell.wildClass === 'huntsman' ? -35 : -6;
+  if (cell.wildClass === 'huntsman') {
+    // First-pass side rule: the dated Huntsman pays best when driven east/right.
+    return dir > 0 ? 90 : 30;
+  }
+  if (cell.wildClass === 'host') return (cell.chronicleValue || 18) + 10;
+  return cell.chronicleValue || 10;
 }
 
 function seedWildHost(g) {
@@ -2782,6 +2883,8 @@ function checkLevelWin(g) {
   let done = false;
   if (w.type === 'pieces' && g.piecesPlaced >= w.target) done = true;
   if (w.type === 'score' && g.score >= w.target) done = true;
+  if (w.type === 'dawn' && ensureWildHunt(g).dawn >= w.target) done = true;
+  if (w.type === 'chronicle' && ensureWildHunt(g).chronicleEntries >= w.target) done = true;
   if (done) {
     g.levelComplete = true;
     g.phase = 'gameOver'; // reuse the screen path; renderer branches on levelComplete
@@ -2958,6 +3061,7 @@ function drawShape(shape, x, y, color, colorLight, colorDark, alpha, style, mark
         if (style !== 'mono') {
           if (ci && ci.symbol) drawCellMarker(bx, by, { symbol: ci.symbol });
           if (marker) drawCellMarker(bx, by, marker);
+          if (ci && ci.wildClass) drawWildCellOverlay(bx, by, ci);
         }
         // Hot-seat: tint the piece with the player's color
         if (playerId && game && game.playerCount > 1) drawPlayerTint(bx, by, playerId);
@@ -2996,6 +3100,30 @@ function drawCellMarker(x, y, marker) {
     ctx.font = 'bold 14px "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(marker.fuse, x + CELL / 2, y + CELL / 2 + 5);
+  }
+}
+
+function drawWildCellOverlay(x, y, marker) {
+  if (marker.chronicled) {
+    ctx.strokeStyle = '#f4d78a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 2, y + 2, CELL - 4, CELL - 4);
+    ctx.fillStyle = 'rgba(244, 215, 138, 0.18)';
+    ctx.fillRect(x + 3, y + 3, CELL - 6, 4);
+  }
+  if (marker.wildDeceptive) {
+    const pulse = 0.45 + 0.25 * Math.sin(Date.now() / 160);
+    ctx.strokeStyle = `rgba(220, 240, 255, ${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + CELL - 6);
+    ctx.lineTo(x + CELL - 5, y + 6);
+    ctx.stroke();
+  }
+  if (marker.wildClass === 'chronicle') {
+    ctx.strokeStyle = 'rgba(244, 215, 138, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 5, y + 5, CELL - 10, CELL - 10);
   }
 }
 
@@ -3082,6 +3210,7 @@ function drawPlatform(g) {
         if (blockStyle !== 'mono' && (cell.balloon || cell.bomb || cell.symbol)) {
           drawCellMarker(x, y, cell);
         }
+        if (blockStyle !== 'mono' && cell.wildClass) drawWildCellOverlay(x, y, cell);
         // Hot-seat: tint with the placing player's color
         if (g.playerCount > 1 && cell.playerId) drawPlayerTint(x, y, cell.playerId);
       }
@@ -3367,7 +3496,11 @@ function drawScore(g) {
   // Level goal banner (top center)
   if (g.level) {
     const w = g.level.win;
-    const cur = w.type === 'pieces' ? g.piecesPlaced : g.score;
+    const hunt = g.modeId === 'wildhunt' ? ensureWildHunt(g) : null;
+    const cur = w.type === 'pieces' ? g.piecesPlaced
+      : w.type === 'dawn' ? (hunt ? hunt.dawn : 0)
+      : w.type === 'chronicle' ? (hunt ? hunt.chronicleEntries : 0)
+      : g.score;
     const pct = Math.min(1, cur / w.target);
     const bw = 280, bh = 28, bx = (CANVAS_W - bw) / 2, by = 12;
     ctx.fillStyle = 'rgba(20, 20, 40, 0.85)';
@@ -3385,7 +3518,10 @@ function drawScore(g) {
     ctx.fillText('LEVEL ' + g.level.id + ' • ' + g.level.name.toUpperCase(), bx + bw/2, by + 13);
     ctx.fillStyle = '#ffd';
     ctx.font = '11px "Segoe UI", sans-serif';
-    const goal = w.type === 'pieces' ? 'Pieces' : 'Score';
+    const goal = w.type === 'pieces' ? 'Pieces'
+      : w.type === 'dawn' ? 'Dawn'
+      : w.type === 'chronicle' ? 'Entries'
+      : 'Score';
     ctx.fillText(goal + ': ' + cur + ' / ' + w.target, bx + bw/2, by + 25);
     ctx.textAlign = 'left';
   }
@@ -3477,7 +3613,7 @@ function drawWildHuntHUD(g) {
   ctx.fillStyle = 'rgba(255,255,255,0.12)';
   ctx.fillRect(x + 48, y + 28, 88, 10);
   ctx.fillStyle = '#f4d78a';
-  ctx.fillRect(x + 48, y + 28, 88 * Math.min(1, h.dawn / 12), 10);
+  ctx.fillRect(x + 48, y + 28, 88 * Math.min(1, h.dawn / (h.dawnTarget || 12)), 10);
 
   ctx.fillStyle = '#aeb7c8';
   ctx.fillText('Cred', x + 8, y + 56);
@@ -4126,14 +4262,14 @@ function drawMenuCampaign(g) {
   ctx.font = '12px "Segoe UI", sans-serif';
   ctx.fillText('Pick a level. Each combines a platform, mode, and goal.', CANVAS_W / 2, 200);
 
-  // Level grid: 5 cols × 4 rows (20 levels). Compact cards.
+  // Level grid. Compact enough for 20+ levels without pushing the play button off-canvas.
   menuLevelRects = [];
   const cols = 5;
-  const cardW = 130, cardH = 72, gap = 6;
+  const cardW = 130, cardH = 60, gap = 5;
   const rows = Math.ceil(LEVELS.length / cols);
   const totalW = cardW * cols + gap * (cols - 1);
   const startX = (CANVAS_W - totalW) / 2;
-  const startY = 212;
+  const startY = 190;
 
   for (let i = 0; i < LEVELS.length; i++) {
     const lev = LEVELS[i];
@@ -4176,20 +4312,21 @@ function drawMenuCampaign(g) {
     ctx.fillStyle = sel ? '#fff' : '#ddd';
     ctx.font = 'bold 11px "Segoe UI", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(lev.name, x + 6, y + 29);
+    ctx.fillText(lev.name, x + 6, y + 28);
 
     // Mode + platform name
     ctx.fillStyle = '#888';
     ctx.font = '9px "Segoe UI", sans-serif';
-    ctx.fillText(MODES[lev.mode].name + ' · ' + PLATFORMS[lev.platform].name, x + 6, y + 43);
+    ctx.fillText(MODES[lev.mode].name + ' · ' + PLATFORMS[lev.platform].name, x + 6, y + 41);
 
     // Goal
     ctx.fillStyle = '#aac';
     ctx.font = '9px "Segoe UI", sans-serif';
-    const goalText = lev.win.type === 'pieces'
-      ? lev.win.target + ' pieces'
+    const goalText = lev.win.type === 'pieces' ? lev.win.target + ' pieces'
+      : lev.win.type === 'dawn' ? 'dawn ' + lev.win.target
+      : lev.win.type === 'chronicle' ? lev.win.target + ' entries'
       : 'score ' + lev.win.target;
-    ctx.fillText(goalText, x + 6, y + 57);
+    ctx.fillText(goalText, x + 6, y + 53);
 
     // Mini platform icon (right side, bottom)
     ctx.save();

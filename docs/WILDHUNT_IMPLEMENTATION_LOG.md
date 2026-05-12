@@ -177,3 +177,66 @@ Recommended next steps:
 4. Add a mode-specific help panel explaining date tokens, credibility, and omen beats.
 5. Add a proper "Dawn reached" win condition.
 
+## 2026-05-11: Campaign Starter Slice
+
+Files changed:
+
+- `balance-tetris.html`
+
+### What Shipped
+
+Added three Wild Hunt campaign levels:
+
+| Level | Name | Win Condition | Core Lesson |
+|---|---|---|---|
+| 21 | Year 878 | Chronicle 1 entry | Date tokens stabilize nearby apparitions |
+| 22 | Hounds Air | Reach dawn 9 | Hounds and wind shove volatile matter around a bowl |
+| 23 | Cursed Rider | Score 80 | Chronicle the Huntsman before rider torque and dead-host pressure destabilize the bridge |
+
+### New Wild Hunt Start-Grid Codes
+
+The level parser now accepts lowercase Wild Hunt glyph codes:
+
+| Code | Tile |
+|---|---|
+| `a` | Apparition |
+| `d` | Year 878 date token |
+| `n` | Dead Host |
+| `m` | Mirror Hunt |
+| `r` | Wild Huntsman |
+| `q` | Hounds of the Air |
+| `w` | Night Wind |
+| `v` | Alembic Lens |
+
+Uppercase letters remain regular tetromino-color blocks, so existing levels keep working.
+
+### New Win Conditions
+
+Campaign levels now support:
+
+- `dawn`: win when the Wild Hunt dawn meter reaches a target.
+- `chronicle`: win when the player has chronicled enough Hunt entries.
+
+The existing level banner now displays Pieces, Score, Dawn, or Entries depending on the level's goal.
+
+### Better Visual State
+
+Wild Hunt cells now show extra overlays:
+
+- chronicled cells get a gold frame and parchment glint
+- deceptive cells get a diagonal mirror sheen
+- chronicle/date tokens get a small inner frame
+
+### Huntsman Exit Rule
+
+The first side-specific Huntsman scoring rule is implemented:
+
+- an undated Huntsman falling off the platform is a serious penalty
+- a chronicled Huntsman pays best when driven right/east
+- a chronicled Huntsman driven left still pays, but much less
+
+This is a first pass at "profitable tipping" for Wild Hunt matter, parallel to the alchemical side-affinity rules.
+
+### Menu Adjustment
+
+The campaign menu cards are now more compact so the level list can grow beyond 20 levels without pushing the play button off the canvas.
