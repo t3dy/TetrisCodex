@@ -70,6 +70,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `PKD_BALANCE_TETRIS_MODES.md`  
   Concrete PKD-inspired Balance Tetris mode designs: Ubik entropy, Scanner scramble, High Castle hexagrams, Minority Report queue play, Androids/kipple, VALIS beams, and more.
 
+- `VALIS_SPACE_TAXI_MODE.md`  
+  Space Taxi-style Balance Tetris mode with thrust controls, tilting landing pads, VALIS beam reveals, alchemical cascades, and cargo delivery.
+
+- `VALIS_SPACE_TAXI_ASSET_PACK.md`  
+  Emoji asset classes for ships, passengers, cargo, alien hazards, landing pads, beam effects, and alchemy-lab cascades.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:
