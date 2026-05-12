@@ -95,6 +95,10 @@ A BASIC-style Snake mode that proves the alchemical block system can work outsid
 
 A grid puzzle mode that treats Tetris rotation as a shared action characters can perform. The Salt-Bearer, Mercury-Runner, and Sulphur-Smith move blocks differently, proving that `alchemy-block/v1` matter can power character puzzles as well as falling-block games.
 
+### Alchemical Billiards
+
+A planned pool-shot cascade mode. Players aim cue shots into alchemical balls, blocks, furniture, pockets, and apparatus so collisions trigger zany laboratory reactions. The 3D-ish dream-course idea is documented as a later branch, not a current build.
+
 ## Creator Tools
 
 ### Level Builder
@@ -175,6 +179,7 @@ Mode and asset docs:
 - [docs/ALCHEMY_SNAKE_MODE.md](docs/ALCHEMY_SNAKE_MODE.md)
 - [docs/ROTATION_MECHANIC_CONTRACT.md](docs/ROTATION_MECHANIC_CONTRACT.md)
 - [docs/ALCHEMICAL_THREE_MODE.md](docs/ALCHEMICAL_THREE_MODE.md)
+- [docs/ALCHEMICAL_BILLIARDS_MODE.md](docs/ALCHEMICAL_BILLIARDS_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

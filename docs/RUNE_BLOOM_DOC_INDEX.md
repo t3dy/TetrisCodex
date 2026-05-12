@@ -115,6 +115,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `ALCHEMICAL_THREE_MODE.md`  
   Character-switching carry/rotate puzzle mode using the shared alchemy block engine.
 
+- `ALCHEMICAL_BILLIARDS_MODE.md`  
+  Planning stub for pool-shot alchemical cascades, apparatus furniture, scoring pockets, and a later dream-course 3D-ish branch.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

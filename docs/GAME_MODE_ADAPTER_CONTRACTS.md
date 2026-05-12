@@ -49,6 +49,8 @@ Modes can have wildly different controls, but they should translate controls int
 | `place_block` | Put matter into a space. | Mouse click, drag/drop, keyboard drop. |
 | `rotate_block` | Turn a piece, carried block, adjacent slab, platform, apparatus, or editor object. | R key, rotate button, mouse wheel, tool crank. |
 | `move_actor` | Move player-controlled actor. | Ship thrust, character movement, cursor. |
+| `strike_body` | Apply impulse to a body for billiards, pinball, or dream-course modes. | Cue drag/release, power meter, launch button. |
+| `collide_body` | Report a physical impact that may trigger reactions. | Ball-ball hit, bumper contact, apparatus impact. |
 | `activate_apparatus` | Trigger a process/furniture tile. | Click alembic, beam crucible, push lever. |
 | `route_substance` | Direct flow or falling matter. | Pipe switch, flipper, conveyor, drawbridge. |
 | `inspect_source` | Open source/codex metadata. | Hover, right-click, codex button. |
@@ -64,6 +66,26 @@ Adapter needs:
 
 - `toPinballBody(block)`
 - radius, restitution, density, surface reaction tags
+
+### Alchemical Billiards
+
+Planned pool-shot mode where the player strikes a cue ball into alchemical balls, furniture, pockets, and reaction machines. The mode should use collisions as the main way of activating apparatus and cascading laboratory effects.
+
+Adapter needs:
+
+- `toBilliardsBody(block)`
+- radius, mass, friction, restitution, spin response, pocket affinity, cascade tags
+
+Mode-specific logic:
+
+- cue aiming and force
+- spin and friction
+- cushion bounce
+- pocket/receiver detection
+- apparatus collisions
+- reaction queue
+- shot readout
+- optional later 3D-ish dream-course branch
 
 ### Lab Cascade Sandbox
 
