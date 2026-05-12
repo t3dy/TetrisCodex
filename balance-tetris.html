@@ -1092,6 +1092,13 @@ const MODES = {
         }
       }
     },
+    cellTorque(cell, r, c, center) {
+      // Wild Hunt tiles carry narrative weight, but early play should not feel
+      // like every omen is an anvil. Rider torque and omen beats still create
+      // drama through mode hooks.
+      const wildScale = cell.wildClass ? 0.72 : 1;
+      return (c - center) * (cell.weight || 1) * wildScale;
+    },
     onTorqueAdjust(g, torqueData) {
       ensureWildHunt(g);
       if (g.hunt.riderFrames > 0) {
@@ -1256,6 +1263,39 @@ const MODES = {
 };
 
 const MODE_ORDER = ['standard', 'zen', 'balloons', 'bombs', 'alchemy', 'wildhunt'];
+
+const MODE_GUIDES = {
+  standard: {
+    goal: 'Build a balanced stack.',
+    goodMove: 'Open near the center columns, then answer each lean with a counterweight.',
+    watch: 'The tilt meter is the danger signal. Red means the next off-center move may end the run.'
+  },
+  zen: {
+    goal: 'Make a quiet stack without HUD pressure.',
+    goodMove: 'Use the full platform slowly. Symmetry is the whole meditation.',
+    watch: 'There is still physics under the calm surface.'
+  },
+  balloons: {
+    goal: 'Use light and buoyant pieces to survive strange torque.',
+    goodMove: 'Put buoyant pieces on the heavy side to cancel lean.',
+    watch: 'A balloon can rescue a side, but a misplaced one can make the opposite edge rise too sharply.'
+  },
+  bombs: {
+    goal: 'Survive explosive cargo.',
+    goodMove: 'Place bombs where losing a 3x3 chunk will not remove your only counterweight.',
+    watch: 'Mass loss is also a balance event.'
+  },
+  alchemy: {
+    goal: 'Dump matched substances off their proper side for profit.',
+    goodMove: 'Build groups before tipping. Salt fixes matter, Mercury slides, Sulphur burns.',
+    watch: 'A profitable dump can still over-tilt the platform if the remaining stack is lopsided.'
+  },
+  wildhunt: {
+    goal: 'Chronicle omens and survive until the Hunt becomes legible.',
+    goodMove: 'Start near the center. Put date tokens beside apparitions, hounds, hosts, riders, or illusions.',
+    watch: 'Every third placement fires an omen beat. Hounds shove, wind drifts, horn calls rider torque.'
+  }
+};
 
 // ===== LEVELS =====
 // A level is a specific (platform × mode × winCondition) tuple.
@@ -1439,7 +1479,7 @@ const LEVELS = [
       '          '
     ],
     wildHunt: { dawnTarget: 8, credibility: 100, spawnBag: ['date878', 'apparition', 'alembic', 'wind', 'hounds'] },
-    description: 'First chronicle lesson: date an apparition, then keep the platform upright.',
+    description: 'First chronicle lesson: place near center, connect 878/date cells to apparitions, then counterweight any lean.',
     difficulty: 2 },
 
   { id: 22, name: 'Hounds Air', platform: 'bowl', mode: 'wildhunt',
@@ -1457,7 +1497,7 @@ const LEVELS = [
       '          '
     ],
     wildHunt: { dawnTarget: 9, credibility: 90, beatBag: ['hounds', 'wind', 'hounds', 'hoofbeat', 'hounds'] },
-    description: 'Survive to dawn while hounds shove volatile apparitions across a bowl.',
+    description: 'Survive to dawn. Keep volatile hounds/apparitions low in the bowl and use center placements as ballast.',
     difficulty: 3 },
 
   { id: 23, name: 'Cursed Rider', platform: 'twoFulcrum', mode: 'wildhunt',
@@ -1475,7 +1515,7 @@ const LEVELS = [
       '          '
     ],
     wildHunt: { dawnTarget: 10, credibility: 85, beatBag: ['horn', 'hoofbeat', 'hounds', 'deadHost', 'wind'] },
-    description: 'Chronicle the Huntsman, then profit before his rider torque ruins the bridge.',
+    description: 'Chronicle the Huntsman, then keep mass between the two fulcrums so rider torque does not ruin the bridge.',
     difficulty: 4 }
 ];
 
@@ -1676,6 +1716,8 @@ function createGame(platformId, modeId, levelId) {
     mouseCol: -1,
     lastPlaceTime: 0,
     flashTimer: 0,
+    introTimer: 0,
+    balanceWarningFrames: 0,
     gameOverTimer: 0,
     shakeX: 0,
     shakeY: 0,
@@ -2243,6 +2285,23 @@ function computePhysics(g) {
   return { torqueData: td, angle };
 }
 
+function isStableEnoughAfterPlacement(g) {
+  if (g.platform.isStable(g.targetTilt, g.lastTorqueData)) return true;
+
+  // Give the player a real opening. The tabletop version is fun because the
+  // first few moves teach you the board; instant failure teaches nothing.
+  // This grace is intentionally small: it prevents first-move gotchas while
+  // still letting genuinely wild stacks fail.
+  const baseLimit = g.platform.maxTilt || Math.PI / 4;
+  const gracePlacements = g.modeId === 'wildhunt' ? 2 : 1;
+  const graceLimit = Math.min(Math.PI * 0.62, baseLimit * (g.modeId === 'wildhunt' ? 1.85 : 1.55));
+  if (g.piecesPlaced <= gracePlacements && Math.abs(g.targetTilt) <= graceLimit) {
+    g.balanceWarningFrames = 150;
+    return true;
+  }
+  return false;
+}
+
 // ===== PLACEMENT =====
 function lockPiece(g, piece, col, row) {
   const shape = piece.shape;
@@ -2337,7 +2396,7 @@ function lockFromCurrent(g) {
   const angleDelta = Math.abs(g.targetTilt - g.tiltAngle);
   g.shakeX = (Math.random() - 0.5) * angleDelta * 20 * settings.shakeMul;
   g.shakeY = (Math.random() - 0.5) * angleDelta * 10 * settings.shakeMul;
-  if (!g.platform.isStable(g.targetTilt, g.lastTorqueData)) { triggerGameOver(g); return; }
+  if (!isStableEnoughAfterPlacement(g)) { triggerGameOver(g); return; }
   if (lr < 0) { triggerGameOver(g); return; }
   checkLevelWin(g);
   if (g.levelComplete) return;
@@ -2856,6 +2915,8 @@ function startGame(platformId, modeId, levelId) {
   game.tiltAngle = phys.angle;
   game.lastTorqueData = phys.torqueData;
   game.phase = 'playing';
+  game.introTimer = 520;
+  game.balanceWarningFrames = 0;
   spawnPiece(game);
 }
 
@@ -2939,6 +3000,9 @@ function triggerGameOver(g) {
 function update(g, dt) {
   if (g.phase === 'menu') return;
 
+  if (g.introTimer > 0) g.introTimer = Math.max(0, g.introTimer - dt * 60);
+  if (g.balanceWarningFrames > 0) g.balanceWarningFrames = Math.max(0, g.balanceWarningFrames - dt * 60);
+
   // Palette expiry check (auto-fire armed zodiac after 3s)
   checkPaletteExpiry(g);
   if (g.paletteFlashFrames > 0) g.paletteFlashFrames--;
@@ -3012,7 +3076,7 @@ function update(g, dt) {
       g.shakeY = (Math.random() - 0.5) * angleDelta * 10 * settings.shakeMul;
 
       // Check game over via active platform's stability rule
-      if (!g.platform.isStable(g.targetTilt, g.lastTorqueData)) {
+      if (!isStableEnoughAfterPlacement(g)) {
         triggerGameOver(g);
         return;
       }
@@ -3882,10 +3946,20 @@ function drawHelpOverlay(g) {
   }
   if (line) ctx.fillText(line, CANVAS_W / 2, yy);
 
+  const guide = MODE_GUIDES[g.modeId] || MODE_GUIDES.standard;
+  ctx.fillStyle = '#fef3c7';
+  ctx.font = 'bold 11px "Segoe UI", sans-serif';
+  ctx.fillText('GOOD FIRST MOVES', CANVAS_W / 2, yy + 24);
+  ctx.fillStyle = '#cfd7e6';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.fillText('Goal: ' + guide.goal, CANVAS_W / 2, yy + 42);
+  ctx.fillText('Good move: ' + guide.goodMove, CANVAS_W / 2, yy + 57);
+  ctx.fillText('Watch: ' + guide.watch, CANVAS_W / 2, yy + 72);
+
   if (g.level) {
     ctx.fillStyle = '#ffd';
     ctx.font = 'bold 12px "Segoe UI", sans-serif';
-    ctx.fillText(levelGoalSentence(g.level.win), CANVAS_W / 2, yy + 30);
+    ctx.fillText(levelGoalSentence(g.level.win), CANVAS_W / 2, yy + 94);
   }
 
   if (g.modeId === 'wildhunt') {
@@ -3898,10 +3972,10 @@ function drawHelpOverlay(g) {
     ];
     ctx.fillStyle = '#d7c38a';
     ctx.font = 'bold 11px "Segoe UI", sans-serif';
-    ctx.fillText('WILD HUNT CHRONICLE RULES', CANVAS_W / 2, yy + (g.level ? 58 : 34));
+    ctx.fillText('WILD HUNT CHRONICLE RULES', CANVAS_W / 2, yy + (g.level ? 116 : 92));
     ctx.fillStyle = '#cfd7e6';
     ctx.font = '10px "Segoe UI", sans-serif';
-    tips.forEach((tip, i) => ctx.fillText(tip, CANVAS_W / 2, yy + (g.level ? 78 : 54) + i * 15));
+    tips.forEach((tip, i) => ctx.fillText(tip, CANVAS_W / 2, yy + (g.level ? 136 : 112) + i * 15));
   }
 
   // Close hint
@@ -4576,6 +4650,63 @@ function drawGameOver(g) {
   }
 }
 
+function drawWrappedLines(text, x, y, maxW, lineH, align) {
+  ctx.textAlign = align || 'left';
+  const words = String(text || '').split(' ');
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineH;
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    ctx.fillText(line, x, y);
+    y += lineH;
+  }
+  return y;
+}
+
+function drawModeInstructionCard(g) {
+  if (g.phase !== 'playing') return;
+  const shouldShow = g.introTimer > 0 || g.balanceWarningFrames > 0;
+  if (!shouldShow) return;
+  const guide = MODE_GUIDES[g.modeId] || MODE_GUIDES.standard;
+  const x = 156, y = 104, w = 428;
+  const h = g.balanceWarningFrames > 0 ? 126 : 146;
+  ctx.save();
+  ctx.globalAlpha = g.balanceWarningFrames > 0 ? 0.95 : Math.min(0.92, 0.55 + g.introTimer / 240);
+  ctx.fillStyle = g.balanceWarningFrames > 0 ? 'rgba(54, 25, 25, 0.92)' : 'rgba(8, 15, 28, 0.9)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = g.balanceWarningFrames > 0 ? '#ffb36b' : '#5eead4';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = g.balanceWarningFrames > 0 ? '#ffd2a6' : '#fef3c7';
+  ctx.font = 'bold 14px "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(g.balanceWarningFrames > 0 ? 'BALANCE WARNING' : (g.mode.name.toUpperCase() + ' - WHAT TO DO'), x + 14, y + 24);
+
+  ctx.fillStyle = '#d7e6ee';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  let yy = y + 48;
+  if (g.balanceWarningFrames > 0) {
+    yy = drawWrappedLines('That opening move would normally tip the board. You got a teaching grace: place the next piece toward the high side or near center.', x + 14, yy, w - 28, 16);
+  } else {
+    yy = drawWrappedLines('Goal: ' + guide.goal, x + 14, yy, w - 28, 16);
+    yy = drawWrappedLines('Good move: ' + guide.goodMove, x + 14, yy + 2, w - 28, 16);
+    yy = drawWrappedLines('Watch: ' + guide.watch, x + 14, yy + 2, w - 28, 16);
+  }
+  ctx.fillStyle = '#9dbab4';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  ctx.fillText('Press H for full rules.', x + 14, y + h - 12);
+  ctx.restore();
+}
+
 function drawFlash(g) {
   if (g.flashTimer > 0) {
     ctx.fillStyle = `rgba(255, 255, 255, ${g.flashTimer / 60})`;
@@ -4631,6 +4762,8 @@ function render(g) {
   if (g.phase === 'gameOver') {
     drawGameOver(g);
   }
+
+  drawModeInstructionCard(g);
 
   // Help overlay always renders last so it sits on top
   drawHelpOverlay(g);

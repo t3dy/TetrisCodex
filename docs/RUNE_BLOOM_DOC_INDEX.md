@@ -61,6 +61,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `PHYSICS_LAB.md`  
   Balance Tetris user-facing physics controls for gravity, wind, friction, slipperiness, and slide behavior.
 
+- `BALANCE_FAIRNESS_AND_INSTRUCTIONS.md`  
+  Fairness pass for avoiding first-placement tip-overs and adding mode-specific instruction cards.
+
 - `MOAT_DRAWBRIDGE_PUZZLES.md`  
   Balance Tetris puzzle mode where players tip a platform into a bridge across a moat for horses and coaches.
 
