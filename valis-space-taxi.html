@@ -104,6 +104,8 @@ const state = {
   beamHeat: 0,
   beamFlash: 0,
   cascade: 0,
+  feedbackLog: ['Waiting for route start.'],
+  feedbackTimer: 0,
 };
 
 function makeShip() {
@@ -124,6 +126,8 @@ function resetLevel(index = state.levelIndex) {
   state.beamHeat = 0;
   state.beamFlash = 0;
   state.cascade = 0;
+  state.feedbackLog = [`Started ${level.name}: fly to cargo, land gently, press E to dock.`];
+  state.feedbackTimer = 240;
   state.platform.tilt = 0;
   state.platform.targetTilt = 0;
   state.cargo = level.cargo.map((item, i) => ({
@@ -143,6 +147,21 @@ function nextLevel() {
 function setMessage(text, seconds = 2.2) {
   state.message = text;
   state.messageTimer = seconds;
+}
+
+function taxiFeedback(text) {
+  state.feedbackLog = state.feedbackLog || [];
+  state.feedbackLog.unshift(text);
+  state.feedbackLog = state.feedbackLog.slice(0, 5);
+  state.feedbackTimer = 240;
+}
+
+function shipStatusText(prefix) {
+  if (!state.ship) return prefix;
+  const s = state.ship;
+  const speed = Math.round(Math.hypot(s.vx, s.vy));
+  const tilt = Math.round(state.platform.tilt * 180 / Math.PI);
+  return `${prefix}: x ${Math.round(s.x)}, y ${Math.round(s.y)}, speed ${speed}; platform tilt ${tilt} deg.`;
 }
 
 function updatePlatformTilt() {
@@ -184,6 +203,7 @@ function fireBeam() {
   if (state.beamHeat > 88) {
     state.cascade = Math.min(100, state.cascade + 10);
     setMessage('Beam overheated: lab cascade rising.', 1.5);
+    taxiFeedback('VALIS beam overheated; cascade rising.');
     return;
   }
   state.beamHeat += 22;
@@ -205,9 +225,11 @@ function fireBeam() {
     hit.revealed = true;
     state.score += 40;
     setMessage(`VALIS revealed ${hit.name}.`, 2);
+    taxiFeedback(`VALIS beam revealed ${hit.name}. Beam heat ${Math.round(state.beamHeat)}%.`);
     if (hit.name.includes('Prima')) state.beamHeat = Math.max(0, state.beamHeat - 18);
   } else {
     setMessage('Beam found no hidden cargo.', 1.2);
+    taxiFeedback(`VALIS beam fired at empty space. Beam heat ${Math.round(state.beamHeat)}%.`);
   }
 }
 
@@ -216,6 +238,7 @@ function dock() {
   const ship = state.ship;
   if (!ship.landed && Math.abs(ship.vx) + Math.abs(ship.vy) > 30) {
     setMessage('Slow down before docking.', 1.2);
+    taxiFeedback(shipStatusText('Dock denied; slow down first'));
     return;
   }
   if (state.carried) {
@@ -234,12 +257,14 @@ function dock() {
   }
   if (!nearest) {
     setMessage('No cargo close enough.', 1.2);
+    taxiFeedback(shipStatusText('Dock found no nearby cargo'));
     return;
   }
   nearest.carried = true;
   state.carried = nearest;
   state.score += nearest.revealed ? 25 : 10;
   setMessage(`Picked up ${nearest.revealed ? nearest.name : 'unknown cargo'}.`, 1.6);
+  taxiFeedback(`Picked up ${nearest.revealed ? nearest.name : 'unknown cargo'}; deliver it to the VALIS relay.`);
   updatePlatformTilt();
 }
 
@@ -254,6 +279,7 @@ function dropCarried(ship) {
     state.delivered += 1;
     state.score += item.revealed ? 120 : 70;
     setMessage(`Delivered ${item.revealed ? item.name : 'unknown cargo'}.`, 1.7);
+    taxiFeedback(`Delivered ${item.revealed ? item.name : 'unknown cargo'} at relay; fare now ${state.score}.`);
     if (state.delivered >= state.cargo.length) {
       state.phase = 'won';
       setMessage('All fares delivered. Press Enter for next route.', 99);
@@ -268,13 +294,16 @@ function dropCarried(ship) {
     if (item.unstable && Math.abs(ship.vy) > 65) {
       state.cascade = Math.min(100, state.cascade + 20);
       setMessage(`${item.revealed ? item.name : 'Cargo'} set off a cascade.`, 1.8);
+      taxiFeedback(`${item.revealed ? item.name : 'Cargo'} dropped hard; cascade ${Math.round(state.cascade)}%.`);
     } else {
       setMessage('Cargo set down on the tilting pad.', 1.3);
+      taxiFeedback(`Cargo set down on platform; tilt ${Math.round(state.platform.tilt * 180 / Math.PI)} deg.`);
     }
     updatePlatformTilt();
     return;
   }
   setMessage('Drop cargo on a pad.', 1.2);
+  taxiFeedback('Drop denied; hover over a platform or the VALIS relay.');
 }
 
 function applyInput(dt) {
@@ -297,6 +326,23 @@ function applyInput(dt) {
     ship.vy *= Math.pow(0.12, dt);
     ship.fuel = Math.max(0, ship.fuel - 4 * dt);
   }
+}
+
+function noteTaxiInput(key) {
+  if (state.phase !== 'playing' || !state.ship) return;
+  const labels = {
+    ArrowLeft: 'Strafe left',
+    a: 'Strafe left',
+    ArrowRight: 'Strafe right',
+    d: 'Strafe right',
+    ArrowUp: 'Main thrust',
+    w: 'Main thrust',
+    ArrowDown: 'Brake assist',
+    s: 'Brake assist',
+    Shift: 'Precision thrust mode'
+  };
+  const label = labels[key];
+  if (label) taxiFeedback(shipStatusText(label));
 }
 
 function update(dt) {
@@ -347,6 +393,7 @@ function update(dt) {
   state.beamFlash = Math.max(0, state.beamFlash - dt);
   state.cascade = Math.max(0, state.cascade - 2.5 * dt);
   state.messageTimer = Math.max(0, state.messageTimer - dt);
+  state.feedbackTimer = Math.max(0, state.feedbackTimer - dt * 60);
   if (Math.abs(state.platform.tilt) > 0.39) crash('The landing platform tipped past safe angle.');
   if (state.cascade >= 100) crash('Alchemy lab cascade reached runaway threshold.');
 }
@@ -365,7 +412,10 @@ function landOn(pad, y) {
     ship.health -= damage;
     state.cascade = Math.min(100, state.cascade + damage * 0.22);
     setMessage('Hard landing stressed the lab.', 1.1);
+    taxiFeedback(`Hard landing on ${pad}; hull ${Math.round(ship.health)}%, cascade ${Math.round(state.cascade)}%.`);
     if (ship.health <= 0) crash('Taxi hull failed after hard landing.');
+  } else if (speed > 20) {
+    taxiFeedback(`Landed on ${pad}; impact speed ${Math.round(speed)}.`);
   }
   updatePlatformTilt();
 }
@@ -553,6 +603,46 @@ function drawMessage() {
   ctx.fillText(state.message, W / 2, 126);
 }
 
+function drawTaxiFeedback() {
+  if (state.phase === 'menu') return;
+  const x = 24, y = H - 132, w = 330, h = 108;
+  ctx.fillStyle = 'rgba(3, 7, 18, 0.78)';
+  roundRect(x, y, w, h, 8, true, false);
+  ctx.strokeStyle = state.feedbackTimer > 0 ? '#5eead4' : 'rgba(148,163,184,0.35)';
+  ctx.lineWidth = 1;
+  roundRect(x, y, w, h, 8, false, true);
+  ctx.fillStyle = '#5eead4';
+  ctx.font = '800 12px Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('INPUT FEEDBACK', x + 12, y + 20);
+  ctx.fillStyle = '#e8fff9';
+  ctx.font = '12px Segoe UI, sans-serif';
+  const lines = state.feedbackLog && state.feedbackLog.length ? state.feedbackLog : ['Waiting for input.'];
+  wrapCanvasText(lines[0], x + 12, y + 42, w - 24, 15);
+  ctx.fillStyle = '#93a8b3';
+  ctx.font = '10px Segoe UI, sans-serif';
+  for (let i = 1; i < Math.min(lines.length, 4); i++) {
+    const text = lines[i].length > 48 ? lines[i].slice(0, 45) + '...' : lines[i];
+    ctx.fillText(text, x + 12, y + 70 + (i - 1) * 13);
+  }
+}
+
+function wrapCanvasText(text, x, y, maxW, lineH) {
+  const words = String(text || '').split(' ');
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineH;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, y);
+}
+
 function drawMenu() {
   drawBackground();
   ctx.fillStyle = 'rgba(3, 7, 18, 0.72)';
@@ -589,6 +679,7 @@ function draw() {
   drawPlatform();
   drawCargo();
   drawShip();
+  drawTaxiFeedback();
   drawMessage();
   if (state.phase === 'won' || state.phase === 'crashed') {
     ctx.fillStyle = 'rgba(3, 7, 18, 0.62)';
@@ -632,6 +723,7 @@ window.addEventListener('keydown', (event) => {
     if (state.phase === 'menu') resetLevel(0);
     else if (state.phase === 'won') nextLevel();
   }
+  noteTaxiInput(key === 'shift' ? 'Shift' : event.key);
   if (key === 'r') resetLevel(state.levelIndex);
   if (key === 'e') dock();
   if (event.key === ' ' || event.key === 'Spacebar') fireBeam();

@@ -1718,6 +1718,8 @@ function createGame(platformId, modeId, levelId) {
     flashTimer: 0,
     introTimer: 0,
     balanceWarningFrames: 0,
+    feedbackLog: [],
+    feedbackTimer: 0,
     gameOverTimer: 0,
     shakeX: 0,
     shakeY: 0,
@@ -2302,9 +2304,50 @@ function isStableEnoughAfterPlacement(g) {
   return false;
 }
 
+function pieceColumnLabel(piece) {
+  if (!piece) return 'column ?';
+  const shape = piece.shape || [];
+  let left = shape[0] ? shape[0].length : 0;
+  let right = -1;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      left = Math.min(left, c);
+      right = Math.max(right, c);
+    }
+  }
+  if (right < 0) return 'column ?';
+  const start = piece.col + left + 1;
+  const end = piece.col + right + 1;
+  return start === end ? `column ${start}` : `columns ${start}-${end}`;
+}
+
+function tiltFeedback(g) {
+  const angle = g.targetTilt !== undefined ? g.targetTilt : g.tiltAngle;
+  const deg = Math.round(Math.abs(angle) * 180 / Math.PI);
+  if (deg <= 1) return 'platform nearly level';
+  return `tipping ${angle > 0 ? 'right' : 'left'} ${deg} deg`;
+}
+
+function addFeedback(g, text) {
+  if (!g) return;
+  g.feedbackLog = g.feedbackLog || [];
+  g.feedbackLog.unshift(text);
+  g.feedbackLog = g.feedbackLog.slice(0, 5);
+  g.feedbackTimer = 240;
+}
+
+function currentPieceFeedback(g, action) {
+  if (!g || !g.current) return;
+  const cur = g.current;
+  const rowText = cur.row !== undefined ? `row ${cur.row + 1}` : 'above grid';
+  addFeedback(g, `${action}: ${cur.type}-piece to ${pieceColumnLabel(cur)}, ${rowText}; ${tiltFeedback(g)}.`);
+}
+
 // ===== PLACEMENT =====
 function lockPiece(g, piece, col, row) {
   const shape = piece.shape;
+  const placedType = piece.type;
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
       if (!shape[r][c]) continue;
@@ -2367,6 +2410,7 @@ function lockPiece(g, piece, col, row) {
   g.flashTimer = 15;
   // Track the player who just placed (for tipper attribution if this is the tip)
   g.lastPlacingPlayer = piece.playerId;
+  addFeedback(g, `Placed ${placedType}-piece at ${pieceColumnLabel({ shape, col })}, row ${Math.max(1, row + 1)}; ${tiltFeedback(g)}.`);
   // Advance to next player (only after lockPiece returns successfully and no game over)
   // Done by caller (in the dropping update path or lockFromCurrent) since
   // they check stability first.
@@ -2375,6 +2419,7 @@ function lockPiece(g, piece, col, row) {
 function startDrop(g) {
   const cur = g.current;
   const landRow = findLandingRow(g.grid, cur.shape, cur.col);
+  addFeedback(g, `Hard drop started: ${cur.type}-piece aimed at ${pieceColumnLabel(cur)}, landing row ${Math.max(1, landRow + 1)}.`);
   g.dropPiece = cur;
   g.dropCol = cur.col;
   g.dropRow = landRow;
@@ -2416,14 +2461,17 @@ function advancePlayer(g) {
 // timeout, waiting for a Tria Prima follow-up.
 function handlePaletteZodiac(g, zodiacId) {
   if (g.phase !== 'playing' || !g.current) return;
+  const z = ZODIAC_PROCESSES.find(x => x.id === zodiacId);
   if (g.paletteZodiac === zodiacId) {
     // Double-click same zodiac → spawn pure-zodiac piece
     spawnFromPalette(g, zodiacId, null);
+    addFeedback(g, `Palette: spawned ${z ? z.process : zodiacId} apparatus piece.`);
     g.paletteZodiac = null;
   } else {
     // Single click → arm it
     g.paletteZodiac = zodiacId;
     g.paletteExpiresAt = Date.now() + 3000;
+    addFeedback(g, `Palette armed: ${z ? z.sign + ' ' + z.process : zodiacId}. Choose Salt, Sulphur, or Mercury next.`);
   }
 }
 
@@ -2432,10 +2480,14 @@ function handlePaletteZodiac(g, zodiacId) {
 function handlePalettePrima(g, primaId) {
   if (g.phase !== 'playing' || !g.current) return;
   const zod = g.paletteZodiac;
+  const z = ZODIAC_PROCESSES.find(x => x.id === zod);
+  const p = TRIA_PRIMA_BUTTONS.find(x => x.id === primaId);
   if (zod && Date.now() < g.paletteExpiresAt) {
     spawnFromPalette(g, zod, primaId);
+    addFeedback(g, `Palette: spawned ${p ? p.name : primaId} ${z ? z.process : zod} substance.`);
   } else {
     spawnFromPalette(g, null, primaId);
+    addFeedback(g, `Palette: spawned pure ${p ? p.name : primaId} matter.`);
   }
   g.paletteZodiac = null;
 }
@@ -2444,7 +2496,9 @@ function handlePalettePrima(g, primaId) {
 function checkPaletteExpiry(g) {
   if (g.paletteZodiac && Date.now() >= g.paletteExpiresAt) {
     // Auto-fire the pure-zodiac on expiry
+    const z = ZODIAC_PROCESSES.find(x => x.id === g.paletteZodiac);
     spawnFromPalette(g, g.paletteZodiac, null);
+    addFeedback(g, `Palette timeout: spawned ${z ? z.process : g.paletteZodiac} apparatus piece.`);
     g.paletteZodiac = null;
   }
 }
@@ -2581,10 +2635,20 @@ document.addEventListener('keydown', e => {
 
   switch (e.code) {
     case 'ArrowLeft':
-      if (canMove(cur.shape, cur.col - 1)) cur.col--;
+      if (canMove(cur.shape, cur.col - 1)) {
+        cur.col--;
+        currentPieceFeedback(game, 'Move left');
+      } else {
+        addFeedback(game, `Move left blocked at ${pieceColumnLabel(cur)}.`);
+      }
       break;
     case 'ArrowRight':
-      if (canMove(cur.shape, cur.col + 1)) cur.col++;
+      if (canMove(cur.shape, cur.col + 1)) {
+        cur.col++;
+        currentPieceFeedback(game, 'Move right');
+      } else {
+        addFeedback(game, `Move right blocked at ${pieceColumnLabel(cur)}.`);
+      }
       break;
     case 'ArrowUp':
     case 'KeyX': {
@@ -2594,6 +2658,7 @@ document.addEventListener('keydown', e => {
         if (canMove(rotated, cur.col + kick)) {
           cur.shape = rotated;
           cur.col += kick;
+          currentPieceFeedback(game, kick ? `Rotate clockwise with wall-kick ${kick}` : 'Rotate clockwise');
           break;
         }
       }
@@ -2605,6 +2670,7 @@ document.addEventListener('keydown', e => {
         if (canMove(rotated, cur.col + kick)) {
           cur.shape = rotated;
           cur.col += kick;
+          currentPieceFeedback(game, kick ? `Rotate counter-clockwise with wall-kick ${kick}` : 'Rotate counter-clockwise');
           break;
         }
       }
@@ -2640,14 +2706,17 @@ document.addEventListener('keydown', e => {
         } else {
           cur.row = 0;
           cur.fallAccum = 0;
+          currentPieceFeedback(game, 'Step into grid');
         }
       } else {
         // Already in-grid: step down one row, or lock if blocked
         const newRow = cur.row + 1;
         if (collides(game.grid, cur.shape, cur.col, newRow)) {
+          addFeedback(game, `Step down blocked; locking ${cur.type}-piece at ${pieceColumnLabel(cur)}, row ${cur.row + 1}.`);
           lockFromCurrent(game);
         } else {
           cur.row = newRow;
+          currentPieceFeedback(game, 'Step down');
         }
       }
       break;
@@ -2705,24 +2774,32 @@ canvas.addEventListener('mousemove', e => {
       if (settings.fallSpeed > 0 && game.current.row !== undefined) {
         // Auto-fall: just update col if valid at current row
         if (!collides(game.grid, shape, newCol, game.current.row)) {
+          const oldCol = game.current.col;
           game.current.col = newCol;
+          if (oldCol !== newCol) currentPieceFeedback(game, 'Mouse aim');
         }
       } else {
         // Floating mode
         if (row < 0) {
           // Mouse above grid: piece floats (cur.row undefined)
           if (isValidCol(game.grid, shape, newCol)) {
+            const oldCol = game.current.col;
+            const oldRow = game.current.row;
             game.current.col = newCol;
             game.current.row = undefined;
+            if (oldCol !== newCol || oldRow !== undefined) currentPieceFeedback(game, 'Mouse aim');
           }
         } else {
           // Mouse inside or below grid: try to position piece at (newCol, row)
           // Clamp row to the grid bottom
           const targetRow = Math.min(row, ROWS - 1);
           if (!collides(game.grid, shape, newCol, targetRow)) {
+            const oldCol = game.current.col;
+            const oldRow = game.current.row;
             game.current.col = newCol;
             game.current.row = targetRow;
             game.current.fallAccum = 0;
+            if (oldCol !== newCol || oldRow !== targetRow) currentPieceFeedback(game, 'Mouse aim');
           } else if (game.current.row !== undefined &&
                      !collides(game.grid, shape, newCol, game.current.row)) {
             // Target row blocked but row change failed — at least move the col
@@ -2877,6 +2954,7 @@ canvas.addEventListener('wheel', e => {
     if (isValidCol(game.grid, rotated, cur.col + kick)) {
       cur.shape = rotated;
       cur.col = cur.col + kick;
+      currentPieceFeedback(game, e.deltaY < 0 ? 'Mouse wheel rotate clockwise' : 'Mouse wheel rotate counter-clockwise');
       break;
     }
   }
@@ -2891,6 +2969,7 @@ canvas.addEventListener('contextmenu', e => {
     if (isValidCol(game.grid, rotated, cur.col + kick)) {
       cur.shape = rotated;
       cur.col = cur.col + kick;
+      currentPieceFeedback(game, 'Right-click rotate clockwise');
       break;
     }
   }
@@ -2918,6 +2997,7 @@ function startGame(platformId, modeId, levelId) {
   game.introTimer = 520;
   game.balanceWarningFrames = 0;
   spawnPiece(game);
+  addFeedback(game, `Started ${game.mode.name} on ${game.platform.name}. First move: aim near center; ${tiltFeedback(game)}.`);
 }
 
 // Mark a level as complete; persist to localStorage
@@ -3002,6 +3082,7 @@ function update(g, dt) {
 
   if (g.introTimer > 0) g.introTimer = Math.max(0, g.introTimer - dt * 60);
   if (g.balanceWarningFrames > 0) g.balanceWarningFrames = Math.max(0, g.balanceWarningFrames - dt * 60);
+  if (g.feedbackTimer > 0) g.feedbackTimer = Math.max(0, g.feedbackTimer - dt * 60);
 
   // Palette expiry check (auto-fire armed zodiac after 3s)
   checkPaletteExpiry(g);
@@ -3677,6 +3758,38 @@ function drawScore(g) {
   }
 
   if (g.modeId === 'wildhunt') drawWildHuntHUD(g);
+}
+
+function drawInputFeedback(g) {
+  if (g.phase !== 'playing' && g.phase !== 'dropping') return;
+  const log = g.feedbackLog || [];
+  const panelX = CANVAS_W - 278;
+  const panelY = CANVAS_H - 180;
+  const panelW = 264;
+  const panelH = 112;
+  ctx.fillStyle = 'rgba(10, 18, 28, 0.82)';
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = g.feedbackTimer > 0 ? '#5eead4' : 'rgba(100, 120, 150, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#5eead4';
+  ctx.font = 'bold 10px "Segoe UI", sans-serif';
+  ctx.fillText('INPUT FEEDBACK', panelX + 10, panelY + 16);
+
+  ctx.fillStyle = '#d7e6ee';
+  ctx.font = '11px "Segoe UI", sans-serif';
+  const latest = log[0] || `Waiting for input: ${g.current ? g.current.type + '-piece at ' + pieceColumnLabel(g.current) : tiltFeedback(g)}.`;
+  let y = drawWrappedLines(latest, panelX + 10, panelY + 35, panelW - 20, 14, 'left');
+
+  ctx.fillStyle = '#8aa2ad';
+  ctx.font = '10px "Segoe UI", sans-serif';
+  for (let i = 1; i < Math.min(log.length, 4); i++) {
+    const text = log[i].length > 48 ? log[i].slice(0, 45) + '...' : log[i];
+    ctx.fillText(text, panelX + 10, y + 4);
+    y += 13;
+  }
 }
 
 function drawWildHuntHUD(g) {
@@ -4754,6 +4867,7 @@ function render(g) {
   if (!suppress.next)     drawNextPieces(g);
   if (!suppress.score)    drawScore(g);
   if (!suppress.controls) drawControls(g);
+  drawInputFeedback(g);
   drawFlash(g);
 
   // Palette button row at the bottom (during play, all modes)

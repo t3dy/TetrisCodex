@@ -67,6 +67,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `GAME_MODE_DESIGN_RATIONALE.md`  
   Original feature prompts, interpretation notes, choices made, and alternate design paths for each game mode and creator tool.
 
+- `INPUT_FEEDBACK_READOUT.md`  
+  Player-facing text readouts for inputs, movement, placement, tilt, beams, docking, and consequences.
+
 - `MOAT_DRAWBRIDGE_PUZZLES.md`  
   Balance Tetris puzzle mode where players tip a platform into a bridge across a moat for horses and coaches.
 
