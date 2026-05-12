@@ -2876,6 +2876,35 @@ function isLevelComplete(levelId) {
   } catch (e) { return false; }
 }
 
+function levelProgress(g, win) {
+  const h = g.modeId === 'wildhunt' ? ensureWildHunt(g) : null;
+  if (win.type === 'pieces') return g.piecesPlaced;
+  if (win.type === 'dawn') return h ? h.dawn : 0;
+  if (win.type === 'chronicle') return h ? h.chronicleEntries : 0;
+  return g.score;
+}
+
+function levelGoalName(win) {
+  if (win.type === 'pieces') return 'Pieces';
+  if (win.type === 'dawn') return 'Dawn';
+  if (win.type === 'chronicle') return 'Entries';
+  return 'Score';
+}
+
+function levelGoalMenuText(win) {
+  if (win.type === 'pieces') return win.target + ' pieces';
+  if (win.type === 'dawn') return 'dawn ' + win.target;
+  if (win.type === 'chronicle') return win.target + ' entries';
+  return 'score ' + win.target;
+}
+
+function levelGoalSentence(win) {
+  if (win.type === 'pieces') return 'GOAL: place ' + win.target + ' pieces';
+  if (win.type === 'dawn') return 'GOAL: survive until dawn ' + win.target;
+  if (win.type === 'chronicle') return 'GOAL: chronicle ' + win.target + ' Hunt entries';
+  return 'GOAL: reach score ' + win.target;
+}
+
 // Check if current level's win condition is met. Called after each placement.
 function checkLevelWin(g) {
   if (!g.level || g.levelComplete || g.phase === 'gameOver') return;
@@ -3496,11 +3525,7 @@ function drawScore(g) {
   // Level goal banner (top center)
   if (g.level) {
     const w = g.level.win;
-    const hunt = g.modeId === 'wildhunt' ? ensureWildHunt(g) : null;
-    const cur = w.type === 'pieces' ? g.piecesPlaced
-      : w.type === 'dawn' ? (hunt ? hunt.dawn : 0)
-      : w.type === 'chronicle' ? (hunt ? hunt.chronicleEntries : 0)
-      : g.score;
+    const cur = levelProgress(g, w);
     const pct = Math.min(1, cur / w.target);
     const bw = 280, bh = 28, bx = (CANVAS_W - bw) / 2, by = 12;
     ctx.fillStyle = 'rgba(20, 20, 40, 0.85)';
@@ -3518,10 +3543,7 @@ function drawScore(g) {
     ctx.fillText('LEVEL ' + g.level.id + ' • ' + g.level.name.toUpperCase(), bx + bw/2, by + 13);
     ctx.fillStyle = '#ffd';
     ctx.font = '11px "Segoe UI", sans-serif';
-    const goal = w.type === 'pieces' ? 'Pieces'
-      : w.type === 'dawn' ? 'Dawn'
-      : w.type === 'chronicle' ? 'Entries'
-      : 'Score';
+    const goal = levelGoalName(w);
     ctx.fillText(goal + ': ' + cur + ' / ' + w.target, bx + bw/2, by + 25);
     ctx.textAlign = 'left';
   }
@@ -3863,11 +3885,23 @@ function drawHelpOverlay(g) {
   if (g.level) {
     ctx.fillStyle = '#ffd';
     ctx.font = 'bold 12px "Segoe UI", sans-serif';
-    const w = g.level.win;
-    const goalText = w.type === 'pieces'
-      ? 'GOAL: place ' + w.target + ' pieces'
-      : 'GOAL: reach score ' + w.target;
-    ctx.fillText(goalText, CANVAS_W / 2, yy + 30);
+    ctx.fillText(levelGoalSentence(g.level.win), CANVAS_W / 2, yy + 30);
+  }
+
+  if (g.modeId === 'wildhunt') {
+    const tips = [
+      'Wild Hunt: date tokens (878) chronicle adjacent omens, hosts, riders, and apparitions.',
+      'Gold-framed cells are chronicled. Mirror-slashed cells are deceptive until distilled.',
+      'Every third placement fires an omen beat: hounds shove, wind drifts, hoofbeats shake, horn calls a rider.',
+      'Virgo/Distillation or the alembic reveals deception; Salt/Fixation stabilizes; fire burns revealed illusions.',
+      'Credibility is your intellectual footing. If it reaches zero, the chronicle collapses.'
+    ];
+    ctx.fillStyle = '#d7c38a';
+    ctx.font = 'bold 11px "Segoe UI", sans-serif';
+    ctx.fillText('WILD HUNT CHRONICLE RULES', CANVAS_W / 2, yy + (g.level ? 58 : 34));
+    ctx.fillStyle = '#cfd7e6';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    tips.forEach((tip, i) => ctx.fillText(tip, CANVAS_W / 2, yy + (g.level ? 78 : 54) + i * 15));
   }
 
   // Close hint
@@ -4322,11 +4356,7 @@ function drawMenuCampaign(g) {
     // Goal
     ctx.fillStyle = '#aac';
     ctx.font = '9px "Segoe UI", sans-serif';
-    const goalText = lev.win.type === 'pieces' ? lev.win.target + ' pieces'
-      : lev.win.type === 'dawn' ? 'dawn ' + lev.win.target
-      : lev.win.type === 'chronicle' ? lev.win.target + ' entries'
-      : 'score ' + lev.win.target;
-    ctx.fillText(goalText, x + 6, y + 53);
+    ctx.fillText(levelGoalMenuText(lev.win), x + 6, y + 53);
 
     // Mini platform icon (right side, bottom)
     ctx.save();
@@ -4450,9 +4480,7 @@ function drawGameOver(g) {
     ctx.fillStyle = `rgba(170, 200, 220, ${popIn})`;
     ctx.font = '15px "Segoe UI", sans-serif';
     const w = g.level.win;
-    const text = w.type === 'pieces'
-      ? g.piecesPlaced + ' pieces placed'
-      : 'score: ' + g.score;
+    const text = levelGoalName(w) + ': ' + levelProgress(g, w) + ' / ' + w.target;
     ctx.fillText(text, CANVAS_W / 2, 270);
 
     // Find next level
@@ -4609,11 +4637,16 @@ function render(g) {
 }
 
 // ===== GAME LOOP =====
-const hashMode = location.hash === '#wildhunt' ? 'wildhunt' : null;
+const hashMode = location.hash === '#wildhunt' || location.hash === '#wildhunt-campaign' ? 'wildhunt' : null;
 game = createGame(
   localStorage.getItem('bb_lastPlatform') || 'seesaw',
   hashMode || localStorage.getItem('bb_lastMode') || 'standard'
 );
+if (location.hash === '#wildhunt-campaign') {
+  const firstWildLevel = LEVELS.findIndex(l => l.mode === 'wildhunt');
+  game.menuMode = 'campaign';
+  if (firstWildLevel >= 0) game.selectedLevelIdx = firstWildLevel;
+}
 let lastTime = 0;
 
 function loop(timestamp) {

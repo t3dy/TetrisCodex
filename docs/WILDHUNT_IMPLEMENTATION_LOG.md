@@ -240,3 +240,44 @@ This is a first pass at "profitable tipping" for Wild Hunt matter, parallel to t
 ### Menu Adjustment
 
 The campaign menu cards are now more compact so the level list can grow beyond 20 levels without pushing the play button off the canvas.
+
+## 2026-05-11: Help And Campaign Access Slice
+
+Files changed:
+
+- `balance-tetris.html`
+- `index.html`
+
+### What Shipped
+
+The launcher now sends the Wild Hunt card directly to:
+
+```text
+balance-tetris.html#wildhunt-campaign
+```
+
+That URL opens Balance Tetris in campaign view with the first Wild Hunt level selected, so the Trithemius material is easier to find than tabbing across free-play modes.
+
+### Help Overlay
+
+The in-game help overlay now has Wild Hunt-specific rules:
+
+- date tokens chronicle adjacent Hunt matter
+- gold-framed cells are chronicled
+- mirror-slashed cells are deceptive
+- every third placement fires an omen beat
+- Distillation/Alembic reveals deception
+- Salt/Fixation stabilizes Hunt cells
+- fire processes burn revealed illusions
+- credibility reaching zero ends the run
+
+### Cleaner Level Goal Text
+
+Added shared goal text helpers so menus, banners, help, and level-complete screens can display all supported win types:
+
+- Pieces
+- Score
+- Dawn
+- Chronicle entries
+
+The level-complete screen now reports `Dawn: x / y` and `Entries: x / y` correctly instead of falling back to score text.
