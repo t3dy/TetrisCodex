@@ -26,6 +26,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Asset Studio](asset-studio.html)  
   Dev tool for creating emoji-block assets with alchemical family, class, mode, mass, friction, volatility, beam affinity, behavior, and source notes.
 
+- [Block Engine Architecture](engine-architecture.html)  
+  Shared alchemy block physics and adapter contracts for non-Tetris modes, alternate input schemes, and reusable source metadata.
+
 - [Game Guide](game-guide.html)  
   Public-facing overview of game modes, asset families, and creator tools.
 
@@ -109,6 +112,7 @@ The asset studio exports `alchemical-asset/v1` JSON. It currently supports:
 
 - Physics Preset Lab
 - Platform Forge
+- Shared Alchemy Block Engine integration
 - Cascade Editor
 - Source Annotation Tool
 - Campaign Planner
@@ -142,6 +146,8 @@ Start here:
 - [docs/COMBINATORIAL_ALCHEMY_PALETTE_SPEC.md](docs/COMBINATORIAL_ALCHEMY_PALETTE_SPEC.md)
 - [docs/LEVEL_BUILDER_CONSTRUCTION_KIT.md](docs/LEVEL_BUILDER_CONSTRUCTION_KIT.md)
 - [docs/DEV_TOOLS_AND_WEBSITE_ROADMAP.md](docs/DEV_TOOLS_AND_WEBSITE_ROADMAP.md)
+- [docs/SHARED_ALCHEMY_BLOCK_ENGINE.md](docs/SHARED_ALCHEMY_BLOCK_ENGINE.md)
+- [docs/GAME_MODE_ADAPTER_CONTRACTS.md](docs/GAME_MODE_ADAPTER_CONTRACTS.md)
 
 Mode and asset docs:
 

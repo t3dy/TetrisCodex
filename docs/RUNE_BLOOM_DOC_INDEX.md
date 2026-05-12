@@ -100,6 +100,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `DEV_TOOLS_AND_WEBSITE_ROADMAP.md`  
   Roadmap for Asset Studio, Physics Preset Lab, Platform Forge, Cascade Editor, source annotation, campaign planning, and website pages.
 
+- `SHARED_ALCHEMY_BLOCK_ENGINE.md`  
+  Common alchemical block ontology, physics properties, and adapters so modes can share matter without sharing Tetris controls.
+
+- `GAME_MODE_ADAPTER_CONTRACTS.md`  
+  Contracts for non-Tetris game modes that consume shared alchemy blocks through thin integration layers.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

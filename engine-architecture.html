@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared Alchemy Block Engine</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #071013; color: #ecfeff; font-family: "Segoe UI", system-ui, sans-serif; }
+  main { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; padding: 44px 0 76px; }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+  nav a { color: #d1fae5; text-decoration: none; padding: 8px 10px; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; background: #0f1d22; font-size: 13px; font-weight: 800; }
+  h1 { max-width: 900px; margin: 0 0 14px; font-size: clamp(34px, 6vw, 72px); line-height: 0.92; letter-spacing: 0; }
+  .lead { max-width: 860px; margin: 0 0 34px; color: #a7c9c2; font-size: 19px; line-height: 1.5; }
+  section { margin-top: 42px; }
+  h2 { margin: 0 0 16px; color: #fef3c7; font-size: 30px; }
+  h3 { margin: 0 0 8px; font-size: 21px; }
+  p, li { color: #bad7d1; line-height: 1.48; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 14px; }
+  .card { border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #0f1d22; padding: 18px; }
+  .tag { display: inline-block; margin-bottom: 10px; color: #5eead4; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  pre { overflow: auto; padding: 16px; border-radius: 8px; background: #03191d; color: #d1fae5; border: 1px solid rgba(148, 163, 184, 0.2); }
+  table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; }
+  th, td { padding: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.18); text-align: left; vertical-align: top; }
+  th { color: #fef3c7; background: #102329; }
+  td { color: #bad7d1; background: #0d1a1f; }
+  .cta { display: inline-block; margin-top: 14px; margin-right: 8px; padding: 10px 13px; border: 1px solid #5eead4; border-radius: 6px; color: #ecfeff; text-decoration: none; font-weight: 900; background: #164e63; }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="balance-tetris.html">Balance Tetris</a>
+    <a href="valis-space-taxi.html">VALIS Taxi</a>
+    <a href="rune-bloom.html">Rune Bloom</a>
+    <a href="asset-studio.html">Asset Studio</a>
+  </nav>
+
+  <h1>Shared Alchemy Block Engine</h1>
+  <p class="lead">
+    The alchemical block system should outlive any one game mode. Balance Tetris, Space Taxi,
+    Rune Bloom, pinball labs, flow puzzles, construction kits, and future experiments can all use
+    the same alchemical matter while keeping their own controls and win conditions.
+  </p>
+
+  <section>
+    <h2>Layer Model</h2>
+    <div class="grid">
+      <article class="card"><span class="tag">layer 0</span><h3>Sources</h3><p>Timmermann, Ashmole, Maier, Ripley, Norton, Emerald Tablet, QueryPat, and local database records.</p></article>
+      <article class="card"><span class="tag">layer 1</span><h3>Block Engine</h3><p>Defines alchemical properties: mass, friction, volatility, fixity, combustibility, process, principle, source tags.</p></article>
+      <article class="card"><span class="tag">layer 2</span><h3>Mode Adapters</h3><p>Convert shared blocks into Balance cells, Taxi cargo, Rune tiles, pinball bodies, lab reagents, or codex cards.</p></article>
+      <article class="card"><span class="tag">layer 3</span><h3>Mode Runtime</h3><p>Owns input scheme, board geometry, camera, scoring, objectives, and failure rules.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Shared Block Example</h2>
+    <pre><code>const block = AlchemyBlockEngine.makeAlchemyBlock({
+  processId: 'cancer',
+  principleId: 'mercury'
+});
+
+const balanceCell = AlchemyBlockEngine.adapters.toBalanceCell(block);
+const taxiCargo = AlchemyBlockEngine.adapters.toTaxiCargo(block);
+const runeTile = AlchemyBlockEngine.adapters.toRuneTile(block);</code></pre>
+  </section>
+
+  <section>
+    <h2>Flexible Mode Inputs</h2>
+    <table>
+      <thead><tr><th>Mode type</th><th>Input scheme</th><th>Shared intent</th></tr></thead>
+      <tbody>
+        <tr><td>Balance Tetris</td><td>Arrows, rotate, hard drop, zodiac buttons</td><td>Create, move, rotate, place, score exit.</td></tr>
+        <tr><td>VALIS Space Taxi</td><td>Thrust, brake, dock, beam, drop cargo</td><td>Move actor, inspect/reveal, carry block, trigger cascade.</td></tr>
+        <tr><td>Rune Bloom</td><td>Grid placement, rotate, bloom chains</td><td>Place tile, transform group, resist blight.</td></tr>
+        <tr><td>Alchemy Pinball</td><td>Launch, flippers, nudges</td><td>Route substance, activate apparatus, collide/react.</td></tr>
+        <tr><td>Lab Sandbox</td><td>Mouse placement, start reaction, adjust heat</td><td>Place apparatus, tune field, run cascade.</td></tr>
+        <tr><td>Flow Puzzle</td><td>Switch pipes, valves, vessels</td><td>Route volatile/fixed/oily matter through process tiles.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Implementation Docs</h2>
+    <a class="cta" href="docs/SHARED_ALCHEMY_BLOCK_ENGINE.md">Shared Engine Doc</a>
+    <a class="cta" href="docs/GAME_MODE_ADAPTER_CONTRACTS.md">Adapter Contracts</a>
+    <a class="cta" href="alchemy-block-engine.js">Engine Module</a>
+  </section>
+</main>
+</body>
+</html>
