@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VALIS Space Taxi</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    width: 100vw;
+    min-height: 100vh;
+    background: #06080f;
+    color: #e8fff9;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 960px;
+    max-height: 100vh;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="640" aria-label="VALIS Space Taxi game"></canvas>
+<script>
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+const keys = new Set();
+const mouse = { x: W * 0.5, y: H * 0.5 };
+
+const LEVELS = [
+  {
+    name: 'Cold-Pac Terminal',
+    gravity: 180,
+    wind: 0,
+    thrust: 370,
+    platformStiffness: 0.9,
+    surfaceSlip: 0.28,
+    landingTolerance: 140,
+    beamCooling: 18,
+    cargo: [
+      { name: 'Half-Life Patient', emoji: '🧊👤', mass: 1.0, x: 220, y: 428, hidden: true, revealed: false, need: 'Deliver to the VALIS relay.' },
+      { name: 'Ubik Aerosol', emoji: '🧴', mass: 0.45, x: 300, y: 428, hidden: false, revealed: true, need: 'Restores unstable matter.' },
+      { name: 'Black Iron Ingot', emoji: '▦⛓️', mass: 2.2, x: 390, y: 428, hidden: true, revealed: false, need: 'Heavy prison-matter. Do not drop hard.' },
+    ],
+  },
+  {
+    name: 'Mercury Squall',
+    gravity: 135,
+    wind: 42,
+    thrust: 350,
+    platformStiffness: 0.72,
+    surfaceSlip: 0.66,
+    landingTolerance: 125,
+    beamCooling: 14,
+    cargo: [
+      { name: 'Volatile Mercury Crate', emoji: '☿📦', mass: 0.8, x: 190, y: 428, hidden: false, revealed: true, need: 'Slippery cargo, safe on either exit side.' },
+      { name: 'Dream Resin', emoji: '💭🧪', mass: 1.15, x: 295, y: 428, hidden: true, revealed: false, need: 'False support until revealed.' },
+      { name: 'Electric Sheep Cell', emoji: '🐑⚡', mass: 0.55, x: 410, y: 428, hidden: true, revealed: false, need: 'Fragile synthetic life.' },
+    ],
+  },
+  {
+    name: 'Sulphur Furnace Yard',
+    gravity: 225,
+    wind: -26,
+    thrust: 430,
+    platformStiffness: 1.05,
+    surfaceSlip: 0.18,
+    landingTolerance: 118,
+    beamCooling: 10,
+    cargo: [
+      { name: 'Oily Sulphur Tank', emoji: '🟡🔥', mass: 1.45, x: 210, y: 428, hidden: false, revealed: true, need: 'Hard landings ignite cascades.' },
+      { name: 'VALIS Crystal', emoji: '💎👁️', mass: 0.7, x: 330, y: 428, hidden: false, revealed: true, need: 'Beam recharge cargo.' },
+      { name: 'Prima Materia Capsule', emoji: '⚫✨', mass: 1.1, x: 430, y: 428, hidden: true, revealed: false, need: 'Unknown until scanned.' },
+    ],
+  },
+];
+
+const state = {
+  phase: 'menu',
+  levelIndex: 0,
+  level: LEVELS[0],
+  score: 0,
+  delivered: 0,
+  message: 'Press Enter or click Start.',
+  messageTimer: 0,
+  platform: { x: 180, y: 462, w: 440, h: 18, tilt: 0, targetTilt: 0 },
+  deliveryPad: { x: 690, y: 425, w: 150, h: 18 },
+  ship: null,
+  cargo: [],
+  carried: null,
+  beamHeat: 0,
+  beamFlash: 0,
+  cascade: 0,
+};
+
+function makeShip() {
+  return { x: 720, y: 190, vx: 0, vy: 0, angle: 0, radius: 18, landed: false, pad: null, fuel: 100, health: 100 };
+}
+
+function resetLevel(index = state.levelIndex) {
+  const level = LEVELS[index];
+  state.phase = 'playing';
+  state.levelIndex = index;
+  state.level = level;
+  state.score = 0;
+  state.delivered = 0;
+  state.message = `${level.name}: deliver all cargo.`;
+  state.messageTimer = 3;
+  state.ship = makeShip();
+  state.carried = null;
+  state.beamHeat = 0;
+  state.beamFlash = 0;
+  state.cascade = 0;
+  state.platform.tilt = 0;
+  state.platform.targetTilt = 0;
+  state.cargo = level.cargo.map((item, i) => ({
+    ...item,
+    id: `${item.name}-${i}`,
+    delivered: false,
+    carried: false,
+    unstable: item.name.includes('Sulphur') || item.name.includes('Dream'),
+  }));
+  updatePlatformTilt();
+}
+
+function nextLevel() {
+  resetLevel((state.levelIndex + 1) % LEVELS.length);
+}
+
+function setMessage(text, seconds = 2.2) {
+  state.message = text;
+  state.messageTimer = seconds;
+}
+
+function updatePlatformTilt() {
+  const p = state.platform;
+  let torque = 0;
+  for (const item of state.cargo) {
+    if (item.delivered || item.carried) continue;
+    torque += ((item.x - (p.x + p.w * 0.5)) / (p.w * 0.5)) * item.mass;
+  }
+  if (state.ship && state.ship.landed && state.ship.pad === 'platform') {
+    torque += ((state.ship.x - (p.x + p.w * 0.5)) / (p.w * 0.5)) * 1.35;
+  }
+  p.targetTilt = Math.max(-0.42, Math.min(0.42, torque * 0.13 / state.level.platformStiffness));
+}
+
+function platformYAt(x) {
+  const p = state.platform;
+  return p.y + Math.sin(p.tilt) * (x - (p.x + p.w * 0.5));
+}
+
+function isOverPlatform(x) {
+  const p = state.platform;
+  return x >= p.x - 12 && x <= p.x + p.w + 12;
+}
+
+function isOverDelivery(x) {
+  const d = state.deliveryPad;
+  return x >= d.x - 10 && x <= d.x + d.w + 10;
+}
+
+function deliveryYAt(x) {
+  const d = state.deliveryPad;
+  const sway = Math.sin(performance.now() / 900) * 0.02;
+  return d.y + Math.sin(sway) * (x - (d.x + d.w * 0.5));
+}
+
+function fireBeam() {
+  if (state.phase !== 'playing') return;
+  if (state.beamHeat > 88) {
+    state.cascade = Math.min(100, state.cascade + 10);
+    setMessage('Beam overheated: lab cascade rising.', 1.5);
+    return;
+  }
+  state.beamHeat += 22;
+  state.beamFlash = 0.16;
+  const sx = state.ship.x;
+  const sy = state.ship.y;
+  let hit = null;
+  let best = 9999;
+  for (const item of state.cargo) {
+    if (item.delivered || item.carried || item.revealed) continue;
+    const dist = Math.hypot(item.x - sx, item.y - sy);
+    const aim = Math.hypot(item.x - mouse.x, item.y - mouse.y);
+    if (dist < 260 && aim < best && aim < 60) {
+      hit = item;
+      best = aim;
+    }
+  }
+  if (hit) {
+    hit.revealed = true;
+    state.score += 40;
+    setMessage(`VALIS revealed ${hit.name}.`, 2);
+    if (hit.name.includes('Prima')) state.beamHeat = Math.max(0, state.beamHeat - 18);
+  } else {
+    setMessage('Beam found no hidden cargo.', 1.2);
+  }
+}
+
+function dock() {
+  if (state.phase !== 'playing') return;
+  const ship = state.ship;
+  if (!ship.landed && Math.abs(ship.vx) + Math.abs(ship.vy) > 30) {
+    setMessage('Slow down before docking.', 1.2);
+    return;
+  }
+  if (state.carried) {
+    dropCarried(ship);
+    return;
+  }
+  let nearest = null;
+  let best = 58;
+  for (const item of state.cargo) {
+    if (item.delivered || item.carried) continue;
+    const dist = Math.hypot(item.x - ship.x, item.y - ship.y);
+    if (dist < best) {
+      nearest = item;
+      best = dist;
+    }
+  }
+  if (!nearest) {
+    setMessage('No cargo close enough.', 1.2);
+    return;
+  }
+  nearest.carried = true;
+  state.carried = nearest;
+  state.score += nearest.revealed ? 25 : 10;
+  setMessage(`Picked up ${nearest.revealed ? nearest.name : 'unknown cargo'}.`, 1.6);
+  updatePlatformTilt();
+}
+
+function dropCarried(ship) {
+  const item = state.carried;
+  if (isOverDelivery(ship.x)) {
+    item.delivered = true;
+    item.carried = false;
+    item.x = ship.x;
+    item.y = deliveryYAt(ship.x) - 28;
+    state.carried = null;
+    state.delivered += 1;
+    state.score += item.revealed ? 120 : 70;
+    setMessage(`Delivered ${item.revealed ? item.name : 'unknown cargo'}.`, 1.7);
+    if (state.delivered >= state.cargo.length) {
+      state.phase = 'won';
+      setMessage('All fares delivered. Press Enter for next route.', 99);
+    }
+    return;
+  }
+  if (isOverPlatform(ship.x)) {
+    item.carried = false;
+    item.x = ship.x;
+    item.y = platformYAt(ship.x) - 28;
+    state.carried = null;
+    if (item.unstable && Math.abs(ship.vy) > 65) {
+      state.cascade = Math.min(100, state.cascade + 20);
+      setMessage(`${item.revealed ? item.name : 'Cargo'} set off a cascade.`, 1.8);
+    } else {
+      setMessage('Cargo set down on the tilting pad.', 1.3);
+    }
+    updatePlatformTilt();
+    return;
+  }
+  setMessage('Drop cargo on a pad.', 1.2);
+}
+
+function applyInput(dt) {
+  const ship = state.ship;
+  const level = state.level;
+  const left = keys.has('ArrowLeft') || keys.has('a');
+  const right = keys.has('ArrowRight') || keys.has('d');
+  const up = keys.has('ArrowUp') || keys.has('w');
+  const down = keys.has('ArrowDown') || keys.has('s');
+  const precise = keys.has('Shift');
+  const thrustScale = precise ? 0.42 : 1;
+  if (left) ship.vx -= level.thrust * 0.74 * thrustScale * dt;
+  if (right) ship.vx += level.thrust * 0.74 * thrustScale * dt;
+  if (up && ship.fuel > 0) {
+    ship.vy -= level.thrust * thrustScale * dt;
+    ship.fuel = Math.max(0, ship.fuel - 7 * thrustScale * dt);
+  }
+  if (down && ship.fuel > 0) {
+    ship.vx *= Math.pow(0.18, dt);
+    ship.vy *= Math.pow(0.12, dt);
+    ship.fuel = Math.max(0, ship.fuel - 4 * dt);
+  }
+}
+
+function update(dt) {
+  if (state.phase !== 'playing') {
+    state.beamFlash = Math.max(0, state.beamFlash - dt);
+    return;
+  }
+  const ship = state.ship;
+  const level = state.level;
+  applyInput(dt);
+  ship.vy += level.gravity * dt;
+  ship.vx += level.wind * dt;
+  ship.vx *= Math.pow(0.985, dt * 60);
+  ship.vy *= Math.pow(0.998, dt * 60);
+  ship.x += ship.vx * dt;
+  ship.y += ship.vy * dt;
+  ship.angle = Math.max(-0.55, Math.min(0.55, ship.vx / 230));
+  ship.landed = false;
+  ship.pad = null;
+  if (ship.x < 22) { ship.x = 22; ship.vx = Math.abs(ship.vx) * 0.3; }
+  if (ship.x > W - 22) { ship.x = W - 22; ship.vx = -Math.abs(ship.vx) * 0.3; }
+  if (ship.y < 34) { ship.y = 34; ship.vy = Math.abs(ship.vy) * 0.25; }
+  if (ship.y > H - 28) crash('Taxi fell below the station.');
+
+  const footY = ship.y + ship.radius + 8;
+  if (isOverPlatform(ship.x)) {
+    const py = platformYAt(ship.x) - 4;
+    if (footY >= py && ship.vy >= 0) landOn('platform', py);
+  }
+  if (isOverDelivery(ship.x)) {
+    const dy = deliveryYAt(ship.x) - 4;
+    if (footY >= dy && ship.vy >= 0) landOn('delivery', dy);
+  }
+
+  if (state.carried) {
+    state.carried.x = ship.x;
+    state.carried.y = ship.y + 31;
+  }
+  for (const item of state.cargo) {
+    if (item.delivered || item.carried) continue;
+    if (isOverPlatform(item.x)) {
+      item.x += Math.sin(state.platform.tilt) * state.level.surfaceSlip * 30 * dt;
+      item.y = platformYAt(item.x) - 28;
+    }
+  }
+  state.platform.tilt += (state.platform.targetTilt - state.platform.tilt) * (1 - Math.pow(0.88, dt * 60));
+  state.beamHeat = Math.max(0, state.beamHeat - level.beamCooling * dt);
+  state.beamFlash = Math.max(0, state.beamFlash - dt);
+  state.cascade = Math.max(0, state.cascade - 2.5 * dt);
+  state.messageTimer = Math.max(0, state.messageTimer - dt);
+  if (Math.abs(state.platform.tilt) > 0.39) crash('The landing platform tipped past safe angle.');
+  if (state.cascade >= 100) crash('Alchemy lab cascade reached runaway threshold.');
+}
+
+function landOn(pad, y) {
+  const ship = state.ship;
+  const speed = Math.hypot(ship.vx, ship.vy);
+  const limit = state.level.landingTolerance;
+  ship.y = y - ship.radius - 8;
+  ship.landed = true;
+  ship.pad = pad;
+  ship.vx *= pad === 'platform' ? 0.84 : 0.55;
+  ship.vy = 0;
+  if (speed > limit) {
+    const damage = (speed - limit) * 0.34;
+    ship.health -= damage;
+    state.cascade = Math.min(100, state.cascade + damage * 0.22);
+    setMessage('Hard landing stressed the lab.', 1.1);
+    if (ship.health <= 0) crash('Taxi hull failed after hard landing.');
+  }
+  updatePlatformTilt();
+}
+
+function crash(text) {
+  if (state.phase !== 'playing') return;
+  state.phase = 'crashed';
+  setMessage(`${text} Press R to retry.`, 99);
+}
+
+function drawBackground() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#07111f');
+  g.addColorStop(0.56, '#101827');
+  g.addColorStop(1, '#080b12');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(188, 255, 244, 0.45)';
+  for (let i = 0; i < 90; i++) {
+    const x = (i * 97 + 43) % W;
+    const y = (i * 53 + 31) % 330;
+    ctx.beginPath();
+    ctx.arc(x, y, i % 5 === 0 ? 1.6 : 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawPlatform() {
+  const p = state.platform;
+  ctx.save();
+  ctx.translate(p.x + p.w / 2, p.y);
+  ctx.rotate(p.tilt);
+  ctx.fillStyle = '#16242d';
+  ctx.fillRect(-p.w / 2, -9, p.w, p.h);
+  ctx.fillStyle = '#46e6c2';
+  ctx.fillRect(-p.w / 2, -12, p.w, 5);
+  ctx.strokeStyle = 'rgba(232,255,249,0.35)';
+  ctx.lineWidth = 2;
+  for (let x = -p.w / 2 + 30; x < p.w / 2; x += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x, -12);
+    ctx.lineTo(x, 9);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#f5c542';
+  ctx.beginPath();
+  ctx.moveTo(p.x + p.w / 2, p.y + 16);
+  ctx.lineTo(p.x + p.w / 2 - 20, p.y + 55);
+  ctx.lineTo(p.x + p.w / 2 + 20, p.y + 55);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawDeliveryPad() {
+  const d = state.deliveryPad;
+  ctx.save();
+  ctx.translate(d.x + d.w / 2, d.y);
+  const sway = Math.sin(performance.now() / 900) * 0.02;
+  ctx.rotate(sway);
+  ctx.fillStyle = '#1b2a44';
+  ctx.fillRect(-d.w / 2, -9, d.w, d.h);
+  ctx.fillStyle = '#9ff8ff';
+  ctx.fillRect(-d.w / 2, -12, d.w, 5);
+  ctx.fillStyle = '#d6fffb';
+  ctx.font = '700 13px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('VALIS RELAY', 0, -20);
+  ctx.restore();
+}
+
+function drawCargo() {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const item of state.cargo) {
+    if (item.delivered) continue;
+    ctx.save();
+    ctx.translate(item.x, item.y);
+    if (item.hidden && !item.revealed) {
+      ctx.fillStyle = 'rgba(12, 18, 25, 0.82)';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      roundRect(-20, -20, 40, 40, 8, true, true);
+      ctx.fillStyle = '#facc15';
+      ctx.font = '700 26px Segoe UI, sans-serif';
+      ctx.fillText('?', 0, 2);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = item.unstable ? '#fb7185' : '#5eead4';
+      ctx.lineWidth = 2;
+      roundRect(-23, -22, 46, 44, 8, true, true);
+      ctx.font = '25px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+      ctx.fillText(item.emoji, 0, 1);
+    }
+    ctx.restore();
+  }
+}
+
+function drawShip() {
+  const s = state.ship;
+  if (!s) return;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.rotate(s.angle);
+  ctx.fillStyle = '#e8fff9';
+  ctx.strokeStyle = '#1f2937';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -20);
+  ctx.lineTo(19, 14);
+  ctx.lineTo(8, 11);
+  ctx.lineTo(0, 21);
+  ctx.lineTo(-8, 11);
+  ctx.lineTo(-19, 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#38bdf8';
+  ctx.beginPath();
+  ctx.arc(0, -5, 6, 0, Math.PI * 2);
+  ctx.fill();
+  if (keys.has('ArrowUp') || keys.has('w')) {
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.moveTo(-6, 18);
+    ctx.lineTo(0, 38 + Math.sin(performance.now() / 30) * 5);
+    ctx.lineTo(6, 18);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+  if (state.beamFlash > 0) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(125, 249, 255, ${0.25 + state.beamFlash * 3})`;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(mouse.x, mouse.y);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawHud() {
+  const level = state.level;
+  ctx.fillStyle = 'rgba(3, 7, 18, 0.72)';
+  ctx.fillRect(0, 0, W, 82);
+  ctx.fillStyle = '#e8fff9';
+  ctx.font = '800 22px Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('VALIS Space Taxi', 24, 30);
+  ctx.font = '600 14px Segoe UI, sans-serif';
+  ctx.fillStyle = '#a7f3d0';
+  ctx.fillText(level.name, 25, 56);
+  drawBar(250, 18, 125, 'Fuel', state.ship ? state.ship.fuel : 100, '#fbbf24');
+  drawBar(395, 18, 125, 'Hull', state.ship ? state.ship.health : 100, '#60a5fa');
+  drawBar(540, 18, 125, 'Beam', state.beamHeat, '#22d3ee');
+  drawBar(685, 18, 125, 'Cascade', state.cascade, '#fb7185');
+  ctx.fillStyle = '#e8fff9';
+  ctx.font = '700 15px Segoe UI, sans-serif';
+  ctx.fillText(`Fare ${state.score}`, 835, 31);
+  ctx.fillText(`${state.delivered}/${state.cargo.length}`, 835, 56);
+}
+
+function drawBar(x, y, w, label, value, color) {
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x, y + 18, w, 8);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 18, w * Math.max(0, Math.min(100, value)) / 100, 8);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '700 11px Segoe UI, sans-serif';
+  ctx.fillText(label, x, y + 11);
+}
+
+function drawMessage() {
+  if (state.messageTimer <= 0 && state.phase === 'playing') return;
+  ctx.fillStyle = 'rgba(3, 7, 18, 0.78)';
+  roundRect(185, 92, 590, 56, 8, true, false);
+  ctx.fillStyle = '#fefce8';
+  ctx.font = '700 17px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(state.message, W / 2, 126);
+}
+
+function drawMenu() {
+  drawBackground();
+  ctx.fillStyle = 'rgba(3, 7, 18, 0.72)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#e8fff9';
+  ctx.textAlign = 'center';
+  ctx.font = '900 44px Segoe UI, sans-serif';
+  ctx.fillText('VALIS Space Taxi', W / 2, 130);
+  ctx.font = '18px Segoe UI, sans-serif';
+  ctx.fillStyle = '#a7f3d0';
+  ctx.fillText('Fly cargo through variable gravity, land on tilting alchemical pads, reveal hidden matter.', W / 2, 170);
+  ctx.font = '16px Segoe UI, sans-serif';
+  ctx.fillStyle = '#e8fff9';
+  ctx.fillText('WASD/Arrows thrust and brake  |  Space/click fires VALIS beam  |  E docks  |  R resets', W / 2, 225);
+  ctx.fillStyle = '#0f172a';
+  ctx.strokeStyle = '#5eead4';
+  ctx.lineWidth = 3;
+  roundRect(365, 285, 230, 64, 8, true, true);
+  ctx.fillStyle = '#e8fff9';
+  ctx.font = '800 24px Segoe UI, sans-serif';
+  ctx.fillText('Start Route', W / 2, 325);
+  ctx.font = '72px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+  ctx.fillText('🚕✨  👁️  ⚗️', W / 2, 450);
+}
+
+function draw() {
+  if (state.phase === 'menu') {
+    drawMenu();
+    return;
+  }
+  drawBackground();
+  drawHud();
+  drawDeliveryPad();
+  drawPlatform();
+  drawCargo();
+  drawShip();
+  drawMessage();
+  if (state.phase === 'won' || state.phase === 'crashed') {
+    ctx.fillStyle = 'rgba(3, 7, 18, 0.62)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = state.phase === 'won' ? '#a7f3d0' : '#fecdd3';
+    ctx.font = '900 42px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.phase === 'won' ? 'Route Complete' : 'Route Failed', W / 2, 280);
+    ctx.fillStyle = '#e8fff9';
+    ctx.font = '700 20px Segoe UI, sans-serif';
+    ctx.fillText(state.message, W / 2, 322);
+  }
+}
+
+function roundRect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('keydown', (event) => {
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  keys.add(key);
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Spacebar'].includes(event.key)) event.preventDefault();
+  if (event.key === 'Enter') {
+    if (state.phase === 'menu') resetLevel(0);
+    else if (state.phase === 'won') nextLevel();
+  }
+  if (key === 'r') resetLevel(state.levelIndex);
+  if (key === 'e') dock();
+  if (event.key === ' ' || event.key === 'Spacebar') fireBeam();
+});
+
+window.addEventListener('keyup', (event) => {
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  keys.delete(key);
+});
+
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (event.clientX - rect.left) * (canvas.width / rect.width);
+  mouse.y = (event.clientY - rect.top) * (canvas.height / rect.height);
+});
+
+canvas.addEventListener('mousedown', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+  if (state.phase === 'menu') {
+    if (x >= 365 && x <= 595 && y >= 285 && y <= 349) resetLevel(0);
+  } else {
+    fireBeam();
+  }
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

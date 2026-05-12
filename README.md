@@ -47,3 +47,4 @@ The game now has a dedicated Markdown design trail in `docs/`:
 - [`docs/PKD_BALANCE_TETRIS_MODES.md`](docs/PKD_BALANCE_TETRIS_MODES.md)
 - [`docs/VALIS_SPACE_TAXI_MODE.md`](docs/VALIS_SPACE_TAXI_MODE.md)
 - [`docs/VALIS_SPACE_TAXI_ASSET_PACK.md`](docs/VALIS_SPACE_TAXI_ASSET_PACK.md)
+- [`docs/VALIS_SPACE_TAXI_IMPLEMENTATION_LOG.md`](docs/VALIS_SPACE_TAXI_IMPLEMENTATION_LOG.md)

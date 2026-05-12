@@ -76,6 +76,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `VALIS_SPACE_TAXI_ASSET_PACK.md`  
   Emoji asset classes for ships, passengers, cargo, alien hazards, landing pads, beam effects, and alchemy-lab cascades.
 
+- `VALIS_SPACE_TAXI_IMPLEMENTATION_LOG.md`  
+  Build log for the first playable VALIS Space Taxi slice.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:
