@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Rationale - Alchemical Game Arcade</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #071013; color: #ecfeff; font-family: "Segoe UI", system-ui, sans-serif; }
+  main { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; padding: 44px 0 72px; }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+  nav a { color: #d1fae5; text-decoration: none; padding: 8px 10px; border: 1px solid rgba(148,163,184,.28); border-radius: 999px; background: #0f1d22; font-size: 13px; font-weight: 800; }
+  h1 { max-width: 900px; margin: 0 0 14px; font-size: clamp(34px, 6vw, 74px); line-height: .92; letter-spacing: 0; }
+  .lead { max-width: 880px; margin: 0 0 34px; color: #a7c9c2; font-size: 19px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  article { padding: 18px; border: 1px solid rgba(148,163,184,.24); border-radius: 8px; background: #0f1d22; }
+  h2 { margin: 0 0 12px; color: #fef3c7; font-size: 24px; }
+  h3 { margin: 18px 0 8px; color: #5eead4; font-size: 13px; text-transform: uppercase; }
+  p, li { color: #bad7d1; line-height: 1.45; }
+  p { margin: 0 0 10px; }
+  ul { margin: 0 0 4px 18px; padding: 0; }
+  blockquote { margin: 0; padding: 12px 14px; border-left: 3px solid #fbbf24; border-radius: 0 6px 6px 0; background: rgba(251,191,36,.08); color: #fef3c7; line-height: 1.45; }
+  .tag { display: inline-block; margin-bottom: 12px; color: #fbbf24; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  @media (max-width: 700px) { h1 { font-size: 34px; } nav a { font-size: 12px; } }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="balance-tetris.html">Balance Tetris</a>
+    <a href="valis-space-taxi.html">VALIS Taxi</a>
+    <a href="level-builder.html">Level Builder</a>
+    <a href="asset-studio.html">Asset Studio</a>
+  </nav>
+
+  <h1>Design Rationale</h1>
+  <p class="lead">Each mode began as a prompt or correction. This page records the originating request, how it was interpreted, what implementation choices were made, and what alternate designs remain open.</p>
+
+  <section class="grid">
+    <article><span class="tag">core game</span><h2>Balance Tetris</h2><h3>Original prompt</h3><blockquote>“There is a board game version of tetris where the user stacks up tetris like blocks on a balancing platform. I'd like to create a digital version of this game.”</blockquote><h3>Interpretation</h3><p>A deterministic 2D balance-platform game with tetromino-like blocks, torque, tilt, and multiple platform geometries.</p><h3>Choices made</h3><ul><li>Grid-snapped blocks.</li><li>Torque math instead of full rigid bodies.</li><li>Mouse and keyboard controls.</li><li>Early-placement grace after playtest feedback.</li></ul><h3>Other choices</h3><p>Full 3D physics, real-time-only Tetris, or pure puzzle levels with no random queue.</p></article>
+    <article><span class="tag">alchemy</span><h2>Alchemy Balance</h2><h3>Original prompt</h3><blockquote>“I still want the balance tetris where you can profitably tip alchemical substances off the appropriate side of the platform.”</blockquote><h3>Interpretation</h3><p>Tipping should become a scoring verb, not only a failure condition.</p><h3>Choices made</h3><ul><li>Planetary exit-side affinities.</li><li>Salt/Sulphur/Mercury material behavior.</li><li>Group slide scoring.</li><li>Wrong-side penalties.</li></ul><h3>Other choices</h3><p>Cosmetic alchemy, recipe-only alchemy, or a separate non-physics reaction board.</p></article>
+    <article><span class="tag">world grammar</span><h2>Combinatorial Palette</h2><h3>Original prompt</h3><blockquote>“The combinatorial system where the player clicks on a zodiac sign... or adding a sulfur salt mercury button push...”</blockquote><h3>Interpretation</h3><p>Zodiac signs select alchemical process/apparatus; Tria Prima buttons select material quality.</p><h3>Choices made</h3><ul><li>Zodiac-alone apparatus.</li><li>Salt as fixed matter.</li><li>Sulphur as oily/combustive matter.</li><li>Mercury as volatile matter.</li></ul><h3>Other choices</h3><p>Planet-only grammar, card inventory, multi-step recipes, or separate apparatus/material palettes.</p></article>
+    <article><span class="tag">separate experiment</span><h2>Rune Bloom</h2><h3>Original prompt</h3><blockquote>“I like the idea of rune bloom but you can fire off dozens of game modes like that...”</blockquote><h3>Interpretation</h3><p>A separate tile-placement experiment, not a replacement for Balance Tetris.</p><h3>Choices made</h3><ul><li>Standalone page.</li><li>Glyph placement.</li><li>Bloom clearing.</li><li>Blight pressure.</li></ul><h3>Other choices</h3><p>Fold it into Balance Tetris, make it decorative, or prioritize many variants before returning to balance play.</p></article>
+    <article><span class="tag">legend mode</span><h2>Wild Hunt</h2><h3>Original prompt</h3><blockquote>“Create a system of emoji graphics for the wild hunt blocks... and create conceits for game levels in that mode based on the scholarship.”</blockquote><h3>Interpretation</h3><p>A folklore chronicle mode where date tokens make unstable apparitions, hounds, hosts, and riders legible.</p><h3>Choices made</h3><ul><li>Hound, hoofbeat, apparition, dead host, date, mirror hunt, huntsman, and alembic tiles.</li><li>Chronicle scoring.</li><li>Omen beats.</li><li>Credibility meter.</li></ul><h3>Other choices</h3><p>A chase game, visual novel, linear manuscript adaptation, or night-flight VALIS Taxi route.</p></article>
+    <article><span class="tag">PKD modes</span><h2>QueryPat / PKD</h2><h3>Original prompt</h3><blockquote>“Search through my QueryPat database for ideas for balance tetris game modes inspired by Philip K Dick stories.”</blockquote><h3>Interpretation</h3><p>Use PKD motifs as mechanics: entropy, hidden reality, split perception, precognition, kipple, artificial life, and revelation.</p><h3>Choices made</h3><ul><li>Ubik anti-entropy.</li><li>Scanner scramble.</li><li>High Castle hexagrams.</li><li>Minority Report queue play.</li><li>VALIS beam.</li></ul><h3>Other choices</h3><p>A direct adaptation, text-heavy story mode, hidden modifiers only, or no PKD branch.</p></article>
+    <article><span class="tag">vehicle mode</span><h2>VALIS Space Taxi</h2><h3>Original prompt</h3><blockquote>“I like the idea of the valis beam and I'm reminded of a space taxi old school game...”</blockquote><h3>Interpretation</h3><p>A thrust-and-landing game where a ship docks with alchemical cargo on tilting pads and uses a VALIS beam.</p><h3>Choices made</h3><ul><li>Standalone prototype.</li><li>Gravity, wind, hull, fuel, docking, beam heat.</li><li>Emoji cargo/passengers.</li><li>Cascade risk.</li></ul><h3>Other choices</h3><p>Pure lunar lander, beam weapon game, or Balance Tetris skin with no flight model.</p></article>
+    <article><span class="tag">puzzle branch</span><h2>Moat Drawbridge</h2><h3>Original prompt</h3><blockquote>“There could be puzzles like get across the moat where the player has to build a stack tall enough and flat enough...”</blockquote><h3>Interpretation</h3><p>A Balance Tetris puzzle family where the stack must become a functional bridge surface.</p><h3>Choices made</h3><ul><li>Flatness objective.</li><li>Span/crossing concept.</li><li>Moat stone assets.</li><li>Two-fulcrum bridge logic.</li></ul><h3>Other choices</h3><p>A separate bridge-builder, freeform beams, scripted bridge animation, or decorative crossing.</p></article>
+    <article><span class="tag">authoring</span><h2>Level Builder</h2><h3>Original prompt</h3><blockquote>“I want a construction kit where the user can create levels for each of our game modes...”</blockquote><h3>Interpretation</h3><p>The arcade needs a shared WYSIWYG editor and stable JSON schema.</p><h3>Choices made</h3><ul><li>Block painting.</li><li>Platforms, pads, receivers, objectives.</li><li>Physics sliders.</li><li>Import/export JSON.</li></ul><h3>Other choices</h3><p>Code-only schema, separate editors per mode, drag-first editor, or backend storage.</p></article>
+    <article><span class="tag">creator pipeline</span><h2>Asset Studio / Website</h2><h3>Original prompt</h3><blockquote>“We'll also need to build other dev tools... and a website explaining all the game modes and assets.”</blockquote><h3>Interpretation</h3><p>Assets need editable definitions and source notes, while users need a website explaining the game world.</p><h3>Choices made</h3><ul><li>Asset Studio.</li><li>Game Guide.</li><li>Dev tools roadmap.</li><li>Asset JSON schema.</li></ul><h3>Other choices</h3><p>Markdown-only docs, a full CMS, generated pages first, or postponing tools.</p></article>
+    <article><span class="tag">playability</span><h2>Fairness / Instructions</h2><h3>Original prompt</h3><blockquote>“The game modes should all have instructions explaining what the player is expected to do so they can understand what a good move might be.”</blockquote><h3>Interpretation</h3><p>Difficulty was not only tuning; modes needed onboarding and actionable first-move guidance.</p><h3>Choices made</h3><ul><li>Early-placement grace.</li><li>Mode instruction cards.</li><li>Help overlay guidance.</li><li>Wild Hunt torque softening.</li></ul><h3>Other choices</h3><p>Only lower difficulty, remove early failure entirely, or put all instruction in a separate manual.</p></article>
+  </section>
+</main>
+</body>
+</html>

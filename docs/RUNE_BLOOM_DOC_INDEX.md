@@ -64,6 +64,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `BALANCE_FAIRNESS_AND_INSTRUCTIONS.md`  
   Fairness pass for avoiding first-placement tip-overs and adding mode-specific instruction cards.
 
+- `GAME_MODE_DESIGN_RATIONALE.md`  
+  Original feature prompts, interpretation notes, choices made, and alternate design paths for each game mode and creator tool.
+
 - `MOAT_DRAWBRIDGE_PUZZLES.md`  
   Balance Tetris puzzle mode where players tip a platform into a bridge across a moat for horses and coaches.
 

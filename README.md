@@ -29,6 +29,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Game Guide](game-guide.html)  
   Public-facing overview of game modes, asset families, and creator tools.
 
+- [Design Rationale](design-rationale.html)  
+  Website section preserving original feature prompts, interpretations, choices made, and alternate design paths.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -142,6 +145,7 @@ Mode and asset docs:
 - [docs/EMOJI_BLOCK_PROPERTY_TAXONOMY.md](docs/EMOJI_BLOCK_PROPERTY_TAXONOMY.md)
 - [docs/PHYSICS_LAB.md](docs/PHYSICS_LAB.md)
 - [docs/BALANCE_FAIRNESS_AND_INSTRUCTIONS.md](docs/BALANCE_FAIRNESS_AND_INSTRUCTIONS.md)
+- [docs/GAME_MODE_DESIGN_RATIONALE.md](docs/GAME_MODE_DESIGN_RATIONALE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)
