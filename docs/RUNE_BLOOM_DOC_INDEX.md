@@ -70,6 +70,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `INPUT_FEEDBACK_READOUT.md`  
   Player-facing text readouts for inputs, movement, placement, tilt, beams, docking, and consequences.
 
+- `ALCHEMICAL_POETRY_TIMELINE.md`  
+  Timeline and anthology notes for turning alchemical poetry into source-grounded game feedback and codex material.
+
+- `ALCHEMICAL_POETRY_RESPONSE_BANK.md`  
+  Draft canned response families for alchemy block placements, tilt, receivers, VALIS Taxi, and Rune Bloom.
+
 - `MOAT_DRAWBRIDGE_PUZZLES.md`  
   Balance Tetris puzzle mode where players tip a platform into a bridge across a moat for horses and coaches.
 

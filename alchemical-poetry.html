@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemical Poetry Codex</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #071013; color: #ecfeff; font-family: "Segoe UI", system-ui, sans-serif; }
+  main { width: min(1160px, calc(100vw - 32px)); margin: 0 auto; padding: 44px 0 76px; }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+  nav a { color: #d1fae5; text-decoration: none; padding: 8px 10px; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; background: #0f1d22; font-size: 13px; font-weight: 800; }
+  h1 { max-width: 900px; margin: 0 0 14px; font-size: clamp(34px, 6vw, 72px); line-height: 0.92; letter-spacing: 0; }
+  .lead { max-width: 880px; margin: 0 0 34px; color: #a7c9c2; font-size: 19px; line-height: 1.5; }
+  section { margin-top: 42px; }
+  h2 { margin: 0 0 16px; color: #fef3c7; font-size: 30px; }
+  h3 { margin: 0 0 8px; font-size: 21px; }
+  p, li { color: #bad7d1; line-height: 1.48; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 14px; }
+  .card, .timeline-item { border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #0f1d22; padding: 18px; }
+  .tag { display: inline-block; margin-bottom: 10px; color: #5eead4; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  .timeline { display: grid; gap: 14px; }
+  .timeline-item { display: grid; grid-template-columns: 135px minmax(0, 1fr); gap: 18px; }
+  .date { color: #fbbf24; font-weight: 900; }
+  table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; }
+  th, td { padding: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.18); text-align: left; vertical-align: top; }
+  th { color: #fef3c7; background: #102329; }
+  td { color: #bad7d1; background: #0d1a1f; }
+  .quote { margin-top: 10px; color: #fef3c7; font-style: italic; }
+  .cta { display: inline-block; margin-top: 14px; margin-right: 8px; padding: 10px 13px; border: 1px solid #5eead4; border-radius: 6px; color: #ecfeff; text-decoration: none; font-weight: 900; background: #164e63; }
+  @media (max-width: 740px) { .timeline-item { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="balance-tetris.html">Balance Tetris</a>
+    <a href="asset-studio.html">Asset Studio</a>
+    <a href="design-rationale.html">Design Rationale</a>
+  </nav>
+
+  <h1>Alchemical Poetry Codex</h1>
+  <p class="lead">
+    A source-facing section for turning alchemical poems, emblem verses, recipe-poetry,
+    and anthology scholarship into playable feedback. The goal is a response system where
+    the game can say more than "move left": it can tell the player that Mercury slipped,
+    Salt fixed the body, the vessel leaned right, or the wrong gate received the matter.
+  </p>
+
+  <section>
+    <h2>What We Know</h2>
+    <div class="grid">
+      <article class="card"><span class="tag">Middle English</span><h3>Timmermann Corpus</h3><p>Anke Timmermann identifies twenty-one anonymous fifteenth-century Middle English recipes for the philosophers' stone. They circulated as a corpus around the "Verses upon the Elixir" and later fed into early modern anthology culture.</p></article>
+      <article class="card"><span class="tag">English anthology</span><h3>Theatrum Chemicum Britannicum</h3><p>Elias Ashmole's 1652 anthology preserves English alchemical verse by Norton, Ripley, Charnock, Bloomfield, Dee, Kelley, and others, with annotations and glossary material that can become in-game source cards.</p></article>
+      <article class="card"><span class="tag">emblem poetry</span><h3>Atalanta Fugiens</h3><p>Michael Maier's 1617/1618 emblem book joins motto, image, epigram, discourse, and fugue. It is the model for multi-modal feedback: text, picture, sound, and mechanic all teaching the same operation.</p></article>
+      <article class="card"><span class="tag">visual sequence</span><h3>Ripley Scrolls / Mutus Liber</h3><p>Scrolls and wordless alchemy help us design emoji-first tutorials, source images, and level maps where procedure is read visually before it is explained.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    <div class="timeline">
+      <article class="timeline-item"><div class="date">late antique to medieval</div><div><h3>Emerald Tablet traditions</h3><p>Compact Hermetic sayings about above/below, sun/moon, wind/earth, ascent/descent, and subtle/gross separation. Best used for tilt, revelation, sublimation, and fixation feedback.</p></div></article>
+      <article class="timeline-item"><div class="date">10th century</div><div><h3>Ibn Umayl and symbolic Arabic alchemical poetry</h3><p>Local EmeraldTablet pages identify Ibn Umayl as a major symbolic alchemical poet. His hidden-tablet and image-reading frame fits reveal mechanics, codex unlocks, and sign interpretation.</p></div></article>
+      <article class="timeline-item"><div class="date">15th century</div><div><h3>Middle English recipe-poetry</h3><p>The Timmermann corpus centers on "Verses upon the Elixir" and associated works such as "Boast of Mercury", "Exposition", "Wind and Water", "Short Work", "Trinity", and Ripley Scroll poems.</p></div></article>
+      <article class="timeline-item"><div class="date">1470s</div><div><h3>Norton and Ripley</h3><p>Norton's ordered craft voice and Ripley's Twelve Gates give Balance Tetris a procedural spine: every zodiac button can become a gate, and every mistake can become an order-of-operations lesson.</p></div></article>
+      <article class="timeline-item"><div class="date">1570s-1590s</div><div><h3>Charnock, Bloomfield, and English practitioner verse</h3><p>Riddle, failure, craft, fire, growth, and natural philosophy. This layer is excellent for lab accidents, Rune Bloom growth, and player-facing "you survived, but learn why" messages.</p></div></article>
+      <article class="timeline-item"><div class="date">1617-1618</div><div><h3>Maier's Atalanta Fugiens</h3><p>A multimedia emblem-poem system: motto, image, epigram, discourse, and fugue. The game can echo this by pairing source-flavored text with visual block reactions and sound cues.</p><p class="quote">Draft bark: "The fugue resolves: three voices, one balance."</p></div></article>
+      <article class="timeline-item"><div class="date">1652</div><div><h3>Ashmole's Theatrum Chemicum Britannicum</h3><p>The major English anthology frame. Its poems, annotations, fragments, and glossary supply the model for an in-game Poetry Codex and a verified quote/source pipeline.</p></div></article>
+      <article class="timeline-item"><div class="date">1677</div><div><h3>Mutus Liber</h3><p>Wordless sequence as instruction. This supports silent tutorial levels where the player reads image, apparatus, and physical result before receiving text explanation.</p></div></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Timmermann Corpus Summary</h2>
+    <table>
+      <thead><tr><th>Poem / Text</th><th>Summary</th><th>Game Use</th></tr></thead>
+      <tbody>
+        <tr><td>Verses upon the Elixir</td><td>Central recipe-poem around which the corpus forms; variants circulated side by side.</td><td>Multiple valid solution paths and Elixir tutorial spine.</td></tr>
+        <tr><td>Boast of Mercury</td><td>Personified Mercury as volatile, generative, and powerful.</td><td>Slippery Mercury blocks and reveal feedback.</td></tr>
+        <tr><td>Mystery of Alchemists</td><td>Obscure teaching text closely tied to Mercury material and the Elixir corpus.</td><td>Hint unlocks and mystery-to-mechanic reveals.</td></tr>
+        <tr><td>Liber Patris Sapientiae</td><td>Long didactic wisdom poem with secrecy, counsel, and social/legal concerns.</td><td>Mentor voice and tutorial warnings.</td></tr>
+        <tr><td>Exposition</td><td>Companion gloss that helps explain terms in the Verses.</td><td>Tooltips and post-move explanation.</td></tr>
+        <tr><td>Wind and Water</td><td>Companion poem ideal for drift, wetness, and dissolution.</td><td>Wind sliders, wet/frozen surfaces, moat puzzles.</td></tr>
+        <tr><td>Richard Carpenter's Work</td><td>Craft/workshop cluster tied to Ripley Scroll material.</td><td>Construction kit and Moat Drawbridge engineering.</td></tr>
+        <tr><td>Short Work</td><td>Compressed procedure.</td><td>Move-limit challenges and daily puzzles.</td></tr>
+        <tr><td>Trinity</td><td>Threefold structure resonant with Tria Prima play.</td><td>Salt/Sulphur/Mercury combination goals.</td></tr>
+        <tr><td>On the ground</td><td>Ripley Scroll-associated grounding text.</td><td>Stable foundations and Salt ballast.</td></tr>
+        <tr><td>In the sea</td><td>Ripley Scroll-associated watery text.</td><td>Dissolution, moat, and solvent levels.</td></tr>
+        <tr><td>I shall you tell</td><td>Instructional disclosure text from the Ripley Scroll cluster.</td><td>Beginner hint cards.</td></tr>
+        <tr><td>Lead</td><td>Prose commentary converting poem into practical interpretation.</td><td>Heavy base matter and explanatory source cards.</td></tr>
+        <tr><td>Thomas Hend</td><td>Commentary layer around Elixir-poem interpretation.</td><td>Glossary authority and recipe correction.</td></tr>
+        <tr><td>Terra Terrae Philosophicae</td><td>Latin prose translation of the Verses.</td><td>Translation levels and school variants.</td></tr>
+        <tr><td>Alumen de Hispania</td><td>Older inherited material folded into the corpus environment.</td><td>Alum/crystal blocks and imported reagents.</td></tr>
+        <tr><td>Spain / Titan Magnesia / Sun / God Angel</td><td>Associated Carpenter/Ripley strands with geographic, mineral, solar, and protective motifs.</td><td>Cargo routes, magnetic minerals, solar ripening, rescue blocks.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Ashmole Anthology Summary</h2>
+    <table>
+      <thead><tr><th>Work</th><th>Game-facing interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>Ordinal of Alchimy</td><td>Order, sequence, equipment, and disciplined tutorial structure.</td></tr>
+        <tr><td>Compound of Alchymie</td><td>Twelve Gates as zodiac/process campaign chapters.</td></tr>
+        <tr><td>Liber Patris Sapientiae</td><td>Mentor instruction, secrecy, and patient craft.</td></tr>
+        <tr><td>Hermes Bird</td><td>Volatile flight, sublimation, and falling-back motion.</td></tr>
+        <tr><td>Canon's Yeoman's Tale</td><td>Satirical failure, fraudulent recipes, and comic misfires.</td></tr>
+        <tr><td>Dastin's Dream</td><td>Dream-level instruction and hidden objectives.</td></tr>
+        <tr><td>Pearce the Black Monk</td><td>Monastic secrecy, black-stage work, and Elixir warnings.</td></tr>
+        <tr><td>Richard Carpenter's Work</td><td>Construction, craft, bridge-building, and apparatus logic.</td></tr>
+        <tr><td>Hunting of the Green Lion</td><td>Pursuit of a dangerous central reagent.</td></tr>
+        <tr><td>Charnock works</td><td>Riddling practitioner voice, difficulty, fire, and lab accident feedback.</td></tr>
+        <tr><td>Bloomfield's Blossoms</td><td>Growth, flourishing, garden/camp allegory, and Rune Bloom crossovers.</td></tr>
+        <tr><td>Kelley and Dee</td><td>High-risk magical-alchemical transformations and source-letter unlocks.</td></tr>
+        <tr><td>Experience and Philosophy</td><td>Split scoring between successful experiment and correct theory.</td></tr>
+        <tr><td>Fragments, conclusions, annotations, glossary</td><td>Codex collectibles, end-level summaries, and obscure-word tooltips.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Response System</h2>
+    <div class="grid">
+      <article class="card"><span class="tag">placement</span><h3>Move barks</h3><p>"Salt receives the burden and keeps its counsel." Plain meaning: the player placed on a stable fixed block.</p></article>
+      <article class="card"><span class="tag">tilt</span><h3>Balance barks</h3><p>"The right gate opens too quickly." Plain meaning: the platform is tipping right and approaching danger.</p></article>
+      <article class="card"><span class="tag">profit</span><h3>Receiver barks</h3><p>"Good matter, bad gate." Plain meaning: the player tipped a substance off the wrong side.</p></article>
+      <article class="card"><span class="tag">reveal</span><h3>Codex barks</h3><p>"The hidden tablet shows its letters." Plain meaning: a beam, source card, or apparatus revealed a hidden property.</p></article>
+    </div>
+    <a class="cta" href="docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md">Read Response Bank</a>
+    <a class="cta" href="docs/ALCHEMICAL_POETRY_TIMELINE.md">Read Full Timeline Notes</a>
+  </section>
+
+  <section>
+    <h2>Source Trail</h2>
+    <div class="grid">
+      <article class="card">
+        <span class="tag">open access</span>
+        <h3>Timmermann</h3>
+        <p>Anke Timmermann, <em>Verse and Transmutation: A Corpus of Middle English Alchemical Poetry</em>. Used for the twenty-one-poem Middle English corpus frame and the "Verses upon the Elixir" cluster.</p>
+        <a class="cta" href="https://brill.com/display/title/15745">Brill page</a>
+        <a class="cta" href="https://www.jstor.org/stable/10.1163/j.ctt1w76v4v">JSTOR page</a>
+      </article>
+      <article class="card">
+        <span class="tag">anthology</span>
+        <h3>Ashmole</h3>
+        <p>Elias Ashmole, <em>Theatrum Chemicum Britannicum</em> (1652). Used for the English alchemical verse anthology contents and the Codex/glossary model.</p>
+        <a class="cta" href="https://en.wikipedia.org/wiki/Theatrum_Chemicum_Britannicum">Contents overview</a>
+      </article>
+      <article class="card">
+        <span class="tag">local database</span>
+        <h3>EmeraldTablet / Claudiens</h3>
+        <p>Local site exports and seed data supplied the Ibn Umayl, Emerald Tablet, Maier, De Jong, Tilton, Godwin, and Atalanta Fugiens scholarship frame.</p>
+        <a class="cta" href="docs/ALCHEMICAL_POETRY_TIMELINE.md">Local notes</a>
+      </article>
+    </div>
+  </section>
+</main>
+</body>
+</html>
