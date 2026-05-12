@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemical Three</title>
+<script src="alchemy-block-engine.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #061114;
+    color: #eefcf8;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1180px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 22px 0 30px;
+  }
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 56px);
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  a, button {
+    color: #ecfeff;
+    font: inherit;
+  }
+  .links a, button {
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 6px;
+    background: #0f2630;
+    padding: 9px 11px;
+    text-decoration: none;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  button:hover, button:focus, .links a:hover, .links a:focus {
+    outline: 2px solid #5eead4;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 760px) minmax(290px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  canvas {
+    width: 100%;
+    max-width: 760px;
+    aspect-ratio: 19 / 13;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 8px;
+    background: #07171c;
+    display: block;
+  }
+  .panel {
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 8px;
+    background: #0d1f25;
+    padding: 14px;
+  }
+  .panel + .panel { margin-top: 12px; }
+  h2 {
+    margin: 0 0 10px;
+    color: #fef3c7;
+    font-size: 20px;
+  }
+  p {
+    margin: 0 0 10px;
+    color: #bad7d1;
+    line-height: 1.45;
+  }
+  .actors {
+    display: grid;
+    gap: 8px;
+  }
+  .actor {
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 9px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 7px;
+    background: #102832;
+  }
+  .actor.active {
+    border-color: #5eead4;
+    background: #123943;
+  }
+  .actor .face {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: #07171c;
+    font-size: 24px;
+  }
+  .actor strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+  .actor span {
+    color: #a7c9c2;
+    font-size: 13px;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .wide { grid-column: span 3; }
+  textarea {
+    width: 100%;
+    height: 154px;
+    resize: vertical;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 6px;
+    background: #07171c;
+    color: #d9fff7;
+    padding: 10px;
+    font: 14px/1.4 Consolas, "Courier New", monospace;
+  }
+  .status {
+    display: grid;
+    gap: 7px;
+  }
+  .pill {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 9px;
+    border-radius: 6px;
+    background: #07171c;
+    color: #bad7d1;
+  }
+  .pill b { color: #fef3c7; }
+  @media (max-width: 930px) {
+    header, .layout { display: block; }
+    .links { margin-top: 12px; }
+    .side { margin-top: 14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Alchemical Three</h1>
+      <p>Switch specialists, carry alchemy blocks, rotate what your tools allow, and satisfy the three receivers.</p>
+    </div>
+    <nav class="links" aria-label="site links">
+      <a href="index.html">Arcade</a>
+      <a href="game-guide.html">Guide</a>
+      <a href="docs/ALCHEMICAL_THREE_MODE.md">Mode Doc</a>
+    </nav>
+  </header>
+
+  <section class="layout">
+    <canvas id="game" width="760" height="520" aria-label="Alchemical Three game board"></canvas>
+    <aside class="side">
+      <section class="panel">
+        <h2>Objective</h2>
+        <p>Put the Salt, Mercury, and Sulphur blocks on their matching pads, then move all three characters to the exit.</p>
+        <div class="status" id="status"></div>
+      </section>
+      <section class="panel">
+        <h2>Characters</h2>
+        <div class="actors" id="actors"></div>
+      </section>
+      <section class="panel">
+        <h2>Controls</h2>
+        <div class="controls">
+          <button data-action="switch" data-value="0">1 Shield</button>
+          <button data-action="switch" data-value="1">2 Runner</button>
+          <button data-action="switch" data-value="2">3 Smith</button>
+          <button data-action="move" data-value="up">↑</button>
+          <button data-action="pickup">E Grab</button>
+          <button data-action="rotate">R Rotate</button>
+          <button data-action="move" data-value="left">←</button>
+          <button data-action="move" data-value="down">↓</button>
+          <button data-action="move" data-value="right">→</button>
+          <button class="wide" data-action="reset">Reset room</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Move Readout</h2>
+        <textarea id="readout" readonly></textarea>
+      </section>
+    </aside>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const Engine = window.AlchemyBlockEngine;
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const statusEl = document.getElementById('status');
+  const actorsEl = document.getElementById('actors');
+  const readoutEl = document.getElementById('readout');
+  const cell = 40;
+  const offset = { x: 20, y: 20 };
+  const cols = 18;
+  const rows = 12;
+  const walls = new Set();
+  const terrain = [
+    '##################',
+    '#................#',
+    '#..P...........E.#',
+    '#..###.....###...#',
+    '#................#',
+    '#.......##.......#',
+    '#................#',
+    '#...###.....###..#',
+    '#................#',
+    '#.S.....M.....F..#',
+    '#................#',
+    '##################'
+  ];
+
+  for (let y = 0; y < terrain.length; y++) {
+    for (let x = 0; x < terrain[y].length; x++) {
+      if (terrain[y][x] === '#') walls.add(key(x, y));
+    }
+  }
+
+  const actorsTemplate = [
+    {
+      id: 'salt-bearer',
+      name: 'Salt-Bearer',
+      emoji: '🛡️',
+      x: 2,
+      y: 2,
+      color: '#d7e2de',
+      canCarry: ['heavy', 'standard'],
+      canRotate: ['heavy', 'standard'],
+      maxMass: 2.8,
+      role: 'Turns fixed bridge slabs and carries the heaviest matter.'
+    },
+    {
+      id: 'mercury-runner',
+      name: 'Mercury-Runner',
+      emoji: '☿️',
+      x: 4,
+      y: 2,
+      color: '#9ad7e6',
+      canCarry: ['slippery', 'standard'],
+      canRotate: ['slippery', 'standard'],
+      maxMass: 1.3,
+      role: 'Handles slick volatile blocks and moves them through narrow lanes.'
+    },
+    {
+      id: 'sulphur-smith',
+      name: 'Sulphur-Smith',
+      emoji: '🔥',
+      x: 5,
+      y: 2,
+      color: '#e9b949',
+      canCarry: ['hot', 'standard'],
+      canRotate: ['hot', 'standard'],
+      maxMass: 1.8,
+      role: 'Uses tongs and furnace sense to rotate combustible blocks.'
+    }
+  ];
+
+  const padTemplate = [
+    { id: 'salt', label: 'Salt pad', x: 2, y: 9, w: 3, h: 1, className: 'heavy', color: '#d7e2de', symbol: '🧂' },
+    { id: 'mercury', label: 'Mercury pad', x: 8, y: 9, w: 2, h: 1, className: 'slippery', color: '#9ad7e6', symbol: '☿️' },
+    { id: 'sulphur', label: 'Sulphur pad', x: 14, y: 9, w: 2, h: 1, className: 'hot', color: '#e9b949', symbol: '🔥' }
+  ];
+
+  function makeBlock(id, processId, principleId, x, y, w, h) {
+    const block = Engine.makeAlchemyBlock({
+      id,
+      processId,
+      principleId,
+      source: { family: 'Alchemical Three prototype', note: 'Shared block adapted through toCarryBlock.' }
+    });
+    const carry = Engine.adapters.toCarryBlock(block);
+    return {
+      id,
+      x,
+      y,
+      w,
+      h,
+      orientation: 0,
+      padId: principleId,
+      ...carry
+    };
+  }
+
+  let state = resetState();
+
+  function resetState() {
+    return {
+      active: 0,
+      won: false,
+      actors: actorsTemplate.map(actor => ({ ...actor, holding: null })),
+      pads: padTemplate.map(pad => ({ ...pad, satisfied: false })),
+      blocks: [
+        makeBlock('taurus_salt_bridge', 'taurus', 'salt', 7, 3, 3, 1),
+        makeBlock('cancer_mercury_key', 'cancer', 'mercury', 5, 6, 1, 2),
+        makeBlock('aries_sulphur_furnace', 'aries', 'sulphur', 12, 6, 2, 1)
+      ],
+      log: [
+        'Room opened. Match Salt, Mercury, and Sulphur to their pads, then gather at the exit.',
+        'Use 1/2/3 to switch, E to pick up or drop, R to rotate.'
+      ]
+    };
+  }
+
+  function key(x, y) {
+    return `${x},${y}`;
+  }
+
+  function activeActor() {
+    return state.actors[state.active];
+  }
+
+  function log(message) {
+    state.log.unshift(message);
+    state.log = state.log.slice(0, 12);
+    render();
+  }
+
+  function rectCells(rect) {
+    const cells = [];
+    for (let y = rect.y; y < rect.y + rect.h; y++) {
+      for (let x = rect.x; x < rect.x + rect.w; x++) cells.push({ x, y });
+    }
+    return cells;
+  }
+
+  function actorAt(x, y, ignoredActorId) {
+    return state.actors.find(actor => actor.id !== ignoredActorId && actor.x === x && actor.y === y);
+  }
+
+  function blockAt(x, y, ignoredBlockId) {
+    return state.blocks.find(block => block.id !== ignoredBlockId && rectCells(block).some(c => c.x === x && c.y === y));
+  }
+
+  function fits(rect, ignoredBlockId, ignoredActorId) {
+    for (const c of rectCells(rect)) {
+      if (c.x < 1 || c.y < 1 || c.x >= cols - 1 || c.y >= rows - 1) return false;
+      if (walls.has(key(c.x, c.y))) return false;
+      if (blockAt(c.x, c.y, ignoredBlockId)) return false;
+      if (actorAt(c.x, c.y, ignoredActorId)) return false;
+    }
+    return true;
+  }
+
+  function directionDelta(dir) {
+    if (dir === 'up') return { dx: 0, dy: -1 };
+    if (dir === 'down') return { dx: 0, dy: 1 };
+    if (dir === 'left') return { dx: -1, dy: 0 };
+    return { dx: 1, dy: 0 };
+  }
+
+  function carriedRectFor(actor, block, x, y) {
+    return {
+      x: Math.max(1, Math.min(cols - 1 - block.w, x + 1)),
+      y: Math.max(1, Math.min(rows - 1 - block.h, y)),
+      w: block.w,
+      h: block.h
+    };
+  }
+
+  function moveActor(dir) {
+    if (state.won) return;
+    const actor = activeActor();
+    const { dx, dy } = directionDelta(dir);
+    const next = { x: actor.x + dx, y: actor.y + dy };
+    const held = carriedBlock(actor);
+    if (!fits({ x: next.x, y: next.y, w: 1, h: 1 }, held && held.id, actor.id)) {
+      log(`${actor.name} cannot move ${dir}; stone, body, or block bars the way.`);
+      return;
+    }
+    if (held) {
+      const heldNext = carriedRectFor(actor, held, next.x, next.y);
+      if (!fits(heldNext, held.id, actor.id)) {
+        log(`${actor.name} cannot move ${dir}; ${held.name} would collide with the room.`);
+        return;
+      }
+    }
+    actor.x = next.x;
+    actor.y = next.y;
+    log(`${actor.name} stepped ${dir} to column ${actor.x + 1}, row ${actor.y + 1}.`);
+    checkWin();
+    render();
+  }
+
+  function carriedBlock(actor) {
+    return actor.holding ? state.blocks.find(block => block.id === actor.holding) : null;
+  }
+
+  function nearestBlock(actor) {
+    const options = [
+      { x: actor.x + 1, y: actor.y },
+      { x: actor.x - 1, y: actor.y },
+      { x: actor.x, y: actor.y + 1 },
+      { x: actor.x, y: actor.y - 1 }
+    ];
+    for (const spot of options) {
+      const block = blockAt(spot.x, spot.y);
+      if (block) return block;
+    }
+    return null;
+  }
+
+  function canCarry(actor, block) {
+    if (!actor.canCarry.includes(block.carryClass)) {
+      return `${actor.name} cannot handle ${block.carryClass} matter.`;
+    }
+    if (block.mass > actor.maxMass) {
+      return `${actor.name} cannot lift ${block.name}; mass ${block.mass.toFixed(2)} exceeds capacity ${actor.maxMass.toFixed(2)}.`;
+    }
+    return '';
+  }
+
+  function pickupOrDrop() {
+    if (state.won) return;
+    const actor = activeActor();
+    const held = carriedBlock(actor);
+    if (held) {
+      held.carriedBy = null;
+      actor.holding = null;
+      updatePads();
+      log(`${actor.name} set down ${held.name} at column ${held.x + 1}, row ${held.y + 1}.`);
+      checkWin();
+      render();
+      return;
+    }
+    const block = nearestBlock(actor);
+    if (!block) {
+      log(`${actor.name} reaches out, but no block is adjacent.`);
+      return;
+    }
+    const reason = canCarry(actor, block);
+    if (reason) {
+      log(reason);
+      return;
+    }
+    const carryRect = carriedRectFor(actor, block, actor.x, actor.y);
+    if (!fits(carryRect, block.id, actor.id)) {
+      log(`${actor.name} cannot hoist ${block.name}; there is no room to carry it safely.`);
+      return;
+    }
+    actor.holding = block.id;
+    block.carriedBy = actor.id;
+    block.x = carryRect.x;
+    block.y = carryRect.y;
+    log(`${actor.name} picked up ${block.name}; carry class ${block.carryClass}, mass ${block.mass.toFixed(2)}.`);
+    render();
+  }
+
+  function rotateHeld() {
+    if (state.won) return;
+    const actor = activeActor();
+    const block = carriedBlock(actor);
+    if (!block) {
+      log(`${actor.name} needs to carry a block before rotating it.`);
+      return;
+    }
+    if (!block.rotatable || !actor.canRotate.includes(block.carryClass)) {
+      log(`${actor.name} cannot rotate ${block.name}; its ${block.carryClass} nature needs a different power or tool.`);
+      return;
+    }
+    const rotated = { ...block, w: block.h, h: block.w };
+    if (!fits(rotated, block.id, actor.id)) {
+      log(`Rotation blocked: ${block.name} would strike stone, another block, or a companion.`);
+      return;
+    }
+    const before = `${block.w}x${block.h}`;
+    block.w = rotated.w;
+    block.h = rotated.h;
+    block.orientation = (block.orientation + 1) % 4;
+    updatePads();
+    log(`${actor.name} rotated ${block.name} from ${before} to ${block.w}x${block.h}; the old Tetris verb now belongs to a tool-bearing body.`);
+    render();
+  }
+
+  function switchActor(index) {
+    state.active = index;
+    const actor = activeActor();
+    log(`Control shifted to ${actor.name}. ${actor.role}`);
+  }
+
+  function waitTurn() {
+    const actor = activeActor();
+    log(`${actor.name} waits; the room answers with a small alchemical silence.`);
+  }
+
+  function updateHeldBlocks() {
+    for (const actor of state.actors) {
+      const block = carriedBlock(actor);
+      if (!block) continue;
+      const rect = carriedRectFor(actor, block, actor.x, actor.y);
+      block.x = rect.x;
+      block.y = rect.y;
+    }
+  }
+
+  function updatePads() {
+    for (const pad of state.pads) {
+      pad.satisfied = state.blocks.some(block => {
+        if (block.carriedBy || block.padId !== pad.id) return false;
+        return block.x === pad.x && block.y === pad.y && block.w === pad.w && block.h === pad.h;
+      });
+    }
+  }
+
+  function onExit(actor) {
+    return actor.x === 15 && actor.y === 2;
+  }
+
+  function checkWin() {
+    updatePads();
+    if (state.pads.every(pad => pad.satisfied) && state.actors.every(onExit)) {
+      state.won = true;
+      log('The threefold door opens: body, spirit, and fire have been set in order.');
+    }
+  }
+
+  function drawBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#07171c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const px = offset.x + x * cell;
+        const py = offset.y + y * cell;
+        ctx.fillStyle = walls.has(key(x, y)) ? '#22333b' : '#0c2027';
+        ctx.fillRect(px, py, cell - 1, cell - 1);
+        if (!walls.has(key(x, y))) {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+          ctx.strokeRect(px, py, cell, cell);
+        }
+      }
+    }
+    drawExit();
+    drawPads();
+    for (const block of state.blocks) drawBlock(block);
+    for (const actor of state.actors) drawActor(actor);
+    if (state.won) drawWin();
+  }
+
+  function drawExit() {
+    const x = offset.x + 15 * cell;
+    const y = offset.y + 2 * cell;
+    ctx.fillStyle = '#174e38';
+    ctx.fillRect(x + 4, y + 4, cell - 8, cell - 8);
+    ctx.font = '24px "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚪', x + cell / 2, y + cell / 2);
+  }
+
+  function drawPads() {
+    for (const pad of state.pads) {
+      const x = offset.x + pad.x * cell;
+      const y = offset.y + pad.y * cell;
+      ctx.fillStyle = pad.satisfied ? '#14532d' : 'rgba(250, 204, 21, 0.16)';
+      ctx.fillRect(x + 3, y + 3, pad.w * cell - 6, pad.h * cell - 6);
+      ctx.strokeStyle = pad.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 4, y + 4, pad.w * cell - 8, pad.h * cell - 8);
+      ctx.font = '21px "Segoe UI Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pad.symbol, x + pad.w * cell / 2, y + pad.h * cell / 2);
+    }
+    ctx.lineWidth = 1;
+  }
+
+  function drawBlock(block) {
+    const x = offset.x + block.x * cell;
+    const y = offset.y + block.y * cell;
+    ctx.fillStyle = block.color;
+    ctx.fillRect(x + 3, y + 3, block.w * cell - 6, block.h * cell - 6);
+    ctx.strokeStyle = block.carriedBy ? '#fef08a' : '#07171c';
+    ctx.lineWidth = block.carriedBy ? 4 : 2;
+    ctx.strokeRect(x + 4, y + 4, block.w * cell - 8, block.h * cell - 8);
+    ctx.fillStyle = '#07171c';
+    ctx.font = '20px "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(block.symbol, x + block.w * cell / 2, y + block.h * cell / 2);
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.fillText(block.carryClass.toUpperCase(), x + block.w * cell / 2, y + block.h * cell - 12);
+    ctx.lineWidth = 1;
+  }
+
+  function drawActor(actor) {
+    const x = offset.x + actor.x * cell;
+    const y = offset.y + actor.y * cell;
+    ctx.fillStyle = actor.id === activeActor().id ? '#5eead4' : actor.color;
+    ctx.fillRect(x + 5, y + 5, cell - 10, cell - 10);
+    ctx.strokeStyle = '#07171c';
+    ctx.strokeRect(x + 6, y + 6, cell - 12, cell - 12);
+    ctx.font = '22px "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#07171c';
+    ctx.fillText(actor.emoji, x + cell / 2, y + cell / 2);
+  }
+
+  function drawWin() {
+    ctx.fillStyle = 'rgba(6, 17, 20, 0.78)';
+    ctx.fillRect(90, 150, 580, 170);
+    ctx.strokeStyle = '#5eead4';
+    ctx.strokeRect(92, 152, 576, 166);
+    ctx.fillStyle = '#ecfeff';
+    ctx.font = '34px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Threefold Door Opened', 380, 210);
+    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.fillText('Reset the room or take this mechanic into the level builder next.', 380, 252);
+  }
+
+  function renderSidebar() {
+    actorsEl.innerHTML = state.actors.map((actor, index) => `
+      <div class="actor ${index === state.active ? 'active' : ''}">
+        <div class="face">${actor.emoji}</div>
+        <div><strong>${index + 1}. ${actor.name}</strong><span>${actor.role}</span></div>
+      </div>
+    `).join('');
+    statusEl.innerHTML = state.pads.map(pad => `
+      <div class="pill"><span>${pad.symbol} ${pad.label}</span><b>${pad.satisfied ? 'set' : 'open'}</b></div>
+    `).join('') + `<div class="pill"><span>Exit</span><b>${state.actors.filter(onExit).length}/3 gathered</b></div>`;
+    readoutEl.value = state.log.join('\n');
+  }
+
+  function render() {
+    updateHeldBlocks();
+    updatePads();
+    drawBoard();
+    renderSidebar();
+  }
+
+  window.addEventListener('keydown', event => {
+    const keyName = event.key.toLowerCase();
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', 'e', 'r', ' ', '1', '2', '3'].includes(keyName)) {
+      event.preventDefault();
+    }
+    if (keyName === '1') switchActor(0);
+    else if (keyName === '2') switchActor(1);
+    else if (keyName === '3') switchActor(2);
+    else if (keyName === 'e') pickupOrDrop();
+    else if (keyName === 'r') rotateHeld();
+    else if (keyName === ' ') waitTurn();
+    else if (keyName === 'arrowup' || keyName === 'w') moveActor('up');
+    else if (keyName === 'arrowdown' || keyName === 's') moveActor('down');
+    else if (keyName === 'arrowleft' || keyName === 'a') moveActor('left');
+    else if (keyName === 'arrowright' || keyName === 'd') moveActor('right');
+  });
+
+  document.querySelector('.controls').addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    const action = button.dataset.action;
+    const value = button.dataset.value;
+    if (action === 'switch') switchActor(Number(value));
+    if (action === 'move') moveActor(value);
+    if (action === 'pickup') pickupOrDrop();
+    if (action === 'rotate') rotateHeld();
+    if (action === 'reset') {
+      state = resetState();
+      log('Room reset. The three specialists return to their starting places.');
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

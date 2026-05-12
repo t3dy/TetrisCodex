@@ -109,6 +109,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `ALCHEMY_SNAKE_MODE.md`  
   BASIC-style Snake mode using shared alchemy blocks, digestion effects, and a narration parser.
 
+- `ROTATION_MECHANIC_CONTRACT.md`  
+  Shared rotation intent for falling pieces, carried blocks, apparatus, platforms, and editor objects.
+
+- `ALCHEMICAL_THREE_MODE.md`  
+  Character-switching carry/rotate puzzle mode using the shared alchemy block engine.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

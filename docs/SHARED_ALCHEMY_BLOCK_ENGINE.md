@@ -15,6 +15,7 @@ The current project has several play styles:
 - Balance Tetris: tilting platform, stack placement, side-dumping.
 - VALIS Space Taxi: ship controls, cargo, pads, landing, beams.
 - Rune Bloom: garden/grid tile placement, blooms, blight, chain reactions.
+- Alchemical Three: character-switching carry and rotate puzzles.
 - Moat Drawbridge: construction puzzle, flatness, span strength.
 - Future lab modes: alchemy pinball, reaction sandbox, non-tilting apparatus puzzles, dialogue/tutorial games.
 
@@ -67,7 +68,7 @@ The shared engine owns stable alchemical facts and low-level behavior:
 | Volatility | `calculateVolatility(block, environment)` |
 | Proper exit scoring | `scoreExit(block, side, groupSize)` |
 | Sliding eligibility | `canSlide(block, surface, environment)` |
-| Mode export | `adapters.toBalanceCell`, `toTaxiCargo`, `toRuneTile`, `toSnakeFood` |
+| Mode export | `adapters.toBalanceCell`, `toTaxiCargo`, `toRuneTile`, `toSnakeFood`, `toCarryBlock` |
 
 ## What Does Not Belong In The Shared Engine
 
@@ -184,6 +185,20 @@ Snake-specific integration:
 - `processName` drives apparatus narration
 - `tags` let future maze/lab boards react to wet, heat, growth, projection, or separation
 
+### Alchemical Three
+
+```js
+const carried = AlchemyBlockEngine.adapters.toCarryBlock(block);
+```
+
+Character-puzzle integration:
+
+- `carryClass` gates which specialist or tool can carry the block
+- `rotatable` gates whether the Tetris rotate verb is available
+- `mass` gates lifting capacity
+- `fixed`, `slippery`, and `combustible` become puzzle permissions
+- source/codex metadata survives into move readouts
+
 ## Flexible Input Schemes
 
 Input should be mode-owned, but it should produce shared intents.
@@ -192,6 +207,7 @@ Input should be mode-owned, but it should produce shared intents.
 | --- | --- | --- |
 | Keyboard arrows + rotate | Balance Tetris | `move_piece`, `rotate_piece`, `drop_piece` |
 | Arrow/WASD grid steering | Alchemy Snake | `turn_snake`, `digest_block`, `collide` |
+| Character switch + grab/rotate | Alchemical Three | `move_actor`, `carry_block`, `rotate_block` |
 | Zodiac + Tria Prima buttons | Alchemy modes | `create_block(processId, principleId)` |
 | Mouse drag | Level Builder, lab modes | `place_block`, `move_apparatus` |
 | Thrust controls | VALIS Taxi | `accelerate_ship`, `dock`, `drop_cargo` |

@@ -47,6 +47,7 @@ Modes can have wildly different controls, but they should translate controls int
 | --- | --- | --- |
 | `create_block` | Create or select an alchemical block. | Zodiac/Tria Prima buttons, draft card, lab recipe. |
 | `place_block` | Put matter into a space. | Mouse click, drag/drop, keyboard drop. |
+| `rotate_block` | Turn a piece, carried block, adjacent slab, platform, apparatus, or editor object. | R key, rotate button, mouse wheel, tool crank. |
 | `move_actor` | Move player-controlled actor. | Ship thrust, character movement, cursor. |
 | `activate_apparatus` | Trigger a process/furniture tile. | Click alembic, beam crucible, push lever. |
 | `route_substance` | Direct flow or falling matter. | Pipe switch, flipper, conveyor, drawbridge. |
@@ -145,6 +146,36 @@ Mode-specific logic:
 - Digestion outcomes.
 - Narration parser events.
 - Score, pace, heat, ghost passes, and length changes.
+
+### Alchemical Three
+
+Character-switching grid puzzle where three specialists carry and rotate alchemical blocks. This mode uses the old Tetris rotate verb as a character/tool permission system.
+
+Adapter:
+
+- `toCarryBlock(block)`
+
+Consumes:
+
+- `carryClass`
+- `rotatable`
+- `mass`
+- `fixed`
+- `slippery`
+- `combustible`
+- `processName`
+- `principleName`
+- `tags`
+- `source`
+
+Mode-specific logic:
+
+- Character switching.
+- Carry/drop rules.
+- Rotation permission by actor and tool.
+- Receiver pads.
+- Room collision.
+- Move readout and alchemical narration.
 
 ## Adapter Checklist
 

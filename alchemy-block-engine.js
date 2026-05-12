@@ -283,6 +283,36 @@
     };
   }
 
+  function toCarryBlock(block) {
+    const mass = calculateMass(block);
+    const fixed = !!block.physics.fixed;
+    const slippery = !!block.physics.slippery;
+    const combustible = !!block.physics.combustible;
+    return {
+      id: block.id,
+      name: block.name,
+      emoji: block.emoji,
+      color: block.display.color,
+      symbol: block.display.symbol,
+      family: block.family,
+      processId: block.processId,
+      processName: block.processName,
+      principleId: block.principleId,
+      principleName: block.principleName,
+      tags: block.tags.slice(),
+      mass,
+      friction: block.physics.friction,
+      volatility: block.physics.volatility,
+      fixed,
+      combustible,
+      slippery,
+      carryClass: fixed ? 'heavy' : slippery ? 'slippery' : combustible ? 'hot' : 'standard',
+      rotatable: !fixed || mass <= 1.6,
+      source: block.source,
+      block
+    };
+  }
+
   root.AlchemyBlockEngine = {
     schema: 'alchemy-block-engine/v1',
     PRINCIPLES,
@@ -303,7 +333,8 @@
       toBalanceCell,
       toTaxiCargo,
       toRuneTile,
-      toSnakeFood
+      toSnakeFood,
+      toCarryBlock
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

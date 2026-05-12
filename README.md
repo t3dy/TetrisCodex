@@ -20,6 +20,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Alchemy Snake](snake-alchemy.html)  
   Old-school grid Snake using shared alchemy blocks. Salt, Sulphur, Mercury, and zodiac apparatus change growth, speed, collision grace, heat, and narration.
 
+- [Alchemical Three](alchemical-three.html)  
+  Character-switching rotation puzzle. Three specialists pick up, carry, and rotate alchemical blocks depending on strength, tools, fixity, slipperiness, and heat.
+
 - [VALIS Space Taxi](valis-space-taxi.html)  
   A vehicle/landing mode inspired by old-school Space Taxi handling. Pilot a small craft through variable gravity, land on tilting alchemical pads, reveal hidden cargo with a VALIS beam, and prevent lab cascades.
 
@@ -87,6 +90,10 @@ A separate original tile-placement experiment with blooms, blight, glyph placeme
 ### Alchemy Snake
 
 A BASIC-style Snake mode that proves the alchemical block system can work outside tilting or Tetris placement. The snake digests shared `alchemy-block/v1` matter, and a narration parser converts inputs, collisions, and outcomes into alchemical feedback.
+
+### Alchemical Three
+
+A grid puzzle mode that treats Tetris rotation as a shared action characters can perform. The Salt-Bearer, Mercury-Runner, and Sulphur-Smith move blocks differently, proving that `alchemy-block/v1` matter can power character puzzles as well as falling-block games.
 
 ## Creator Tools
 
@@ -166,6 +173,8 @@ Mode and asset docs:
 - [docs/ALCHEMICAL_POETRY_TIMELINE.md](docs/ALCHEMICAL_POETRY_TIMELINE.md)
 - [docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md](docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md)
 - [docs/ALCHEMY_SNAKE_MODE.md](docs/ALCHEMY_SNAKE_MODE.md)
+- [docs/ROTATION_MECHANIC_CONTRACT.md](docs/ROTATION_MECHANIC_CONTRACT.md)
+- [docs/ALCHEMICAL_THREE_MODE.md](docs/ALCHEMICAL_THREE_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)
