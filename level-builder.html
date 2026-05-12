@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemical Level Builder</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #091014;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 280px minmax(520px, 1fr) 340px;
+    height: 100vh;
+  }
+  aside, .right {
+    background: #0f1d22;
+    border-color: rgba(148, 163, 184, 0.22);
+    overflow: auto;
+  }
+  aside { border-right: 1px solid rgba(148, 163, 184, 0.22); }
+  .right { border-left: 1px solid rgba(148, 163, 184, 0.22); }
+  header {
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .sub {
+    margin: 0;
+    color: #9dbab4;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .section {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  }
+  .section h2 {
+    margin: 0 0 12px;
+    color: #fef3c7;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  label {
+    display: block;
+    margin: 12px 0 6px;
+    color: #b9d6d0;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  input, select, textarea, button {
+    font: inherit;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 6px;
+    background: #071216;
+    color: #ecfeff;
+  }
+  input[type="range"] { width: 100%; }
+  textarea {
+    min-height: 210px;
+    resize: vertical;
+    line-height: 1.35;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+  }
+  .toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  button {
+    min-height: 38px;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    border-radius: 6px;
+    background: #132a31;
+    color: #ecfeff;
+    cursor: pointer;
+    font-weight: 750;
+  }
+  button:hover, button:focus {
+    outline: 2px solid #5eead4;
+    background: #173840;
+  }
+  button.active {
+    border-color: #5eead4;
+    background: #164e63;
+  }
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+  }
+  .swatch {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+  }
+  .small {
+    color: #87a9a2;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .stage {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    background: #071013;
+  }
+  .stagebar {
+    min-height: 54px;
+    padding: 10px 16px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  }
+  .pill {
+    padding: 7px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    color: #d1fae5;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .canvas-wrap {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+  }
+  canvas {
+    width: min(100%, 960px);
+    height: auto;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: #061018;
+  }
+  .status {
+    min-height: 34px;
+    padding: 8px 16px;
+    color: #9dbab4;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+    font-size: 13px;
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    color: #b9d6d0;
+    font-size: 12px;
+  }
+  .hint {
+    margin-top: 10px;
+    color: #7ca09a;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  @media (max-width: 1050px) {
+    body { overflow: auto; }
+    .app {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    aside, .right {
+      border: 0;
+      max-height: none;
+    }
+    .stage { min-height: 680px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>Level Builder</h1>
+      <p class="sub">WYSIWYG construction kit for alchemical block modes.</p>
+    </header>
+
+    <section class="section">
+      <h2>Level</h2>
+      <label for="levelName">Name</label>
+      <input id="levelName" type="text" value="Custom Alchemical Level">
+      <label for="mode">Game mode</label>
+      <select id="mode">
+        <option value="balance-tetris">Balance Tetris</option>
+        <option value="alchemy">Alchemy Balance</option>
+        <option value="wildhunt">Wild Hunt</option>
+        <option value="valis-taxi">VALIS Space Taxi</option>
+        <option value="moat-bridge">Moat Drawbridge</option>
+        <option value="rune-bloom">Rune Bloom</option>
+      </select>
+      <label for="platformType">Platform</label>
+      <select id="platformType">
+        <option value="seesaw">Seesaw</option>
+        <option value="wide-base">Wide Base</option>
+        <option value="narrow-pole">Narrow Pole</option>
+        <option value="two-fulcrum">Two-Fulcrum Bridge</option>
+        <option value="frozen">Frozen</option>
+        <option value="wet-crucible">Wet Crucible</option>
+        <option value="magnetic">Magnetic</option>
+        <option value="suspended">Suspended</option>
+      </select>
+    </section>
+
+    <section class="section">
+      <h2>Tools</h2>
+      <div class="toolbar">
+        <button class="tool active" data-tool="block">Block</button>
+        <button class="tool" data-tool="erase">Erase</button>
+        <button class="tool" data-tool="platform">Platform</button>
+        <button class="tool" data-tool="pad">Pad</button>
+        <button class="tool" data-tool="receiver">Receiver</button>
+        <button class="tool" data-tool="objective">Objective</button>
+      </div>
+      <p class="hint">Click cells to place blocks. Shift-click erases. Platform/pad/receiver tools snap to the grid.</p>
+    </section>
+
+    <section class="section">
+      <h2>Emoji Blocks</h2>
+      <div id="palette" class="palette"></div>
+      <p class="hint" id="selectedHint">Selected: Fixed Salt Vault</p>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="stagebar">
+      <div class="pill" id="modePill">Balance Tetris</div>
+      <div class="pill" id="countsPill">0 blocks</div>
+      <div class="pill" id="physicsPill">Gravity 1.00 | Wind 0.00</div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="editor" width="960" height="640" aria-label="level editor canvas"></canvas>
+    </div>
+    <div class="status" id="status">Ready. Choose a block and paint the level.</div>
+  </main>
+
+  <section class="right">
+    <header>
+      <h1>Physics & Export</h1>
+      <p class="sub">Tune the world, save locally, or export JSON for a game mode.</p>
+    </header>
+
+    <section class="section">
+      <h2>Physics</h2>
+      <div id="physicsControls"></div>
+    </section>
+
+    <section class="section">
+      <h2>Actions</h2>
+      <div class="toolbar">
+        <button id="saveBtn">Save</button>
+        <button id="loadBtn">Load</button>
+        <button id="exportBtn">Export</button>
+        <button id="importBtn">Import</button>
+        <button id="clearBtn">Clear</button>
+        <button id="sampleBtn">Sample</button>
+      </div>
+      <p class="hint">Exported JSON is the contract for connecting this builder to Balance Tetris, VALIS Taxi, Wild Hunt, and future modes.</p>
+    </section>
+
+    <section class="section">
+      <h2>Level JSON</h2>
+      <textarea id="jsonOut" spellcheck="false"></textarea>
+    </section>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('editor');
+const ctx = canvas.getContext('2d');
+const grid = { x: 120, y: 92, cols: 14, rows: 12, cell: 36 };
+const storageKey = 'alchemical_level_builder_v1';
+
+const blockDefs = [
+  { id: 'fixed_salt_vault', name: 'Fixed Salt Vault', emoji: '🧂🔒', family: 'salt', mass: 2.1, friction: 1.8, behavior: 'anchors neighbors' },
+  { id: 'volatile_mercury_crate', name: 'Volatile Mercury Crate', emoji: '☿📦', family: 'mercury', mass: 0.8, friction: 0.35, behavior: 'slides, exits either side' },
+  { id: 'oily_sulphur_tank', name: 'Oily Sulphur Tank', emoji: '🟡🔥', family: 'sulphur', mass: 1.35, friction: 0.6, behavior: 'can ignite cascades' },
+  { id: 'valis_crystal', name: 'VALIS Crystal', emoji: '💎👁️', family: 'revelation', mass: 0.7, friction: 0.9, behavior: 'beam relay/reveal' },
+  { id: 'half_life_patient', name: 'Half-Life Patient', emoji: '🧊👤', family: 'half-life', mass: 1.0, friction: 0.5, behavior: 'phase support' },
+  { id: 'black_iron_ingot', name: 'Black Iron Ingot', emoji: '▦⛓️', family: 'prison', mass: 2.4, friction: 1.2, behavior: 'locks cells' },
+  { id: 'wild_hound', name: 'Wild Hunt Hound', emoji: '🐕', family: 'wildhunt', mass: 1.1, friction: 0.75, behavior: 'chases omen paths' },
+  { id: 'hoofbeat_token', name: 'Hoofbeat Token', emoji: '🐎', family: 'wildhunt', mass: 1.3, friction: 0.8, behavior: 'rhythm trigger' },
+  { id: 'kipple_bale', name: 'Kipple Bale', emoji: '🗑️📦', family: 'residue', mass: 1.0, friction: 0.55, behavior: 'junk ballast' },
+  { id: 'electric_sheep_cell', name: 'Electric Sheep Cell', emoji: '🐑⚡', family: 'synthetic', mass: 0.55, friction: 0.7, behavior: 'empathy-linked fragile' },
+  { id: 'moat_stone', name: 'Moat Stone', emoji: '🪨🌉', family: 'bridge', mass: 1.8, friction: 1.35, behavior: 'drawbridge support' },
+  { id: 'prima_materia', name: 'Prima Materia', emoji: '⚫✨', family: 'unknown', mass: 1.0, friction: 1.0, behavior: 'transmutes by apparatus' },
+];
+
+const physicsSpecs = [
+  { key: 'gravity', label: 'Gravity', min: 0, max: 2.5, step: 0.05 },
+  { key: 'wind', label: 'Wind', min: -2, max: 2, step: 0.05 },
+  { key: 'stiffness', label: 'Platform stiffness', min: 0.25, max: 2.5, step: 0.05 },
+  { key: 'tiltLimit', label: 'Tilt limit', min: 5, max: 60, step: 1 },
+  { key: 'friction', label: 'Block friction', min: 0.1, max: 2.5, step: 0.05 },
+  { key: 'slipperiness', label: 'Slipperiness', min: 0, max: 3, step: 0.05 },
+  { key: 'shipThrust', label: 'Ship thrust', min: 0, max: 2.5, step: 0.05 },
+  { key: 'beamHeat', label: 'Beam heat rate', min: 0, max: 3, step: 0.05 },
+  { key: 'cascadeSensitivity', label: 'Cascade sensitivity', min: 0, max: 3, step: 0.05 },
+];
+
+const state = {
+  tool: 'block',
+  selectedBlock: blockDefs[0],
+  blocks: [],
+  platforms: [{ id: 'main-platform', x: 3, y: 10, w: 8, h: 1, type: 'seesaw' }],
+  pads: [{ id: 'start-pad', x: 11, y: 8, w: 2, h: 1, kind: 'spawn' }],
+  receivers: [{ id: 'left-receiver', x: 0, y: 11, w: 2, h: 1, side: 'left' }],
+  objectives: [{ id: 'deliver', x: 12, y: 3, w: 1, h: 1, kind: 'deliver' }],
+  physics: {
+    gravity: 1,
+    wind: 0,
+    stiffness: 1,
+    tiltLimit: 30,
+    friction: 1,
+    slipperiness: 1,
+    shipThrust: 1,
+    beamHeat: 1,
+    cascadeSensitivity: 1,
+  },
+};
+
+const els = {
+  levelName: document.getElementById('levelName'),
+  mode: document.getElementById('mode'),
+  platformType: document.getElementById('platformType'),
+  palette: document.getElementById('palette'),
+  selectedHint: document.getElementById('selectedHint'),
+  status: document.getElementById('status'),
+  modePill: document.getElementById('modePill'),
+  countsPill: document.getElementById('countsPill'),
+  physicsPill: document.getElementById('physicsPill'),
+  physicsControls: document.getElementById('physicsControls'),
+  jsonOut: document.getElementById('jsonOut'),
+};
+
+function buildPalette() {
+  els.palette.innerHTML = '';
+  for (const def of blockDefs) {
+    const btn = document.createElement('button');
+    btn.className = `swatch${def.id === state.selectedBlock.id ? ' active' : ''}`;
+    btn.type = 'button';
+    btn.title = `${def.name}: ${def.behavior}`;
+    btn.textContent = def.emoji;
+    btn.addEventListener('click', () => {
+      state.selectedBlock = def;
+      els.selectedHint.textContent = `Selected: ${def.name} (${def.behavior})`;
+      buildPalette();
+      draw();
+    });
+    els.palette.appendChild(btn);
+  }
+}
+
+function buildPhysicsControls() {
+  els.physicsControls.innerHTML = '';
+  for (const spec of physicsSpecs) {
+    const wrap = document.createElement('div');
+    const row = document.createElement('div');
+    row.className = 'row';
+    const label = document.createElement('label');
+    label.textContent = spec.label;
+    const val = document.createElement('span');
+    val.className = 'small';
+    val.textContent = String(state.physics[spec.key]);
+    row.append(label, val);
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = spec.min;
+    input.max = spec.max;
+    input.step = spec.step;
+    input.value = state.physics[spec.key];
+    input.addEventListener('input', () => {
+      state.physics[spec.key] = Number(input.value);
+      val.textContent = input.value;
+      refreshOutput();
+      draw();
+    });
+    wrap.append(row, input);
+    els.physicsControls.appendChild(wrap);
+  }
+}
+
+function setTool(tool) {
+  state.tool = tool;
+  for (const btn of document.querySelectorAll('.tool')) {
+    btn.classList.toggle('active', btn.dataset.tool === tool);
+  }
+  setStatus(`Tool: ${tool}`);
+}
+
+function setStatus(text) {
+  els.status.textContent = text;
+}
+
+function cellFromEvent(event) {
+  const rect = canvas.getBoundingClientRect();
+  const px = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const py = (event.clientY - rect.top) * (canvas.height / rect.height);
+  return {
+    x: Math.floor((px - grid.x) / grid.cell),
+    y: Math.floor((py - grid.y) / grid.cell),
+    px,
+    py,
+  };
+}
+
+function inGrid(x, y) {
+  return x >= 0 && x < grid.cols && y >= 0 && y < grid.rows;
+}
+
+function upsertBlock(x, y) {
+  const existing = state.blocks.find(block => block.x === x && block.y === y);
+  const payload = {
+    id: `${state.selectedBlock.id}_${x}_${y}`,
+    blockId: state.selectedBlock.id,
+    emoji: state.selectedBlock.emoji,
+    name: state.selectedBlock.name,
+    family: state.selectedBlock.family,
+    mass: state.selectedBlock.mass,
+    friction: state.selectedBlock.friction,
+    behavior: state.selectedBlock.behavior,
+    x,
+    y,
+  };
+  if (existing) Object.assign(existing, payload);
+  else state.blocks.push(payload);
+  setStatus(`Placed ${state.selectedBlock.name} at ${x}, ${y}.`);
+}
+
+function eraseAt(x, y) {
+  const before = state.blocks.length;
+  state.blocks = state.blocks.filter(block => !(block.x === x && block.y === y));
+  state.platforms = state.platforms.filter(obj => !containsCell(obj, x, y));
+  state.pads = state.pads.filter(obj => !containsCell(obj, x, y));
+  state.receivers = state.receivers.filter(obj => !containsCell(obj, x, y));
+  state.objectives = state.objectives.filter(obj => !containsCell(obj, x, y));
+  setStatus(before === state.blocks.length ? `Erased layout object at ${x}, ${y}.` : `Erased block at ${x}, ${y}.`);
+}
+
+function containsCell(obj, x, y) {
+  return x >= obj.x && x < obj.x + obj.w && y >= obj.y && y < obj.y + obj.h;
+}
+
+function placeRect(kind, x, y) {
+  const templates = {
+    platform: { list: state.platforms, w: 4, h: 1, extra: { type: els.platformType.value } },
+    pad: { list: state.pads, w: 2, h: 1, extra: { kind: state.pads.length ? 'delivery' : 'spawn' } },
+    receiver: { list: state.receivers, w: 2, h: 1, extra: { side: x < grid.cols / 2 ? 'left' : 'right' } },
+    objective: { list: state.objectives, w: 1, h: 1, extra: { kind: els.mode.value === 'valis-taxi' ? 'deliver' : 'target' } },
+  };
+  const t = templates[kind];
+  t.list.push({
+    id: `${kind}_${Date.now().toString(36)}`,
+    x: Math.max(0, Math.min(grid.cols - t.w, x)),
+    y: Math.max(0, Math.min(grid.rows - t.h, y)),
+    w: t.w,
+    h: t.h,
+    ...t.extra,
+  });
+  setStatus(`Placed ${kind} at ${x}, ${y}.`);
+}
+
+function handleCanvas(event) {
+  const cell = cellFromEvent(event);
+  if (!inGrid(cell.x, cell.y)) return;
+  if (event.shiftKey || state.tool === 'erase') eraseAt(cell.x, cell.y);
+  else if (state.tool === 'block') upsertBlock(cell.x, cell.y);
+  else placeRect(state.tool, cell.x, cell.y);
+  refreshOutput();
+  draw();
+}
+
+function makeLevel() {
+  return {
+    schema: 'alchemical-level-kit/v1',
+    id: slugify(els.levelName.value),
+    name: els.levelName.value,
+    mode: els.mode.value,
+    platformType: els.platformType.value,
+    grid: { cols: grid.cols, rows: grid.rows },
+    physics: { ...state.physics },
+    blocks: state.blocks.map(block => ({ ...block })),
+    platforms: state.platforms.map(platform => ({ ...platform, type: platform.type || els.platformType.value })),
+    pads: state.pads.map(pad => ({ ...pad })),
+    receivers: state.receivers.map(receiver => ({ ...receiver })),
+    objectives: state.objectives.map(objective => ({ ...objective })),
+    notes: 'Created in the Alchemical Level Builder WYSIWYG editor.',
+  };
+}
+
+function refreshOutput() {
+  els.modePill.textContent = modeLabel(els.mode.value);
+  els.countsPill.textContent = `${state.blocks.length} blocks | ${state.platforms.length} platforms`;
+  els.physicsPill.textContent = `Gravity ${state.physics.gravity.toFixed(2)} | Wind ${state.physics.wind.toFixed(2)}`;
+  els.jsonOut.value = JSON.stringify(makeLevel(), null, 2);
+}
+
+function modeLabel(mode) {
+  return {
+    'balance-tetris': 'Balance Tetris',
+    alchemy: 'Alchemy Balance',
+    wildhunt: 'Wild Hunt',
+    'valis-taxi': 'VALIS Space Taxi',
+    'moat-bridge': 'Moat Drawbridge',
+    'rune-bloom': 'Rune Bloom',
+  }[mode] || mode;
+}
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'custom-level';
+}
+
+function saveLocal() {
+  localStorage.setItem(storageKey, JSON.stringify(makeLevel()));
+  setStatus('Saved level to local browser storage.');
+}
+
+function loadLevel(level) {
+  els.levelName.value = level.name || 'Imported Level';
+  els.mode.value = level.mode || 'balance-tetris';
+  els.platformType.value = level.platformType || 'seesaw';
+  state.physics = { ...state.physics, ...(level.physics || {}) };
+  state.blocks = level.blocks || [];
+  state.platforms = level.platforms || [];
+  state.pads = level.pads || [];
+  state.receivers = level.receivers || [];
+  state.objectives = level.objectives || [];
+  buildPhysicsControls();
+  refreshOutput();
+  draw();
+}
+
+function loadLocal() {
+  const raw = localStorage.getItem(storageKey);
+  if (!raw) {
+    setStatus('No saved level found.');
+    return;
+  }
+  loadLevel(JSON.parse(raw));
+  setStatus('Loaded saved level.');
+}
+
+function importJson() {
+  try {
+    loadLevel(JSON.parse(els.jsonOut.value));
+    setStatus('Imported JSON into editor.');
+  } catch (error) {
+    setStatus(`Import failed: ${error.message}`);
+  }
+}
+
+function clearLevel() {
+  state.blocks = [];
+  state.platforms = [];
+  state.pads = [];
+  state.receivers = [];
+  state.objectives = [];
+  refreshOutput();
+  draw();
+  setStatus('Cleared level geometry.');
+}
+
+function loadSample() {
+  els.levelName.value = 'VALIS Courier Sample';
+  els.mode.value = 'valis-taxi';
+  els.platformType.value = 'wet-crucible';
+  Object.assign(state.physics, {
+    gravity: 0.85,
+    wind: 0.35,
+    stiffness: 0.75,
+    tiltLimit: 26,
+    friction: 0.7,
+    slipperiness: 1.7,
+    shipThrust: 1.15,
+    beamHeat: 1.2,
+    cascadeSensitivity: 1.4,
+  });
+  state.blocks = [
+    blockAt('volatile_mercury_crate', 3, 9),
+    blockAt('half_life_patient', 5, 9),
+    blockAt('valis_crystal', 7, 8),
+    blockAt('oily_sulphur_tank', 9, 9),
+    blockAt('black_iron_ingot', 10, 9),
+  ];
+  state.platforms = [{ id: 'main-platform', x: 2, y: 10, w: 9, h: 1, type: 'wet-crucible' }];
+  state.pads = [
+    { id: 'taxi-spawn', x: 11, y: 7, w: 2, h: 1, kind: 'spawn' },
+    { id: 'valis-relay', x: 11, y: 4, w: 2, h: 1, kind: 'delivery' },
+  ];
+  state.receivers = [
+    { id: 'left-mercury-receiver', x: 0, y: 11, w: 2, h: 1, side: 'left', accepts: ['mercury', 'residue'] },
+    { id: 'right-sulphur-receiver', x: 12, y: 11, w: 2, h: 1, side: 'right', accepts: ['sulphur'] },
+  ];
+  state.objectives = [
+    { id: 'deliver-hidden-cargo', x: 12, y: 4, w: 1, h: 1, kind: 'deliver', count: 3 },
+    { id: 'reveal-valis', x: 7, y: 8, w: 1, h: 1, kind: 'reveal' },
+  ];
+  buildPhysicsControls();
+  refreshOutput();
+  draw();
+  setStatus('Loaded VALIS Courier sample.');
+}
+
+function blockAt(id, x, y) {
+  const def = blockDefs.find(block => block.id === id);
+  return {
+    id: `${id}_${x}_${y}`,
+    blockId: def.id,
+    emoji: def.emoji,
+    name: def.name,
+    family: def.family,
+    mass: def.mass,
+    friction: def.friction,
+    behavior: def.behavior,
+    x,
+    y,
+  };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
+  drawGrid();
+  drawRects(state.platforms, '#5eead4', 'PLATFORM');
+  drawRects(state.pads, '#93c5fd', 'PAD');
+  drawRects(state.receivers, '#fbbf24', 'BIN');
+  drawRects(state.objectives, '#c084fc', 'GOAL');
+  drawBlocks();
+  drawPreviewLegend();
+}
+
+function drawBackground() {
+  const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  g.addColorStop(0, '#08131b');
+  g.addColorStop(1, '#0b1115');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(188, 255, 244, 0.4)';
+  for (let i = 0; i < 80; i++) {
+    ctx.beginPath();
+    ctx.arc((i * 97 + 31) % canvas.width, (i * 43 + 71) % canvas.height, i % 7 === 0 ? 1.4 : 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGrid() {
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.7)';
+  ctx.fillRect(grid.x, grid.y, grid.cols * grid.cell, grid.rows * grid.cell);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= grid.cols; x++) {
+    ctx.beginPath();
+    ctx.moveTo(grid.x + x * grid.cell, grid.y);
+    ctx.lineTo(grid.x + x * grid.cell, grid.y + grid.rows * grid.cell);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= grid.rows; y++) {
+    ctx.beginPath();
+    ctx.moveTo(grid.x, grid.y + y * grid.cell);
+    ctx.lineTo(grid.x + grid.cols * grid.cell, grid.y + y * grid.cell);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#d1fae5';
+  ctx.font = '800 18px Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(els.levelName.value, grid.x, 54);
+}
+
+function drawRects(list, color, label) {
+  for (const obj of list) {
+    const x = grid.x + obj.x * grid.cell;
+    const y = grid.y + obj.y * grid.cell;
+    const w = obj.w * grid.cell;
+    const h = obj.h * grid.cell;
+    ctx.fillStyle = `${color}33`;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    ctx.fillStyle = color;
+    ctx.font = '800 10px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 4);
+  }
+}
+
+function drawBlocks() {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const block of state.blocks) {
+    const x = grid.x + block.x * grid.cell;
+    const y = grid.y + block.y * grid.cell;
+    ctx.fillStyle = familyColor(block.family);
+    ctx.fillRect(x + 3, y + 3, grid.cell - 6, grid.cell - 6);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.strokeRect(x + 3, y + 3, grid.cell - 6, grid.cell - 6);
+    ctx.font = '22px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+    ctx.fillText(block.emoji, x + grid.cell / 2, y + grid.cell / 2 + 1);
+  }
+}
+
+function familyColor(family) {
+  return {
+    salt: '#334155',
+    mercury: '#155e75',
+    sulphur: '#7f1d1d',
+    revelation: '#164e63',
+    'half-life': '#1e3a8a',
+    prison: '#312e81',
+    wildhunt: '#3f3f46',
+    residue: '#3f3f46',
+    synthetic: '#064e3b',
+    bridge: '#57534e',
+    unknown: '#581c87',
+  }[family] || '#1f2937';
+}
+
+function drawPreviewLegend() {
+  const x = 690;
+  const y = 116;
+  ctx.fillStyle = 'rgba(3, 7, 18, 0.72)';
+  ctx.fillRect(x, y, 190, 270);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+  ctx.strokeRect(x, y, 190, 270);
+  ctx.fillStyle = '#ecfeff';
+  ctx.font = '800 15px Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Selected Asset', x + 16, y + 28);
+  ctx.font = '42px Segoe UI Emoji, Apple Color Emoji, sans-serif';
+  ctx.fillText(state.selectedBlock.emoji, x + 18, y + 84);
+  ctx.font = '700 13px Segoe UI, sans-serif';
+  wrapText(state.selectedBlock.name, x + 16, y + 118, 160, 18);
+  ctx.fillStyle = '#a7f3d0';
+  wrapText(state.selectedBlock.behavior, x + 16, y + 174, 160, 17);
+  ctx.fillStyle = '#fef3c7';
+  ctx.fillText(`Mass ${state.selectedBlock.mass}`, x + 16, y + 238);
+  ctx.fillText(`Friction ${state.selectedBlock.friction}`, x + 16, y + 258);
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  ctx.fillText(line, x, y);
+}
+
+for (const btn of document.querySelectorAll('.tool')) {
+  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+}
+canvas.addEventListener('mousedown', handleCanvas);
+els.mode.addEventListener('change', () => { refreshOutput(); draw(); });
+els.platformType.addEventListener('change', () => { refreshOutput(); draw(); });
+els.levelName.addEventListener('input', () => { refreshOutput(); draw(); });
+document.getElementById('saveBtn').addEventListener('click', saveLocal);
+document.getElementById('loadBtn').addEventListener('click', loadLocal);
+document.getElementById('exportBtn').addEventListener('click', () => { refreshOutput(); els.jsonOut.select(); setStatus('JSON selected for export.'); });
+document.getElementById('importBtn').addEventListener('click', importJson);
+document.getElementById('clearBtn').addEventListener('click', clearLevel);
+document.getElementById('sampleBtn').addEventListener('click', loadSample);
+
+buildPalette();
+buildPhysicsControls();
+refreshOutput();
+draw();
+</script>
+</body>
+</html>

@@ -79,6 +79,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `VALIS_SPACE_TAXI_IMPLEMENTATION_LOG.md`  
   Build log for the first playable VALIS Space Taxi slice.
 
+- `LEVEL_BUILDER_CONSTRUCTION_KIT.md`  
+  WYSIWYG construction kit for authoring levels across Balance Tetris, Alchemy, Wild Hunt, VALIS Taxi, Moat Drawbridge, Rune Bloom, and future modes.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:
