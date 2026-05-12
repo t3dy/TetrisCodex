@@ -101,9 +101,24 @@ Use these in Balance Tetris Alchemy mode, Wild Hunt, VALIS Space Taxi, Rune Bloo
 | `rune_chain` | "One sign teaches the next." | Chain reaction. |
 | `garden_recovered` | "Citrinitas returns color to the bed." | Recovery from blight. |
 
+## Alchemy Snake
+
+| Trigger | Draft response | Plain meaning |
+| --- | --- | --- |
+| `snake_start` | "The serpent wakes in a clean vessel." | New Snake run begins. |
+| `snake_turn` | "The head turns east; appetite has chosen a column." | Direction input accepted. |
+| `snake_reverse_denied` | "The serpent cannot bite yesterday without making poison of memory." | Direct reversal rejected. |
+| `snake_salt_digest` | "Salt fixes the body; the line grows heavier and steadier." | Salt eaten; snake grows and slows. |
+| `snake_sulphur_digest` | "Sulphur buys profit with body." | Sulphur eaten; score rises but tail burns. |
+| `snake_mercury_digest` | "Mercury refuses the cage." | Mercury eaten; speed/ghost effects begin. |
+| `snake_apparatus_digest` | "The process colors the digestion." | Zodiac-only apparatus modifies future food. |
+| `snake_wall_phase` | "The boundary thinned like glass." | Ghost/stability pass through wall. |
+| `snake_self_phase` | "Mercury lent a ghost-body." | Snake passes through itself. |
+| `snake_self_death` | "Ouroboros without wisdom." | Self-collision ends game. |
+| `snake_wall_death` | "The vessel wall holds." | Wall collision ends game. |
+
 ## Exact-Quotation Policy
 
 The game should eventually support verified exact quotations, but every exact quote must carry source title, edition or database record, page/folio if known, public-domain/license status, max short excerpt length, and a plain-English gameplay gloss.
 
 Until that source apparatus exists, the default production copy should be paraphrase or short allusion.
-

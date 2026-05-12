@@ -106,6 +106,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `GAME_MODE_ADAPTER_CONTRACTS.md`  
   Contracts for non-Tetris game modes that consume shared alchemy blocks through thin integration layers.
 
+- `ALCHEMY_SNAKE_MODE.md`  
+  BASIC-style Snake mode using shared alchemy blocks, digestion effects, and a narration parser.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

@@ -67,7 +67,7 @@ The shared engine owns stable alchemical facts and low-level behavior:
 | Volatility | `calculateVolatility(block, environment)` |
 | Proper exit scoring | `scoreExit(block, side, groupSize)` |
 | Sliding eligibility | `canSlide(block, surface, environment)` |
-| Mode export | `adapters.toBalanceCell`, `toTaxiCargo`, `toRuneTile` |
+| Mode export | `adapters.toBalanceCell`, `toTaxiCargo`, `toRuneTile`, `toSnakeFood` |
 
 ## What Does Not Belong In The Shared Engine
 
@@ -170,6 +170,20 @@ Rune-specific integration:
 - `tags` trigger blight, growth, copy, or purification rules
 - source/codex metadata appears after the tile blooms
 
+### Alchemy Snake
+
+```js
+const food = AlchemyBlockEngine.adapters.toSnakeFood(block);
+```
+
+Snake-specific integration:
+
+- `fixed` slows and stabilizes the snake
+- `combustible` can burn tail length for score
+- `slippery` grants ghost-pass and speed effects
+- `processName` drives apparatus narration
+- `tags` let future maze/lab boards react to wet, heat, growth, projection, or separation
+
 ## Flexible Input Schemes
 
 Input should be mode-owned, but it should produce shared intents.
@@ -177,6 +191,7 @@ Input should be mode-owned, but it should produce shared intents.
 | Input scheme | Example mode | Intent emitted |
 | --- | --- | --- |
 | Keyboard arrows + rotate | Balance Tetris | `move_piece`, `rotate_piece`, `drop_piece` |
+| Arrow/WASD grid steering | Alchemy Snake | `turn_snake`, `digest_block`, `collide` |
 | Zodiac + Tria Prima buttons | Alchemy modes | `create_block(processId, principleId)` |
 | Mouse drag | Level Builder, lab modes | `place_block`, `move_apparatus` |
 | Thrust controls | VALIS Taxi | `accelerate_ship`, `dock`, `drop_cargo` |
@@ -214,4 +229,3 @@ The mode adapter consumes the intent and the shared block engine only supplies t
 ## Design Rule
 
 The shared engine should know what alchemical matter is. A mode should know what the player is doing with it.
-

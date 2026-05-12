@@ -17,6 +17,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Rune Bloom](rune-bloom.html)  
   A separate crystalline tile-placement game. Place glyph pieces, bloom same-color runs, clear rune cells, and prevent blight from sealing the garden.
 
+- [Alchemy Snake](snake-alchemy.html)  
+  Old-school grid Snake using shared alchemy blocks. Salt, Sulphur, Mercury, and zodiac apparatus change growth, speed, collision grace, heat, and narration.
+
 - [VALIS Space Taxi](valis-space-taxi.html)  
   A vehicle/landing mode inspired by old-school Space Taxi handling. Pilot a small craft through variable gravity, land on tilting alchemical pads, reveal hidden cargo with a VALIS beam, and prevent lab cascades.
 
@@ -80,6 +83,10 @@ A puzzle family where the player builds a stack tall and flat enough to become a
 ### Rune Bloom
 
 A separate original tile-placement experiment with blooms, blight, glyph placement, and many future fast mode variants.
+
+### Alchemy Snake
+
+A BASIC-style Snake mode that proves the alchemical block system can work outside tilting or Tetris placement. The snake digests shared `alchemy-block/v1` matter, and a narration parser converts inputs, collisions, and outcomes into alchemical feedback.
 
 ## Creator Tools
 
@@ -158,6 +165,7 @@ Mode and asset docs:
 - [docs/INPUT_FEEDBACK_READOUT.md](docs/INPUT_FEEDBACK_READOUT.md)
 - [docs/ALCHEMICAL_POETRY_TIMELINE.md](docs/ALCHEMICAL_POETRY_TIMELINE.md)
 - [docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md](docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md)
+- [docs/ALCHEMY_SNAKE_MODE.md](docs/ALCHEMY_SNAKE_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemy Snake</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #071013;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1180px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 30px 0 46px;
+  }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  nav a {
+    color: #d1fae5;
+    text-decoration: none;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    background: #0f1d22;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(34px, 6vw, 64px);
+    line-height: 0.95;
+    letter-spacing: 0;
+  }
+  .lead {
+    max-width: 850px;
+    margin: 0 0 20px;
+    color: #a7c9c2;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 760px) minmax(285px, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .panel {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: #0f1d22;
+  }
+  .panel h2 {
+    margin: 0;
+    padding: 14px 16px;
+    color: #fef3c7;
+    font-size: 18px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  }
+  .body { padding: 14px 16px; }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: #041316;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .stat {
+    padding: 10px;
+    border-radius: 6px;
+    background: #102329;
+    color: #bad7d1;
+    min-height: 58px;
+  }
+  .stat b { display: block; color: #ecfeff; font-size: 18px; }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  button {
+    border: 1px solid rgba(94, 234, 212, 0.7);
+    border-radius: 6px;
+    background: #164e63;
+    color: #ecfeff;
+    padding: 10px 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  button:hover, button:focus { outline: 2px solid #5eead4; }
+  .log {
+    display: grid;
+    gap: 10px;
+    max-height: 396px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+  .entry {
+    padding: 10px 11px;
+    border-radius: 6px;
+    background: #102329;
+    border-left: 4px solid #5eead4;
+  }
+  .entry strong { display: block; color: #fef3c7; margin-bottom: 4px; }
+  .entry p { margin: 0; color: #bad7d1; line-height: 1.35; }
+  .small {
+    margin: 10px 0 0;
+    color: #86a8a1;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .legend {
+    display: grid;
+    gap: 8px;
+  }
+  .legend div {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    color: #bad7d1;
+  }
+  .swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.28);
+  }
+  @media (max-width: 940px) {
+    .layout { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="engine-architecture.html">Block Engine</a>
+    <a href="alchemical-poetry.html">Poetry Codex</a>
+  </nav>
+  <h1>Alchemy Snake</h1>
+  <p class="lead">
+    Old-school grid Snake using shared alchemical blocks. Eat zodiac/principle matter,
+    survive the consequences, and let the narration parser interpret every digestion.
+  </p>
+
+  <section class="layout">
+    <div>
+      <canvas id="game" width="720" height="540" aria-label="Alchemy Snake game board"></canvas>
+      <div class="stats">
+        <div class="stat"><b id="score">0</b>score</div>
+        <div class="stat"><b id="length">5</b>length</div>
+        <div class="stat"><b id="speed">7</b>pace</div>
+        <div class="stat"><b id="state">ready</b>state</div>
+      </div>
+      <div class="controls">
+        <button id="startBtn">Start</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="restartBtn">Restart</button>
+        <button id="spawnSalt">Salt</button>
+        <button id="spawnSulphur">Sulphur</button>
+        <button id="spawnMercury">Mercury</button>
+        <button id="spawnApparatus">Apparatus</button>
+      </div>
+      <p class="small">Controls: Arrow keys or WASD steer. Space pauses. R restarts. The snake cannot reverse directly into itself.</p>
+    </div>
+
+    <aside class="panel">
+      <h2>Narration Parser</h2>
+      <div class="body">
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+
+    <aside class="panel">
+      <h2>Alchemy Rules</h2>
+      <div class="body legend">
+        <div><span class="swatch" style="background:#d7e2de"></span>Salt fixes the body: slower pace, more growth, brief stability.</div>
+        <div><span class="swatch" style="background:#e9b949"></span>Sulphur burns: bonus score, tail loss, heat danger if repeated.</div>
+        <div><span class="swatch" style="background:#9ad7e6"></span>Mercury volatilizes: faster pace, ghost pass, slippery turns.</div>
+        <div><span class="swatch" style="background:#9fd8b6"></span>Apparatus tiles alter the next few digestions by process.</div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script src="alchemy-block-engine.js"></script>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const cols = 24;
+const rows = 18;
+const cell = 30;
+const ox = 0;
+const oy = 0;
+const E = window.AlchemyBlockEngine;
+const processIds = E.PROCESSES.map(p => p.id);
+const principleIds = ['salt', 'sulphur', 'mercury'];
+
+const state = {
+  phase: 'ready',
+  snake: [],
+  dir: { x: 1, y: 0 },
+  pendingDir: { x: 1, y: 0 },
+  food: null,
+  score: 0,
+  tickMs: 145,
+  last: 0,
+  acc: 0,
+  heat: 0,
+  ghost: 0,
+  stability: 0,
+  apparatus: null,
+  log: []
+};
+
+function reset() {
+  state.phase = 'ready';
+  state.snake = [
+    { x: 8, y: 9 }, { x: 7, y: 9 }, { x: 6, y: 9 }, { x: 5, y: 9 }, { x: 4, y: 9 }
+  ];
+  state.dir = { x: 1, y: 0 };
+  state.pendingDir = { x: 1, y: 0 };
+  state.score = 0;
+  state.tickMs = 145;
+  state.heat = 0;
+  state.ghost = 0;
+  state.stability = 0;
+  state.apparatus = null;
+  state.acc = 0;
+  state.last = performance.now();
+  state.log = [];
+  spawnFood();
+  narrate('ready', 'The serpent wakes in a clean vessel. Seek matter, but read each sign before you swallow.');
+  updateStats();
+  draw();
+}
+
+function makeFood(filter) {
+  const processId = processIds[Math.floor(Math.random() * processIds.length)];
+  const principleId = filter === 'apparatus' ? null : (filter || principleIds[Math.floor(Math.random() * principleIds.length)]);
+  const block = E.makeAlchemyBlock({
+    processId,
+    principleId,
+    source: { family: 'Alchemy Snake', note: 'Generated by zodiac/process plus optional Tria Prima.' }
+  });
+  return E.adapters.toSnakeFood(block);
+}
+
+function spawnFood(filter) {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows) };
+  } while (state.snake.some(s => s.x === pos.x && s.y === pos.y));
+  state.food = Object.assign(makeFood(filter), pos);
+}
+
+function start() {
+  if (state.phase === 'ready' || state.phase === 'paused') {
+    state.phase = 'playing';
+    narrate('start', 'The work begins: head, tail, hunger, and doctrine all move as one line.');
+  }
+}
+
+function pause() {
+  if (state.phase === 'playing') {
+    state.phase = 'paused';
+    narrate('pause', 'The athanor cools; the serpent holds its breath.');
+  } else if (state.phase === 'paused') start();
+}
+
+function setDir(x, y) {
+  if (state.dir.x + x === 0 && state.dir.y + y === 0) {
+    narrate('turn_denied', 'The serpent cannot bite yesterday without making poison of memory.');
+    return;
+  }
+  state.pendingDir = { x, y };
+  const word = x > 0 ? 'east' : x < 0 ? 'west' : y > 0 ? 'south' : 'north';
+  narrate('turn', `Turned ${word}; the head seeks ${state.food.name} at column ${state.food.x + 1}, row ${state.food.y + 1}.`);
+}
+
+function step() {
+  if (state.phase !== 'playing') return;
+  state.dir = state.pendingDir;
+  const head = state.snake[0];
+  const next = { x: head.x + state.dir.x, y: head.y + state.dir.y };
+  let wrapped = false;
+  if (next.x < 0 || next.x >= cols || next.y < 0 || next.y >= rows) {
+    if (state.ghost > 0 || state.stability > 0) {
+      next.x = (next.x + cols) % cols;
+      next.y = (next.y + rows) % rows;
+      wrapped = true;
+      state.ghost = Math.max(0, state.ghost - 1);
+      state.stability = Math.max(0, state.stability - 1);
+      narrate('wall_phase', 'The boundary thinned like glass; volatile grace carried the serpent through.');
+    } else {
+      return end('The vessel wall holds. The serpent struck the limit of the work.');
+    }
+  }
+  const hitSelf = state.snake.some((s, i) => i > 0 && s.x === next.x && s.y === next.y);
+  if (hitSelf && state.ghost <= 0) {
+    return end('Ouroboros without wisdom: the head found its own body too soon.');
+  }
+  if (hitSelf && state.ghost > 0) {
+    state.ghost--;
+    narrate('self_phase', 'Mercury lent a ghost-body; the serpent passed through its own coil.');
+  }
+  state.snake.unshift(next);
+  if (state.food && next.x === state.food.x && next.y === state.food.y) {
+    digest(state.food, wrapped);
+    spawnFood();
+  } else {
+    state.snake.pop();
+  }
+  if (state.heat > 0) state.heat -= 0.04;
+  updateStats();
+}
+
+function digest(food, wrapped) {
+  let growth = 1;
+  let delta = 10;
+  const tags = food.tags.join(' ');
+  let title = food.name;
+  let text = `${food.name} swallowed at column ${food.x + 1}, row ${food.y + 1}. `;
+  if (food.principleId === 'salt') {
+    growth = 2;
+    delta += 8;
+    state.tickMs = Math.min(190, state.tickMs + 8);
+    state.stability = 2;
+    text += 'Salt fixes the body; the line grows heavier and steadier.';
+  } else if (food.principleId === 'sulphur') {
+    growth = 0;
+    delta += 20;
+    state.heat += 1;
+    if (state.snake.length > 4) state.snake.pop();
+    text += 'Sulphur oils the work and remembers the flame; score rises, tail shortens.';
+    if (state.heat > 2.7) {
+      state.heat = 0;
+      state.tickMs = Math.max(92, state.tickMs - 18);
+      text += ' The furnace flares; pace quickens dangerously.';
+    }
+  } else if (food.principleId === 'mercury') {
+    growth = 1;
+    delta += 14;
+    state.tickMs = Math.max(78, state.tickMs - 9);
+    state.ghost = 3;
+    text += 'Mercury refuses the cage; the serpent gains ghost-passes and speed.';
+  } else {
+    growth = 1;
+    delta += 5;
+    state.apparatus = { processId: food.processId, processName: food.processName, charges: 3 };
+    text += `${food.name} becomes apparatus; the next digestions pass through ${food.processName}.`;
+  }
+  if (state.apparatus && food.principleId) {
+    const bonus = apparatusEffect(state.apparatus, food);
+    delta += bonus.delta;
+    text += ' ' + bonus.text;
+    state.apparatus.charges--;
+    if (state.apparatus.charges <= 0) state.apparatus = null;
+  }
+  if (tags.includes('moat') && wrapped) text += ' Wind and water agree: the edge became a passage.';
+  state.score += delta;
+  for (let i = 0; i < growth; i++) state.snake.push({ ...state.snake[state.snake.length - 1] });
+  narrate('digest', text, title);
+}
+
+function apparatusEffect(app, food) {
+  if (app.processId === 'aries') return { delta: 8, text: 'Calcination burns off hesitation: bonus ash-value gained.' };
+  if (app.processId === 'cancer') return { delta: 6, text: 'Dissolution loosens the knot: the next turn will be forgiven.' };
+  if (app.processId === 'virgo') { state.heat = Math.max(0, state.heat - 0.8); return { delta: 10, text: 'The Alembic purifies the excess heat.' }; }
+  if (app.processId === 'libra') { state.ghost += 1; return { delta: 7, text: 'Sublimation lifts the body one thought above collision.' }; }
+  if (app.processId === 'pisces') return { delta: 18, text: 'Projection multiplies the swallowed virtue.' };
+  if (app.processId === 'capricorn') { state.snake.push({ ...state.snake[state.snake.length - 1] }); return { delta: 9, text: 'Fermentation makes dead length fruitful.' }; }
+  if (food.fixed) return { delta: 5, text: 'The apparatus approves fixed matter.' };
+  if (food.slippery) return { delta: 5, text: 'The apparatus catches a volatile witness.' };
+  return { delta: 4, text: `${app.processName} colors the digestion.` };
+}
+
+function end(text) {
+  state.phase = 'over';
+  narrate('game_over', text);
+  updateStats();
+}
+
+function narrate(type, text, title) {
+  const labels = {
+    ready: 'Laboratory Note',
+    start: 'Operation Begins',
+    pause: 'Athanor Pause',
+    turn: 'Input Readout',
+    turn_denied: 'Forbidden Reversal',
+    digest: title || 'Digestion',
+    wall_phase: 'Boundary Event',
+    self_phase: 'Ouroboros Event',
+    game_over: 'Vessel Failure'
+  };
+  state.log.unshift({ type, title: labels[type] || 'Narration', text });
+  state.log = state.log.slice(0, 9);
+  renderLog();
+}
+
+function renderLog() {
+  const log = document.getElementById('log');
+  log.innerHTML = state.log.map(entry => `<div class="entry"><strong>${entry.title}</strong><p>${entry.text}</p></div>`).join('');
+}
+
+function updateStats() {
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('length').textContent = state.snake.length;
+  document.getElementById('speed').textContent = Math.round(1000 / state.tickMs);
+  document.getElementById('state').textContent = state.phase;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#041316';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  if (state.food) drawFood(state.food);
+  drawSnake();
+  if (state.phase === 'ready' || state.phase === 'paused' || state.phase === 'over') drawOverlay();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cols; x++) {
+    ctx.beginPath(); ctx.moveTo(ox + x * cell, oy); ctx.lineTo(ox + x * cell, oy + rows * cell); ctx.stroke();
+  }
+  for (let y = 0; y <= rows; y++) {
+    ctx.beginPath(); ctx.moveTo(ox, oy + y * cell); ctx.lineTo(ox + cols * cell, oy + y * cell); ctx.stroke();
+  }
+}
+
+function drawFood(food) {
+  const x = ox + food.x * cell;
+  const y = oy + food.y * cell;
+  ctx.fillStyle = food.color;
+  ctx.fillRect(x + 4, y + 4, cell - 8, cell - 8);
+  ctx.strokeStyle = '#fef3c7';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 4, y + 4, cell - 8, cell - 8);
+  ctx.fillStyle = '#071013';
+  ctx.font = '18px "Segoe UI Symbol", "Segoe UI Emoji", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(food.symbol, x + cell / 2, y + cell / 2 + 1);
+}
+
+function drawSnake() {
+  state.snake.forEach((seg, i) => {
+    const x = ox + seg.x * cell;
+    const y = oy + seg.y * cell;
+    ctx.fillStyle = i === 0 ? '#5eead4' : (state.ghost > 0 ? '#9ad7e6' : '#34d399');
+    ctx.fillRect(x + 3, y + 3, cell - 6, cell - 6);
+    ctx.strokeStyle = i === 0 ? '#fef3c7' : 'rgba(7, 16, 19, 0.6)';
+    ctx.strokeRect(x + 3, y + 3, cell - 6, cell - 6);
+    if (i === 0) {
+      ctx.fillStyle = '#071013';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('☿', x + cell / 2, y + cell / 2 + 1);
+    }
+  });
+}
+
+function drawOverlay() {
+  const text = state.phase === 'over' ? 'VESSEL FAILED - R to restart' :
+    state.phase === 'paused' ? 'PAUSED - Space to resume' : 'PRESS START OR SPACE';
+  ctx.fillStyle = 'rgba(3, 12, 15, 0.68)';
+  ctx.fillRect(0, 214, canvas.width, 88);
+  ctx.fillStyle = '#fef3c7';
+  ctx.font = '28px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, 258);
+}
+
+function loop(now) {
+  const dt = now - state.last;
+  state.last = now;
+  if (state.phase === 'playing') {
+    state.acc += dt;
+    while (state.acc >= state.tickMs) {
+      state.acc -= state.tickMs;
+      step();
+    }
+  }
+  drawFrameOnly();
+  requestAnimationFrame(loop);
+}
+
+function drawFrameOnly() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#041316';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  if (state.food) drawFood(state.food);
+  drawSnake();
+  if (state.phase === 'ready' || state.phase === 'paused' || state.phase === 'over') drawOverlay();
+}
+
+window.addEventListener('keydown', event => {
+  const key = event.key.toLowerCase();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd', 'r'].includes(key)) event.preventDefault();
+  if (key === 'arrowup' || key === 'w') setDir(0, -1);
+  else if (key === 'arrowdown' || key === 's') setDir(0, 1);
+  else if (key === 'arrowleft' || key === 'a') setDir(-1, 0);
+  else if (key === 'arrowright' || key === 'd') setDir(1, 0);
+  else if (key === ' ') state.phase === 'ready' ? start() : pause();
+  else if (key === 'r') reset();
+});
+
+document.getElementById('startBtn').addEventListener('click', start);
+document.getElementById('pauseBtn').addEventListener('click', pause);
+document.getElementById('restartBtn').addEventListener('click', reset);
+document.getElementById('spawnSalt').addEventListener('click', () => { spawnFood('salt'); narrate('digest', 'Salt is called into the vessel; seek fixed matter deliberately.', 'Palette Call'); });
+document.getElementById('spawnSulphur').addEventListener('click', () => { spawnFood('sulphur'); narrate('digest', 'Sulphur is called into the vessel; expect heat, profit, and risk.', 'Palette Call'); });
+document.getElementById('spawnMercury').addEventListener('click', () => { spawnFood('mercury'); narrate('digest', 'Mercury is called into the vessel; speed will answer appetite.', 'Palette Call'); });
+document.getElementById('spawnApparatus').addEventListener('click', () => { spawnFood('apparatus'); narrate('digest', 'An apparatus is called into the vessel; the next digestions will be interpreted through process.', 'Palette Call'); });
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

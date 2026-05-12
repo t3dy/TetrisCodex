@@ -258,6 +258,31 @@
     };
   }
 
+  function toSnakeFood(block) {
+    return {
+      id: block.id,
+      name: block.name,
+      emoji: block.emoji,
+      color: block.display.color,
+      symbol: block.display.symbol,
+      family: block.family,
+      processId: block.processId,
+      processName: block.processName,
+      principleId: block.principleId,
+      principleName: block.principleName,
+      tags: block.tags.slice(),
+      mass: calculateMass(block),
+      friction: block.physics.friction,
+      volatility: block.physics.volatility,
+      fixed: block.physics.fixed,
+      combustible: block.physics.combustible,
+      slippery: block.physics.slippery,
+      properExitSide: block.physics.properExitSide,
+      source: block.source,
+      block
+    };
+  }
+
   root.AlchemyBlockEngine = {
     schema: 'alchemy-block-engine/v1',
     PRINCIPLES,
@@ -277,8 +302,8 @@
     adapters: {
       toBalanceCell,
       toTaxiCargo,
-      toRuneTile
+      toRuneTile,
+      toSnakeFood
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
-

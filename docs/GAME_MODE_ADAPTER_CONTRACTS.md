@@ -118,6 +118,34 @@ Adapter needs:
 - `toCodexCard(block)`
 - source metadata, response tags, glossary terms
 
+### Alchemy Snake
+
+Classic grid Snake where the player steers a serpent through alchemical food and apparatus. The mode is intentionally simple, but it proves that shared alchemy blocks can drive a non-Tetris, non-tilting action loop.
+
+Adapter:
+
+- `toSnakeFood(block)`
+
+Consumes:
+
+- `fixed`
+- `combustible`
+- `slippery`
+- `mass`
+- `volatility`
+- `processName`
+- `principleName`
+- `tags`
+- `source`
+
+Mode-specific logic:
+
+- Snake movement and collision.
+- Food spawning.
+- Digestion outcomes.
+- Narration parser events.
+- Score, pace, heat, ghost passes, and length changes.
+
 ## Adapter Checklist
 
 Every new adapter should define:
@@ -134,4 +162,3 @@ Every new adapter should define:
 Do not copy Balance Tetris cells into every mode.
 
 Balance Tetris cells are a mode-local representation. The reusable object is `alchemy-block/v1`.
-
