@@ -64,6 +64,12 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `MOAT_DRAWBRIDGE_PUZZLES.md`  
   Balance Tetris puzzle mode where players tip a platform into a bridge across a moat for horses and coaches.
 
+- `QUERYPAT_PKD_BALANCE_TETRIS_SOURCE_NOTES.md`  
+  QueryPat source pass for Philip K. Dick motifs that can become Balance Tetris mechanics.
+
+- `PKD_BALANCE_TETRIS_MODES.md`  
+  Concrete PKD-inspired Balance Tetris mode designs: Ubik entropy, Scanner scramble, High Castle hexagrams, Minority Report queue play, Androids/kipple, VALIS beams, and more.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:
