@@ -53,6 +53,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Tarot Reading Lab](tarot-reading.html)  
   Mock reading interface. Choose a prepared spread, walk through interpretation choices, and generate a deterministic written reading.
 
+- [Tarot Coin Journey](tarot-coin-journey.html)  
+  Attention-economy tarot prototype. Draw cards, mint elemental/planetary/zodiacal/suit/process coins, spend them on connections, and light a Tree of Life character sheet.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -129,6 +132,10 @@ A planned tarot-attribution mode where a card becomes a composite block unit. Th
 ### Tarot Reading Lab
 
 A playable interface mockup for tarot reading as a game loop. Cards are pre-laid rather than random; the player chooses interpretations for each position, and the system deterministically writes a reading from those choices.
+
+### Tarot Coin Journey
+
+A playable prototype for tarot reading as an attention economy. Every drawn card mints attribution coins such as Fire, Sun, Aries, Wands, Trump, or Calcination. The player spends those coins on connections between cards, earns points for supported interpretation, chooses a reading frame such as Career or Relationships, and lights up an automap-like Tree of Life character sheet.
 
 ## Creator Tools
 
@@ -221,6 +228,7 @@ Mode and asset docs:
 - [docs/SYMBOL_INPUT_GRAMMAR.md](docs/SYMBOL_INPUT_GRAMMAR.md)
 - [docs/TAROT_ATTRIBUTION_BLOCK_MODE.md](docs/TAROT_ATTRIBUTION_BLOCK_MODE.md)
 - [docs/TAROT_READING_MODE.md](docs/TAROT_READING_MODE.md)
+- [docs/TAROT_COIN_ATTENTION_MODE.md](docs/TAROT_COIN_ATTENTION_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)
