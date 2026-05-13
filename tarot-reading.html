@@ -269,6 +269,16 @@
         { id: 'moon', name: 'Moon / Silver', question: 'What reflects or fluctuates?' }
       ],
       cards: ['devil', 'temperance', 'tower', 'sun-card', 'ace-cups', 'magician', 'moon-card']
+    },
+    {
+      id: 'wands-sequence',
+      name: 'Wands Sequence',
+      desc: 'A focused attribution drill: Four of Wands into Five of Wands tests suit logic.',
+      positions: [
+        { id: 'wands-four', name: 'Four of Wands', question: 'What stable form of will appears first?' },
+        { id: 'wands-five', name: 'Five of Wands', question: 'How does that will develop under pressure?' }
+      ],
+      cards: ['four-wands', 'five-wands']
     }
   ];
 
@@ -281,6 +291,8 @@
     { id: 'devil', name: 'The Devil', emoji: '⛓️', element: 'Earth', planet: 'Capricorn', process: 'Fermentation', tags: ['earth', 'bond', 'shadow'], meanings: ['binding appetite', 'fermenting shadow', 'matter too fascinating'] },
     { id: 'ace-cups', name: 'Ace of Cups', emoji: '🏆', element: 'Water', planet: 'Moon', process: 'Dissolution', tags: ['water', 'opening', 'vessel'], meanings: ['new vessel', 'emotional solvent', 'the first water'] },
     { id: 'ace-wands', name: 'Ace of Wands', emoji: '🕯️', element: 'Fire', planet: 'Sun', process: 'Calcination', tags: ['fire', 'beginning', 'heat'], meanings: ['first flame', 'impulse', 'heat seeking form'] },
+    { id: 'four-wands', name: 'Four of Wands', emoji: '🕯️4', element: 'Fire', planet: 'Venus', process: 'Fixation', suit: 'Wands', number: 4, tags: ['fire', 'wands', 'will', 'stability', 'structure'], meanings: ['stable will', 'celebrated structure', 'fire given a frame'] },
+    { id: 'five-wands', name: 'Five of Wands', emoji: '🕯️5', element: 'Fire', planet: 'Saturn', process: 'Separation', suit: 'Wands', number: 5, tags: ['fire', 'wands', 'will', 'conflict', 'development'], meanings: ['contested will', 'will under pressure', 'fire entering contest'] },
     { id: 'ten-pentacles', name: 'Ten of Pentacles', emoji: '🪙', element: 'Earth', planet: 'Saturn', process: 'Fixation', tags: ['earth', 'salt', 'structure'], meanings: ['inherited structure', 'fixed wealth', 'body of the work'] }
   ];
 
@@ -409,6 +421,14 @@
   function relationshipOptions(a, b, posA, posB) {
     const opts = [];
     const both = new Set([...a.tags, ...b.tags]);
+    if (a.suit === 'Wands' && b.suit === 'Wands' && a.number === 4 && b.number === 5) {
+      return [
+        { id: 'will-development', label: 'Development of will', score: 3, tags: ['fire', 'wands', 'will', 'sequence'], phrase: 'read the sequence from Four to Five of Wands as will developing from stable form into contest', why: 'Correct: Wands are the fire/will suit, and the four-to-five movement tests development within that suit.' },
+        { id: 'wrong-knowledge-swords', label: 'Deepening knowledge', score: -2, tags: ['wrong'], phrase: 'treat the Wands sequence as chiefly intellectual knowledge', why: 'Wrong: knowledge is closer to a Swords/Air-style attribution, while this prompt displays Wands and Fire.' },
+        { id: 'wrong-emotional-cups', label: 'Emotional stability increasing', score: -2, tags: ['wrong'], phrase: 'treat the Wands sequence as Cups-like emotional stability', why: 'Wrong: emotional stability belongs closer to Cups/Water; Wands indicate fiery will.' },
+        { id: 'sequence-position', label: 'A neutral sequence only', score: 1, tags: ['sequence'], phrase: 'read the second card as a development of the first without naming the suit', why: 'Acceptable but incomplete: it notices sequence, but misses Wands as the suit of fire and will.' }
+      ];
+    }
     if (both.has('fire') && both.has('water')) {
       opts.push({ id: 'temper-fire-water', label: 'Temper fire with water', score: 3, tags: ['balance', 'mixing'], phrase: 'temper the heat with solvent rather than letting either element dominate', why: 'Correct: fire/water pairs call for tempering, vessel work, or controlled opposition.' });
     }
@@ -542,11 +562,12 @@
     }
     cardsEl.innerHTML = state.drawn.map((card, index) => {
       const pos = spread.positions[index];
+      const suitMeta = card.suit ? ` · ${card.suit} ${card.number}` : '';
       return `<article class="card">
         <div class="emoji">${card.emoji}</div>
         <h3>${card.name}</h3>
         <p class="meta">${pos.name}: ${pos.question}</p>
-        <p class="meta">${card.element} · ${card.planet} · ${card.process}</p>
+        <p class="meta">${card.element} · ${card.planet} · ${card.process}${suitMeta}</p>
       </article>`;
     }).join('');
   }
@@ -575,7 +596,7 @@
       <div class="panel">
         <h3>Relationship: ${rel.title}</h3>
         <p>${rel.question}</p>
-        <p class="meta">${rel.a.name}: ${rel.a.element}/${rel.a.planet}/${rel.a.process} · ${rel.b.name}: ${rel.b.element}/${rel.b.planet}/${rel.b.process}</p>
+        <p class="meta">${rel.a.name}: ${rel.a.element}/${rel.a.planet}/${rel.a.process}${rel.a.suit ? `/${rel.a.suit} ${rel.a.number}` : ''} · ${rel.b.name}: ${rel.b.element}/${rel.b.planet}/${rel.b.process}${rel.b.suit ? `/${rel.b.suit} ${rel.b.number}` : ''}</p>
         <div class="option-grid">
           ${rel.options.map(opt => `<button class="${state.choices[rel.id] === opt.id ? 'selected ' : ''}${opt.score < 0 ? 'wrong-answer' : 'right-answer'}" data-prompt="${rel.id}" data-option="${opt.id}">${opt.label}<br><span class="meta">${opt.phrase}</span></button>`).join('')}
         </div>

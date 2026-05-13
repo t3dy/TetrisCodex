@@ -95,6 +95,28 @@ Use:
 - larger readings
 - campaign frames
 
+### Wands Sequence
+
+Positions:
+
+- Four of Wands / What stable form of will appears first
+- Five of Wands / How that will develops under pressure
+
+Use:
+
+- strict attribution drills
+- suit-sequence tutorials
+- explaining why some interpretations are wrong because they belong to another suit
+
+Example relationship prompt:
+
+| Prompt | Correct choice | Wrong choice | Why |
+| --- | --- | --- | --- |
+| Four of Wands -> Five of Wands | Development of will | Deepening knowledge | Knowledge is closer to Swords/Air than Wands/Fire. |
+| Four of Wands -> Five of Wands | Development of will | Emotional stability increasing | Emotional stability is closer to Cups/Water than Wands/Fire. |
+
+This is the model for beginner-friendly "obvious attribution" questions. The player should learn that a wrong answer can be wrong because it belongs to a different symbolic family, not because it is badly written.
+
 ## Prompt Structure
 
 Every drawn card should produce choices like:
@@ -131,6 +153,8 @@ The mockup also asks how neighboring cards relate.
 | Earth + Water | Soften fixed matter, dissolve structure, clay-like reshaping. | Treat water as pure flame. |
 | Fire + Earth | Calcine fixed matter, heat body cautiously. | Ignore the physical relation. |
 | Mercury + anything | Translate, mediate, exchange, interpret. | Confuse planetary Mercury with Tria Prima Mercury. |
+| Same suit sequence | Read number-to-number development within that suit. | Import the meaning of a different suit. |
+| Four of Wands -> Five of Wands | Development of will: stable fire becomes contested or exercised will. | Deepening knowledge or emotional stability, because those belong closer to other suits. |
 
 Relationship prompts matter because a spread is not just a list of card meanings. The layout is a grammar.
 
