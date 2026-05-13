@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golden Dawn Correspondence Explorer</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #080b10;
+    --panel: #101923;
+    --panel2: #16212d;
+    --ink: #f8fafc;
+    --muted: #a8b9c9;
+    --line: rgba(226, 232, 240, 0.18);
+    --gold: #f6c453;
+    --rose: #f472b6;
+    --blue: #60a5fa;
+    --green: #34d399;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(244, 114, 182, 0.15), transparent 34%),
+      radial-gradient(circle at 80% 14%, rgba(96, 165, 250, 0.13), transparent 32%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1240px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 24px 0 46px;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 26px;
+  }
+  nav a, button, select {
+    border: 1px solid rgba(226, 232, 240, 0.22);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.78);
+    color: var(--ink);
+    font: inherit;
+  }
+  nav a {
+    padding: 8px 12px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  button, select {
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  button:hover, button.active, nav a:hover, select:focus {
+    outline: 2px solid var(--gold);
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(34px, 6vw, 70px);
+    line-height: 0.95;
+    letter-spacing: 0;
+  }
+  h2, h3 { margin: 0 0 12px; letter-spacing: 0; }
+  p { color: var(--muted); line-height: 1.55; }
+  .lead {
+    max-width: 920px;
+    margin: 0 0 22px;
+    font-size: 18px;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin: 22px 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.64);
+  }
+  label { display: grid; gap: 7px; color: var(--muted); font-size: 14px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.9fr;
+    gap: 18px;
+  }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(16, 25, 35, 0.88);
+    padding: 16px;
+  }
+  .viz-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: rgba(8, 13, 20, 0.74);
+  }
+  .tree-path {
+    stroke: rgba(248, 250, 252, 0.34);
+    stroke-width: 16;
+    stroke-linecap: round;
+    cursor: pointer;
+  }
+  .tree-path:hover, .tree-path.active {
+    stroke: var(--gold);
+  }
+  .path-label, .node-label, .petal-label {
+    pointer-events: none;
+    fill: var(--ink);
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .node {
+    fill: #142131;
+    stroke: rgba(248, 250, 252, 0.48);
+    stroke-width: 3;
+    cursor: pointer;
+  }
+  .node:hover, .node.active {
+    fill: #402b16;
+    stroke: var(--gold);
+  }
+  .petal {
+    cursor: pointer;
+    stroke: rgba(8, 13, 20, 0.58);
+    stroke-width: 1;
+  }
+  .petal:hover, .petal.active {
+    stroke: #fff;
+    stroke-width: 3;
+  }
+  .rose-center { fill: #f43f5e; stroke: white; stroke-width: 2; }
+  .symbol-grid, .grade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 10px;
+  }
+  .symbol-card, .grade-card {
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(22, 33, 45, 0.78);
+  }
+  .symbol-card button {
+    width: 100%;
+    min-height: 74px;
+    display: grid;
+    gap: 4px;
+    place-items: center;
+  }
+  .glyph {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .small {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .inspector {
+    position: sticky;
+    top: 14px;
+  }
+  .selected-glyph {
+    display: inline-grid;
+    width: 58px;
+    height: 58px;
+    place-items: center;
+    margin-right: 12px;
+    border-radius: 8px;
+    background: #1f2937;
+    font-size: 34px;
+    vertical-align: middle;
+  }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .pill {
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: #dbeafe;
+    background: rgba(96, 165, 250, 0.14);
+    font-size: 13px;
+  }
+  .event-log {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+    margin-top: 12px;
+  }
+  .event {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.86);
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .doc-note {
+    margin-top: 18px;
+    padding: 14px;
+    border-left: 4px solid var(--gold);
+    background: rgba(246, 196, 83, 0.1);
+    color: #fde68a;
+  }
+  @media (max-width: 980px) {
+    .layout, .viz-grid, .controls { grid-template-columns: 1fr; }
+    .inspector { position: static; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="tarot-reading.html">Tarot Reading Lab</a>
+    <a href="tarot-coin-journey.html">Coin Journey</a>
+    <a href="tarot-numerology-breaker.html">Numerology Breaker</a>
+    <a href="game-guide.html">Guide</a>
+    <a href="docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md">Database Doc</a>
+  </nav>
+
+  <h1>Golden Dawn Correspondence Explorer</h1>
+  <p class="lead">
+    A clickable Rose Cross lamen and Tree of Life prototype for the tarot modes. It turns
+    Hebrew letters, planets, elements, zodiac signs, sefirot, and tarot paths into reusable
+    game inputs before we decide the final powers of every correspondence.
+  </p>
+
+  <section class="controls" aria-label="unlock controls">
+    <label>
+      Initiatory unlock tier
+      <select id="gradeSelect"></select>
+    </label>
+    <button id="resetLog">Clear Readout</button>
+  </section>
+
+  <section class="layout">
+    <div class="panel">
+      <div class="viz-grid">
+        <section>
+          <h2>TreeTapper Map</h2>
+          <svg class="tree-svg" viewBox="90 20 320 680" role="img" aria-label="Clickable Tree of Life paths and sefirot">
+            <g id="treePaths"></g>
+            <g id="treeNodes"></g>
+          </svg>
+        </section>
+        <section>
+          <h2>Rose Cross Lamen Pad</h2>
+          <svg class="lamen-svg" viewBox="-220 -220 440 440" role="img" aria-label="Clickable rose cross lamen path petals">
+            <circle cx="0" cy="0" r="206" fill="rgba(248,250,252,0.04)" stroke="rgba(248,250,252,0.12)"></circle>
+            <g id="lamenPetals"></g>
+            <circle class="rose-center" cx="0" cy="0" r="24"></circle>
+            <text class="path-label" x="0" y="1" font-size="15">✚</text>
+          </svg>
+        </section>
+      </div>
+      <p class="doc-note">
+        Prototype rule: clicking a symbol is treated as “spending attention” on that correspondence.
+        Later game modes can swap this same click into coins, tile powers, tarot piece cells, or
+        alchemical block reactions.
+      </p>
+    </div>
+
+    <aside class="panel inspector" id="inspector" aria-live="polite">
+      <h2>Inspector</h2>
+      <div id="selectedSummary"></div>
+      <div class="pill-row" id="selectedPills"></div>
+      <h3>Move Readout</h3>
+      <div class="event-log" id="eventLog"></div>
+    </aside>
+  </section>
+
+  <section class="panel" style="margin-top:18px">
+    <h2>Unicode Symbol Bank</h2>
+    <p>These are the current playable glyph families. They can be minted as coins, printed on tarot blocks, or exposed as buttons in other modes.</p>
+    <div class="symbol-grid" id="symbolGrid"></div>
+  </section>
+
+  <section class="panel" style="margin-top:18px">
+    <h2>Grade Unlock Ladder</h2>
+    <div class="grade-grid" id="gradeGrid"></div>
+  </section>
+</main>
+
+<script src="golden-dawn-correspondences.js"></script>
+<script>
+const GD = window.GD_CORRESPONDENCES;
+const state = {
+  selectedKey: null,
+  grade: GD.grades[0].id,
+  events: []
+};
+
+const $ = (selector) => document.querySelector(selector);
+const byId = (id) => document.getElementById(id);
+
+function title(value) {
+  return String(value || '').replace(/(^|\s|-)\S/g, char => char.toUpperCase());
+}
+
+function nodeByName(name) {
+  return GD.sefirot.find(node => node.name === name || node.id === String(name).toLowerCase());
+}
+
+function describeItem(item, kind) {
+  const glyph = item.glyph || item.gdGlyph || item.letter || item.number || '✦';
+  const name = item.name || item.trump || item.transliteration || item.power || item.id;
+  const family = kind === 'path' ? `${item.class} path ${item.path}` : kind;
+  const effect = item.effect || item.note || item.keywords || 'No effect assigned yet.';
+  return { glyph, name, family, effect };
+}
+
+function selectItem(item, kind, source) {
+  const desc = describeItem(item, kind);
+  state.selectedKey = `${kind}:${item.id || item.path || item.letter || item.name}`;
+  renderHighlights();
+  renderInspector(item, kind);
+  addEvent(`${desc.glyph} ${desc.name}: ${source} invokes ${desc.family}. Game hook: ${desc.effect}.`);
+}
+
+function addEvent(text) {
+  state.events.unshift(text);
+  state.events = state.events.slice(0, 12);
+  renderEvents();
+}
+
+function renderInspector(item, kind) {
+  const desc = describeItem(item, kind);
+  byId('selectedSummary').innerHTML = `
+    <p><span class="selected-glyph">${desc.glyph}</span><strong>${desc.name}</strong><br>
+    <span class="small">${desc.family}</span></p>
+    <p>${desc.effect}</p>
+    <p class="small">${GD.meta.caution}</p>
+  `;
+  const pillValues = [
+    item.family,
+    item.class,
+    item.power,
+    item.trump,
+    item.element,
+    item.ruler,
+    item.from && item.to ? `${item.from} → ${item.to}` : null,
+    ...(item.attributions || [])
+  ].filter(Boolean);
+  byId('selectedPills').innerHTML = pillValues.map(value => `<span class="pill">${value}</span>`).join('');
+}
+
+function renderEvents() {
+  const log = byId('eventLog');
+  log.innerHTML = state.events.length
+    ? state.events.map(event => `<div class="event">${event}</div>`).join('')
+    : '<div class="event">Click a Tree node, path, lamen petal, or symbol button to generate a move readout.</div>';
+}
+
+function renderTree() {
+  const pathLayer = byId('treePaths');
+  const nodeLayer = byId('treeNodes');
+  pathLayer.innerHTML = GD.paths.map(path => {
+    const a = nodeByName(path.from);
+    const b = nodeByName(path.to);
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    return `
+      <line class="tree-path" data-kind="path" data-path-id="${path.path}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"></line>
+      <text class="path-label" x="${mx}" y="${my}" font-size="17">${path.letter}</text>
+    `;
+  }).join('');
+  nodeLayer.innerHTML = GD.sefirot.map(node => `
+    <circle class="node" data-kind="node" data-node-id="${node.id}" cx="${node.x}" cy="${node.y}" r="30"></circle>
+    <text class="node-label" x="${node.x}" y="${node.y - 5}" font-size="17">${node.glyph}</text>
+    <text class="node-label" x="${node.x}" y="${node.y + 15}" font-size="10">${node.name}</text>
+  `).join('');
+}
+
+function petalColor(path) {
+  if (path.class === 'Mother') return '#e11d48';
+  if (path.class === 'Double') return '#f59e0b';
+  return '#2563eb';
+}
+
+function renderLamen() {
+  const groups = [
+    { className: 'Mother', radius: 54, size: 42 },
+    { className: 'Double', radius: 98, size: 34 },
+    { className: 'Single', radius: 148, size: 30 }
+  ];
+  byId('lamenPetals').innerHTML = groups.map(group => {
+    const paths = GD.paths.filter(path => path.class === group.className);
+    return paths.map((path, index) => {
+      const angle = (-90 + index * 360 / paths.length) * Math.PI / 180;
+      const x = Math.cos(angle) * group.radius;
+      const y = Math.sin(angle) * group.radius;
+      return `
+        <g transform="translate(${x.toFixed(2)} ${y.toFixed(2)})">
+          <circle class="petal" data-kind="petal" data-path-id="${path.path}" data-letter="${path.letter}" r="${group.size}" fill="${petalColor(path)}"></circle>
+          <text class="petal-label" x="0" y="-6" font-size="18">${path.letter}</text>
+          <text class="petal-label" x="0" y="13" font-size="13">${path.glyph}</text>
+        </g>
+      `;
+    }).join('');
+  }).join('');
+}
+
+function renderSymbols() {
+  const families = Object.entries(GD.symbols).flatMap(([family, items]) =>
+    items.map(item => ({ ...item, family }))
+  );
+  byId('symbolGrid').innerHTML = families.map(item => `
+    <article class="symbol-card">
+      <button data-kind="symbol" data-family="${item.family}" data-symbol-id="${item.id}">
+        <span class="glyph">${item.glyph || item.gdGlyph}</span>
+        <strong>${item.name}</strong>
+        <span class="small">${title(item.family)}</span>
+      </button>
+      <p class="small">${item.effect}</p>
+    </article>
+  `).join('');
+}
+
+function renderGrades() {
+  byId('gradeSelect').innerHTML = GD.grades.map(grade =>
+    `<option value="${grade.id}">${grade.name}</option>`
+  ).join('');
+  byId('gradeSelect').value = state.grade;
+  byId('gradeGrid').innerHTML = GD.grades.map(grade => `
+    <button class="grade-card ${grade.id === state.grade ? 'active' : ''}" data-grade-id="${grade.id}">
+      <strong>${grade.name}</strong>
+      <p class="small">${grade.unlocks.join(', ')}</p>
+      <p class="small">${grade.note}</p>
+    </button>
+  `).join('');
+}
+
+function renderHighlights() {
+  document.querySelectorAll('.active').forEach(el => {
+    if (!el.classList.contains('grade-card')) el.classList.remove('active');
+  });
+  if (!state.selectedKey) return;
+  const [kind, id] = state.selectedKey.split(':');
+  if (kind === 'path' || kind === 'petal') {
+    document.querySelectorAll(`[data-path-id="${id}"]`).forEach(el => el.classList.add('active'));
+  }
+  if (kind === 'node') {
+    document.querySelectorAll(`[data-node-id="${id}"]`).forEach(el => el.classList.add('active'));
+  }
+}
+
+function bindEvents() {
+  document.body.addEventListener('click', event => {
+    const target = event.target.closest('[data-kind], [data-grade-id]');
+    if (!target) return;
+    if (target.dataset.gradeId) {
+      state.grade = target.dataset.gradeId;
+      byId('gradeSelect').value = state.grade;
+      renderGrades();
+      const grade = GD.grades.find(item => item.id === state.grade);
+      addEvent(`Unlock tier set to ${grade.name}: ${grade.note}`);
+      return;
+    }
+    if (target.dataset.kind === 'path' || target.dataset.kind === 'petal') {
+      const path = GD.paths.find(item => String(item.path) === target.dataset.pathId);
+      selectItem(path, target.dataset.kind, target.dataset.kind === 'petal' ? 'Rose petal' : 'Tree path');
+      return;
+    }
+    if (target.dataset.kind === 'node') {
+      const node = GD.sefirot.find(item => item.id === target.dataset.nodeId);
+      selectItem(node, 'node', 'Tree node');
+      return;
+    }
+    if (target.dataset.kind === 'symbol') {
+      const family = target.dataset.family;
+      const item = GD.symbols[family].find(symbol => symbol.id === target.dataset.symbolId);
+      selectItem({ ...item, family }, 'symbol', 'Symbol bank');
+    }
+  });
+
+  byId('gradeSelect').addEventListener('change', event => {
+    state.grade = event.target.value;
+    renderGrades();
+    const grade = GD.grades.find(item => item.id === state.grade);
+    addEvent(`Unlock tier set to ${grade.name}: ${grade.unlocks.join(', ')}.`);
+  });
+
+  byId('resetLog').addEventListener('click', () => {
+    state.events = [];
+    renderEvents();
+  });
+}
+
+function init() {
+  renderTree();
+  renderLamen();
+  renderSymbols();
+  renderGrades();
+  bindEvents();
+  renderInspector(GD.paths[0], 'path');
+  addEvent('Explorer ready: choose a path, petal, node, or symbol to test the correspondence readout loop.');
+}
+
+init();
+</script>
+</body>
+</html>

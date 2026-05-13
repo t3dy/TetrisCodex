@@ -2,6 +2,23 @@
 
 This document describes the correspondence database needed for Tarot Coin Journey, Tarot Numerology Breaker, Rose Cross Lamen Tapper, Tree of Life character sheet, and Tarot Tetris.
 
+## Implemented Prototype
+
+Current playable files:
+
+- `golden-dawn-correspondences.js`
+  - Shared browser data module exposed as `window.GD_CORRESPONDENCES`.
+  - Covers elements, planets, zodiac signs, tarot suits, 10 sefirot, 22 Hebrew-letter paths, Golden Dawn-style tarot trump links, and grade unlock tiers.
+  - Each symbol carries a gameplay effect phrase so modes can immediately turn a click, coin, or block collision into a narrated move readout.
+- `golden-dawn-explorer.html`
+  - Clickable TreeTapper-style Tree of Life map.
+  - Clickable Rose Cross lamen pad with Mother, Double, and Single letter rings.
+  - Unicode symbol bank for elements, planets, zodiac signs, and suits.
+  - Grade unlock ladder for future progression.
+  - Inspector and move-readout panel that logs every player input.
+
+This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
+
 ## Scope
 
 The database should cover:
@@ -163,4 +180,3 @@ The database should distinguish:
 - user-created house rules
 
 The game may be dazzling and playful, but the inspectable database should always tell the player whether something is historical, traditional, speculative, or invented for fun.
-

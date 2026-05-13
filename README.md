@@ -59,6 +59,8 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Tarot Numerology Breaker](tarot-numerology-breaker.html)  
   Balatro-like tarot combo prototype. Break Golden Dawn numerology with strange rule modifiers, correspondence cascades, and generated high-score readings.
 
+- [Golden Dawn Correspondence Explorer](golden-dawn-explorer.html) - Clickable Rose Cross lamen, Tree paths, Hebrew letters, Unicode symbol families, and grade unlock tiers for tarot and TreeTapper-style mechanics.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -144,6 +146,10 @@ A playable prototype for tarot reading as an attention economy. Every drawn card
 
 A playable mockup of a roguelike tarot scoring mode inspired by Balatro's way of breaking poker. The player scores card numbers, suits, Trumps, planets, zodiac signs, Tree paths, and rule-breaking relics to generate cascading interpretations.
 
+### Golden Dawn Explorer
+
+A playable correspondence pad for the tarot branch. It uses `golden-dawn-correspondences.js` as a shared prototype database for elements, planets, zodiac signs, suits, 10 sefirot, 22 Hebrew-letter paths, tarot trumps, Rose Cross lamen petals, and grade unlocks.
+
 ## Creator Tools
 
 ### Level Builder
@@ -181,6 +187,7 @@ The asset studio exports `alchemical-asset/v1` JSON. It currently supports:
 - Campaign Planner
 - Asset Gallery Builder
 - Mode Explainer Builder
+- Full Tarot / Golden Dawn database importer
 
 ## Run Locally
 
