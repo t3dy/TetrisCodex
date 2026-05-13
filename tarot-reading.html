@@ -141,6 +141,23 @@
     color: #d9fff7;
     line-height: 1.55;
   }
+  .score {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 9px;
+    border-radius: 6px;
+    background: #07171c;
+    color: #bad7d1;
+  }
+  .score-row b { color: #fef3c7; }
+  .right-answer { border-color: rgba(94, 234, 212, 0.55); }
+  .wrong-answer { border-color: rgba(248, 113, 113, 0.5); }
   .small {
     color: #86a8a2;
     font-size: 13px;
@@ -200,6 +217,10 @@
       <div class="panel">
         <h2>Source Frame</h2>
         <p class="small">Prototype tradition: project-specific tarot/alchemy training data. Later versions should label Marseille, Golden Dawn, Rider-Waite-Smith, Crowley/Harris, or other attribution systems explicitly.</p>
+      </div>
+      <div class="panel">
+        <h2>Score</h2>
+        <div id="score" class="score"></div>
       </div>
     </aside>
   </div>
@@ -264,17 +285,25 @@
   ];
 
   const optionBank = [
-    { id: 'skill', label: 'Skill / craft', tags: ['skill', 'clarity'], phrase: 'treat this as a craft problem: name the tool, then use it deliberately' },
-    { id: 'warning', label: 'Warning / accident', tags: ['danger', 'caution'], phrase: 'read this as a warning: the vessel is signaling risk before rupture' },
-    { id: 'release', label: 'Release / breakthrough', tags: ['rupture', 'clarity'], phrase: 'let this become release: something brittle must break so the work can continue' },
-    { id: 'dissolve', label: 'Dissolve / soften', tags: ['water', 'solvent'], phrase: 'soften the boundary and let the fixed matter confess what it contains' },
-    { id: 'fix', label: 'Fix / stabilize', tags: ['earth', 'salt'], phrase: 'stabilize the body of the question before seeking a brighter result' },
-    { id: 'ignite', label: 'Ignite / act', tags: ['fire', 'action'], phrase: 'apply heat carefully: action is needed, but excess heat will distort the work' },
-    { id: 'translate', label: 'Translate / mediate', tags: ['mercury', 'language'], phrase: 'translate between unlike signs instead of forcing them to agree too soon' },
-    { id: 'reflect', label: 'Reflect / wait', tags: ['moon', 'patience'], phrase: 'pause for reflection; the image is not false, but it is not yet fixed' },
-    { id: 'contain', label: 'Contain / vessel', tags: ['vessel', 'structure'], phrase: 'read the position as a vessel problem: improve the container before changing the matter' },
-    { id: 'diagnose', label: 'Diagnose / name obstacle', tags: ['source', 'clarity'], phrase: 'name the resistance precisely; interpretation begins by distinguishing the hazard' },
-    { id: 'commit', label: 'Commit / project', tags: ['projection', 'action'], phrase: 'commit the clarified result outward, but only after the prior positions have been honored' }
+    { id: 'skill', label: 'Skill / craft', tags: ['skill', 'clarity'], phrase: 'treat this as a craft problem: name the tool, then use it deliberately', rationale: 'Fits cards of craft, Mercury, clarity, or deliberate projection.' },
+    { id: 'warning', label: 'Warning / accident', tags: ['danger', 'caution'], phrase: 'read this as a warning: the vessel is signaling risk before rupture', rationale: 'Fits Tower, Mars, fire pressure, obstacles, and unstable positions.' },
+    { id: 'release', label: 'Release / breakthrough', tags: ['rupture', 'clarity'], phrase: 'let this become release: something brittle must break so the work can continue', rationale: 'Fits rupture cards when framed as calcination or breakthrough rather than denial.' },
+    { id: 'dissolve', label: 'Dissolve / soften', tags: ['water', 'solvent'], phrase: 'soften the boundary and let the fixed matter confess what it contains', rationale: 'Fits water, Moon, Cups, and Dissolution attributions.' },
+    { id: 'fix', label: 'Fix / stabilize', tags: ['earth', 'salt'], phrase: 'stabilize the body of the question before seeking a brighter result', rationale: 'Fits earth, Salt, Pentacles, Saturn, and fixation positions.' },
+    { id: 'ignite', label: 'Ignite / act', tags: ['fire', 'action'], phrase: 'apply heat carefully: action is needed, but excess heat will distort the work', rationale: 'Fits fire, Sun, Mars, Wands, heat, and calcination positions.' },
+    { id: 'translate', label: 'Translate / mediate', tags: ['mercury', 'language'], phrase: 'translate between unlike signs instead of forcing them to agree too soon', rationale: 'Fits Mercury, Magician, exchange, language, and mediation.' },
+    { id: 'reflect', label: 'Reflect / wait', tags: ['moon', 'patience'], phrase: 'pause for reflection; the image is not false, but it is not yet fixed', rationale: 'Fits Moon, water, uncertainty, and reflective positions.' },
+    { id: 'contain', label: 'Contain / vessel', tags: ['vessel', 'structure'], phrase: 'read the position as a vessel problem: improve the container before changing the matter', rationale: 'Fits vessel positions and cards whose issue is containment.' },
+    { id: 'diagnose', label: 'Diagnose / name obstacle', tags: ['source', 'clarity'], phrase: 'name the resistance precisely; interpretation begins by distinguishing the hazard', rationale: 'Fits obstacle positions and source-critical readings.' },
+    { id: 'commit', label: 'Commit / project', tags: ['projection', 'action'], phrase: 'commit the clarified result outward, but only after the prior positions have been honored', rationale: 'Fits projection and result positions.' }
+  ];
+
+  const wrongOptions = [
+    { id: 'wrong-fire-water', label: 'Treat water as pure flame', tags: ['wrong'], phrase: 'force a water or lunar card to mean direct fire and conquest', rationale: 'Wrong: water/Moon/Dissolution attributions do not support direct fiery conquest here.' },
+    { id: 'wrong-ignore-position', label: 'Ignore the spread position', tags: ['wrong'], phrase: 'read the card as if its position did not matter', rationale: 'Wrong: the game is testing card-in-position interpretation.' },
+    { id: 'wrong-all-good', label: 'Declare it automatically fortunate', tags: ['wrong'], phrase: 'call the card fortunate without reading its attributions or neighbors', rationale: 'Wrong: difficult cards and difficult relationships need diagnosis, not blanket optimism.' },
+    { id: 'wrong-all-bad', label: 'Declare it automatically ruinous', tags: ['wrong'], phrase: 'call the card ruinous without checking whether the position makes it useful', rationale: 'Wrong: even severe cards can be correct in heat, obstacle, or calcination roles.' },
+    { id: 'wrong-metal', label: 'Swap planet and principle', tags: ['wrong'], phrase: 'confuse planetary Mercury with the volatile principle Mercury', rationale: 'Wrong: planet/metmetal and Tria Prima principle are distinct symbol families.' }
   ];
 
   let state = {
@@ -288,6 +317,7 @@
   const promptTitle = document.getElementById('promptTitle');
   const promptBody = document.getElementById('promptBody');
   const readingEl = document.getElementById('reading');
+  const scoreEl = document.getElementById('score');
   document.getElementById('loadBtn').addEventListener('click', loadMockReading);
   document.getElementById('resetBtn').addEventListener('click', reset);
 
@@ -317,27 +347,86 @@
 
   function optionsFor(card, position) {
     const picked = [];
-    const add = id => {
+    const add = (id, score, why) => {
       const opt = optionBank.find(o => o.id === id);
-      if (opt && !picked.includes(opt)) picked.push(opt);
+      if (opt && !picked.some(item => item.id === opt.id)) picked.push(Object.assign({}, opt, {
+        score,
+        why: why || opt.rationale
+      }));
     };
-    if (card.tags.includes('danger')) add('warning');
-    if (card.tags.includes('fire')) add('ignite');
-    if (card.tags.includes('water')) add('dissolve');
-    if (card.tags.includes('earth')) add('fix');
-    if (card.tags.includes('mercury')) add('translate');
-    if (card.tags.includes('clarity')) add('skill');
-    if (position.id === 'sulphur' || position.id === 'heat' || position.id === 'mars') add('ignite');
-    if (position.id === 'mercury' || position.id === 'planet-mercury') add('translate');
-    if (position.id === 'salt' || position.id === 'saturn') add('fix');
-    if (position.id === 'moon') add('reflect');
-    if (position.id === 'vessel') add('contain');
-    if (position.id === 'obstacle') add('diagnose');
-    if (position.id === 'projection') add('commit');
-    add('release');
-    add('reflect');
-    add('skill');
-    return picked.slice(0, 4);
+    if (card.tags.includes('danger')) add('warning', 2);
+    if (card.tags.includes('fire')) add('ignite', 2);
+    if (card.tags.includes('water')) add('dissolve', 2);
+    if (card.tags.includes('earth')) add('fix', 2);
+    if (card.tags.includes('mercury')) add('translate', 2);
+    if (card.tags.includes('clarity')) add('skill', 2);
+    if (position.id === 'sulphur' || position.id === 'heat' || position.id === 'mars') add('ignite', card.tags.includes('fire') || card.tags.includes('danger') ? 3 : 1, 'Good if the card can bear heat, fire, Mars, rupture, or action.');
+    if (position.id === 'mercury' || position.id === 'planet-mercury') add('translate', card.tags.includes('mercury') ? 3 : 1);
+    if (position.id === 'salt' || position.id === 'saturn') add('fix', card.tags.includes('earth') || card.tags.includes('salt') ? 3 : 1);
+    if (position.id === 'moon') add('reflect', card.tags.includes('water') || card.tags.includes('uncertainty') ? 3 : 1);
+    if (position.id === 'vessel') add('contain', card.tags.includes('vessel') || card.tags.includes('earth') ? 3 : 1);
+    if (position.id === 'obstacle') add('diagnose', 2);
+    if (position.id === 'projection') add('commit', card.tags.includes('clarity') || card.process === 'Projection' ? 3 : 1);
+    add('release', card.tags.includes('rupture') ? 3 : 1);
+    add('reflect', card.tags.includes('water') || card.tags.includes('dream') ? 2 : 1);
+    add('skill', card.tags.includes('skill') ? 3 : 1);
+    return addWrongOptions(picked, card, position).slice(0, 4);
+  }
+
+  function addWrongOptions(options, card, position) {
+    const out = options.slice(0, 3);
+    let wrongId = 'wrong-ignore-position';
+    if (card.tags.includes('water')) wrongId = 'wrong-fire-water';
+    if (card.tags.includes('danger') && (position.id === 'heat' || position.id === 'sulphur' || position.id === 'obstacle')) wrongId = 'wrong-all-bad';
+    if (position.id === 'planet-mercury') wrongId = 'wrong-metal';
+    const wrong = wrongOptions.find(opt => opt.id === wrongId) || wrongOptions[0];
+    out.splice(Math.min(1, out.length), 0, Object.assign({}, wrong, { score: -2, why: wrong.rationale }));
+    return out;
+  }
+
+  function relationshipPrompts(spread) {
+    if (!state.drawn.length) return [];
+    const prompts = [];
+    for (let i = 0; i < state.drawn.length - 1; i++) {
+      const a = state.drawn[i];
+      const b = state.drawn[i + 1];
+      const posA = spread.positions[i];
+      const posB = spread.positions[i + 1];
+      prompts.push({
+        id: `rel-${posA.id}-${posB.id}`,
+        title: `${posA.name} -> ${posB.name}`,
+        question: `How should ${a.name} in ${posA.name} relate to ${b.name} in ${posB.name}?`,
+        a,
+        b,
+        posA,
+        posB,
+        options: relationshipOptions(a, b, posA, posB)
+      });
+    }
+    return prompts;
+  }
+
+  function relationshipOptions(a, b, posA, posB) {
+    const opts = [];
+    const both = new Set([...a.tags, ...b.tags]);
+    if (both.has('fire') && both.has('water')) {
+      opts.push({ id: 'temper-fire-water', label: 'Temper fire with water', score: 3, tags: ['balance', 'mixing'], phrase: 'temper the heat with solvent rather than letting either element dominate', why: 'Correct: fire/water pairs call for tempering, vessel work, or controlled opposition.' });
+    }
+    if (both.has('earth') && both.has('water')) {
+      opts.push({ id: 'soften-fixed', label: 'Soften fixed matter', score: 3, tags: ['water', 'earth'], phrase: 'let solvent soften the fixed body without destroying its structure', why: 'Correct: earth plus water supports softening, dissolution, and clay-like reshaping.' });
+    }
+    if (both.has('fire') && both.has('earth')) {
+      opts.push({ id: 'calcine-body', label: 'Calcine the body carefully', score: 3, tags: ['fire', 'earth'], phrase: 'apply heat to fixed matter cautiously, making ash or purification possible', why: 'Correct: fire acting on fixed matter is a good calcination reading.' });
+    }
+    if (both.has('mercury') || both.has('language')) {
+      opts.push({ id: 'translate-relation', label: 'Translate between them', score: 2, tags: ['mercury', 'language'], phrase: 'make the relationship a translation rather than a collision', why: 'Correct: Mercury/language cards mediate relations.' });
+    }
+    opts.push({ id: 'wrong-neighborless', label: 'Treat them as unrelated', score: -2, tags: ['wrong'], phrase: 'ignore the relationship and read both cards in isolation', why: 'Wrong: a spread asks neighboring positions to modify one another.' });
+    opts.push({ id: 'wrong-reverse-elements', label: 'Reverse their attributions', score: -2, tags: ['wrong'], phrase: 'pretend water behaves like fire and earth behaves like air', why: 'Wrong: this contradicts the displayed attribution tags.' });
+    if (opts.length < 4) {
+      opts.unshift({ id: 'sequence-position', label: 'Read as a sequence', score: 1, tags: ['sequence'], phrase: 'read the second card as a development of the first', why: 'Acceptable: sequence is weaker than an attribution-specific relation but respects layout.' });
+    }
+    return opts.slice(0, 4);
   }
 
   function choose(positionId, optionId) {
@@ -346,24 +435,63 @@
   }
 
   function generateReading() {
-    if (!state.drawn.length) return 'Choose a spread and draw cards. The reading will be built from your choices.';
+    if (!state.drawn.length) return 'Choose a prepared layout. The reading will be built from your scored choices.';
     const spread = currentSpread();
-    const missing = spread.positions.filter(pos => !state.choices[pos.id]);
+    const rels = relationshipPrompts(spread);
+    const prompts = [
+      ...spread.positions.map((pos, index) => ({ id: pos.id, type: 'position', pos, card: state.drawn[index] })),
+      ...rels.map(rel => ({ id: rel.id, type: 'relationship', rel }))
+    ];
+    const missing = prompts.filter(prompt => !state.choices[prompt.id]);
     if (missing.length) {
-      return `Drawn spread: ${spread.name}\n\nChoose an interpretation for ${missing[0].name} to continue.`;
+      const label = missing[0].type === 'relationship' ? missing[0].rel.title : missing[0].pos.name;
+      return `Prepared spread: ${spread.name}\n\nChoose an interpretation for ${label} to continue.`;
     }
     const paragraphs = [];
     paragraphs.push(`${spread.name}: ${spread.desc}`);
     const tagCounts = {};
     spread.positions.forEach((pos, index) => {
       const card = state.drawn[index];
-      const option = optionBank.find(o => o.id === state.choices[pos.id]);
+      const option = optionsFor(card, pos).find(o => o.id === state.choices[pos.id]);
       [...card.tags, ...option.tags].forEach(tag => tagCounts[tag] = (tagCounts[tag] || 0) + 1);
       paragraphs.push(`${pos.name}: ${card.name} brings ${card.meanings[0]} into the place of "${pos.question}" You chose to ${option.phrase}.`);
     });
+    rels.forEach(rel => {
+      const option = rel.options.find(o => o.id === state.choices[rel.id]);
+      [...option.tags].forEach(tag => tagCounts[tag] = (tagCounts[tag] || 0) + 1);
+      paragraphs.push(`${rel.title}: ${rel.a.name} and ${rel.b.name} are read together. You chose to ${option.phrase}.`);
+    });
     paragraphs.push(synthesis(tagCounts));
     paragraphs.push(counsel(tagCounts));
+    paragraphs.push(scoreSummary().readingLine);
     return paragraphs.join('\n\n');
+  }
+
+  function selectedPromptResults() {
+    if (!state.drawn.length) return [];
+    const spread = currentSpread();
+    const results = [];
+    spread.positions.forEach((pos, index) => {
+      const card = state.drawn[index];
+      const option = optionsFor(card, pos).find(o => o.id === state.choices[pos.id]);
+      if (option) results.push({ id: pos.id, label: `${pos.name}: ${card.name}`, option });
+    });
+    relationshipPrompts(spread).forEach(rel => {
+      const option = rel.options.find(o => o.id === state.choices[rel.id]);
+      if (option) results.push({ id: rel.id, label: rel.title, option });
+    });
+    return results;
+  }
+
+  function scoreSummary() {
+    const results = selectedPromptResults();
+    const score = results.reduce((sum, item) => sum + item.option.score, 0);
+    const max = results.length * 3;
+    const wrong = results.filter(item => item.option.score < 0).length;
+    let readingLine = `Attribution score: ${score}/${max}.`;
+    if (wrong) readingLine += ` ${wrong} choice${wrong === 1 ? '' : 's'} contradicted the displayed attributions or spread logic.`;
+    else if (results.length) readingLine += ' No chosen interpretation contradicted the mock attribution rules.';
+    return { score, max, wrong, results, readingLine };
   }
 
   function synthesis(tags) {
@@ -430,27 +558,53 @@
       promptBody.innerHTML = '<p class="small">Load the pre-laid reading to receive interpretation prompts.</p>';
       return;
     }
-    promptTitle.textContent = 'Interpret Each Position';
-    promptBody.innerHTML = spread.positions.map((pos, index) => {
+    promptTitle.textContent = 'Interpret Positions And Relationships';
+    const positionHtml = spread.positions.map((pos, index) => {
       const card = state.drawn[index];
       const opts = optionsFor(card, pos);
       return `<div class="panel">
         <h3>${pos.name}: ${card.name}</h3>
         <p>${pos.question}</p>
+        <p class="meta">Attributions: ${card.element} · ${card.planet} · ${card.process}</p>
         <div class="option-grid">
-          ${opts.map(opt => `<button class="${state.choices[pos.id] === opt.id ? 'selected' : ''}" data-position="${pos.id}" data-option="${opt.id}">${opt.label}<br><span class="meta">${opt.phrase}</span></button>`).join('')}
+          ${opts.map(opt => `<button class="${state.choices[pos.id] === opt.id ? 'selected ' : ''}${opt.score < 0 ? 'wrong-answer' : 'right-answer'}" data-prompt="${pos.id}" data-option="${opt.id}">${opt.label}<br><span class="meta">${opt.phrase}</span></button>`).join('')}
         </div>
       </div>`;
     }).join('');
+    const relationHtml = relationshipPrompts(spread).map(rel => `
+      <div class="panel">
+        <h3>Relationship: ${rel.title}</h3>
+        <p>${rel.question}</p>
+        <p class="meta">${rel.a.name}: ${rel.a.element}/${rel.a.planet}/${rel.a.process} · ${rel.b.name}: ${rel.b.element}/${rel.b.planet}/${rel.b.process}</p>
+        <div class="option-grid">
+          ${rel.options.map(opt => `<button class="${state.choices[rel.id] === opt.id ? 'selected ' : ''}${opt.score < 0 ? 'wrong-answer' : 'right-answer'}" data-prompt="${rel.id}" data-option="${opt.id}">${opt.label}<br><span class="meta">${opt.phrase}</span></button>`).join('')}
+        </div>
+      </div>
+    `).join('');
+    promptBody.innerHTML = positionHtml + relationHtml;
     promptBody.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => choose(btn.dataset.position, btn.dataset.option));
+      btn.addEventListener('click', () => choose(btn.dataset.prompt, btn.dataset.option));
     });
+  }
+
+  function renderScore() {
+    const summary = scoreSummary();
+    if (!summary.results.length) {
+      scoreEl.innerHTML = '<p class="small">Score appears after you make interpretation choices. Correct answers follow displayed attributions and spread relationships; wrong answers contradict them.</p>';
+      return;
+    }
+    scoreEl.innerHTML = `
+      <div class="score-row"><span>Attribution score</span><b>${summary.score}/${summary.max}</b></div>
+      <div class="score-row"><span>Contradictions</span><b>${summary.wrong}</b></div>
+      ${summary.results.map(item => `<div class="score-row"><span>${item.label}<br><span class="meta">${item.option.why}</span></span><b>${item.option.score > 0 ? '+' : ''}${item.option.score}</b></div>`).join('')}
+    `;
   }
 
   function render() {
     renderSpreads();
     renderCards();
     renderPrompts();
+    renderScore();
     readingEl.textContent = generateReading();
   }
 

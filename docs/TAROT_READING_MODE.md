@@ -18,6 +18,9 @@ Follow-up clarification:
 - the reading is already laid out
 - the prototype tests the interface loop of walking through interpretive choices
 - the page should include many ways to read card positions
+- some choices should be correct to the displayed attributions
+- some choices should be obviously wrong and should hurt the player's score
+- some prompts should ask about relationships between cards, not only single cards
 
 ## Interpretation
 
@@ -36,9 +39,11 @@ The first prototype is a fixed mock reading, not a random deck simulation.
 1. Choose a prepared spread layout.
 2. Load its pre-laid cards.
 3. For each card and spread position, choose an interpretive angle.
-4. The program records the choices as structured meaning tags.
-5. The program composes a written reading from card meanings, positions, and chosen angles.
-6. The reading can later be saved, cited, remixed into a level objective, or used as a source frame.
+4. For each adjacent relationship, choose how the two cards modify one another.
+5. The program scores each choice against the displayed attributions.
+6. The program records the choices as structured meaning tags.
+7. The program composes a written reading from card meanings, positions, relationships, and chosen angles.
+8. The reading can later be saved, cited, remixed into a level objective, or used as a source frame.
 
 ## Prepared Layouts
 
@@ -105,6 +110,48 @@ Every drawn card should produce choices like:
     { id: 'purge', label: 'Purifying break', tags: ['calcination', 'clarify'] }
   ]
 }
+```
+
+Each option carries a score:
+
+```js
+{ id: 'purge', label: 'Purifying break', score: 3 }
+{ id: 'ignore-position', label: 'Ignore the spread position', score: -2 }
+```
+
+Correct choices are not morally better. They are simply more faithful to the declared attribution grammar and the card's position in the spread.
+
+## Relationship Prompts
+
+The mockup also asks how neighboring cards relate.
+
+| Relationship | Correct reading | Wrong reading |
+| --- | --- | --- |
+| Fire + Water | Temper, moderate, steam, or conflict in vessel. | Pretend both are the same element. |
+| Earth + Water | Soften fixed matter, dissolve structure, clay-like reshaping. | Treat water as pure flame. |
+| Fire + Earth | Calcine fixed matter, heat body cautiously. | Ignore the physical relation. |
+| Mercury + anything | Translate, mediate, exchange, interpret. | Confuse planetary Mercury with Tria Prima Mercury. |
+
+Relationship prompts matter because a spread is not just a list of card meanings. The layout is a grammar.
+
+## Scoring
+
+Current scoring rule:
+
+- strong attribution match: `+3`
+- acceptable interpretation: `+1` or `+2`
+- contradiction or ignored layout: `-2`
+
+The score panel should show:
+
+- current attribution score
+- number of contradictions
+- rationale for each selected answer
+
+Wrong answers should be instructive rather than opaque:
+
+```text
+Wrong: water/Moon/Dissolution attributions do not support direct fiery conquest here.
 ```
 
 ## Ways To Read Position
@@ -256,7 +303,8 @@ The first prototype should:
 
 - use a small card deck
 - support three spreads
-- present three interpretation choices per card
+- present multiple scored interpretation choices per card
+- include relationship prompts between cards
 - use pre-laid readings, not random card draws
 - generate deterministic text
 - keep a visible source/tradition caution
@@ -270,3 +318,4 @@ The first prototype should:
 4. Let readings seed playable levels.
 5. Add a side-by-side "why this text was generated" explanation.
 6. Connect card attributions to `TAROT_ATTRIBUTION_BLOCK_MODE.md`.
+7. Add difficulty tiers: forgiving beginner prompts, stricter attribution drills, source-citation challenges.
