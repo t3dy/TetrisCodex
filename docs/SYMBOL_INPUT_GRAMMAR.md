@@ -9,6 +9,7 @@ The user emphasized that the player should be able to click:
 - 12 zodiac symbols representing alchemical processes
 - 3 alchemical principles: Sulphur, Salt, Mercury
 - 7 planet glyphs, which can map to metals
+- tarot cards whose attributions can bundle element, planet, zodiac, process, suit, number, decan, or path cells
 
 The Tria Prima Mercury must be distinct from planetary Mercury. Each game mode may define what "Mercury" or "Sulphur" of an operation means in context: volatile, oily, fixed, or philosophical matter being worked on.
 
@@ -19,6 +20,7 @@ The Tria Prima Mercury must be distinct from planetary Mercury. Each game mode m
 | Zodiac/process | 12 | What operation is happening. | Ring/season band, colored by process. |
 | Tria Prima | 3 | What philosophical quality matter has. | Large triangular principle buttons. |
 | Planets/metals | 7 | Which metal/planetary affinity is involved. | Circular celestial/metal buttons. |
+| Tarot cards | 22/56/78 | Bundled attribution object: card identity plus element/planet/zodiac/process/etc. | Card-shaped buttons that expand into composite block units. |
 
 ## Distinguishing Mercury
 
@@ -76,6 +78,24 @@ Advanced compound:
 Pisces + Sulphur + Saturn -> oily/projective work on lead/Saturn matter
 ```
 
+### Tarot Card
+
+Creates a compound attribution unit rather than a single cell:
+
+```text
+The Tower -> [Tower] [Mars] [Fire] [Calcination]
+Ace of Cups -> [Ace] [Water] [Cups] [Dissolution]
+```
+
+Tarot output can be:
+
+- four-cell teaching unit
+- six-cell medium unit
+- nine-cell source-heavy unit
+- tetromino-like shape whose footprint reflects attribution density
+
+Tarot mappings must declare their source tradition, because historical and esoteric decks do not all use the same correspondences.
+
 ## Mode-Specific Meaning
 
 | Mode | What the symbols do |
@@ -87,6 +107,7 @@ Pisces + Sulphur + Saturn -> oily/projective work on lead/Saturn matter
 | Push | Movable block, floor hazard, receiver rule. |
 | Minesweeper | Hidden hazard type, clue family, player resistance. |
 | Siege | Bomb chemistry, tower process, projectile material. |
+| Tarot Atelier | Composite card pieces with element/planet/zodiac/process cells. |
 
 ## Design Rule
 

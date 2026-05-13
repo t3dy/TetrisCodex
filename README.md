@@ -119,6 +119,10 @@ Planned grid modes. Push mode treats alchemical matter as movable lab blocks wit
 
 Planned only until a version is chosen. Options include Bomber Alchemist, Tower Defense Athanor, Turn-Based Siege Laboratory, Lob-Shot Artillery, and Flamethrower/Ice Arcade.
 
+### Tarot Atelier
+
+A planned tarot-attribution mode where a card becomes a composite block unit. The cells can represent element, planet, zodiac, process, suit, number, decan, or source tradition, using four-, six-, nine-cell, or tetromino-like footprints.
+
 ## Creator Tools
 
 ### Level Builder
@@ -208,6 +212,7 @@ Mode and asset docs:
 - [docs/ALCHEMICAL_HISTORY_BY_MODE.md](docs/ALCHEMICAL_HISTORY_BY_MODE.md)
 - [docs/TWELVE_PROCESSES_MODE_ATLAS.md](docs/TWELVE_PROCESSES_MODE_ATLAS.md)
 - [docs/SYMBOL_INPUT_GRAMMAR.md](docs/SYMBOL_INPUT_GRAMMAR.md)
+- [docs/TAROT_ATTRIBUTION_BLOCK_MODE.md](docs/TAROT_ATTRIBUTION_BLOCK_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

@@ -142,6 +142,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `SYMBOL_INPUT_GRAMMAR.md`  
   Stable input grammar for zodiac processes, Tria Prima principles, and seven planetary/metmetal buttons.
 
+- `TAROT_ATTRIBUTION_BLOCK_MODE.md`  
+  Planned tarot-attribution mode where cards become four-, six-, nine-cell, or tetromino-like composite block units.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:

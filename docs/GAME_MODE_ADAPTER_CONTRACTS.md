@@ -54,6 +54,7 @@ Modes can have wildly different controls, but they should translate controls int
 | `push_block` | Move a block by actor pressure on a grid. | Arrow into block, shove command, tool lever. |
 | `reveal_cell` | Reveal a hidden lab tile and report danger. | Click/step in Minesweeper mode. |
 | `grant_power` | Add temporary or starting properties to the player actor. | Snake digestion, class select, talisman pickup. |
+| `compose_attribution_unit` | Build a compound block out of symbolic attributions. | Tarot card draw, spread draft, correspondence table. |
 | `activate_apparatus` | Trigger a process/furniture tile. | Click alembic, beam crucible, push lever. |
 | `route_substance` | Direct flow or falling matter. | Pipe switch, flipper, conveyor, drawbridge. |
 | `inspect_source` | Open source/codex metadata. | Hover, right-click, codex button. |
@@ -136,6 +137,26 @@ Adapter needs:
 
 - `toLabReagent(block)`
 - adjacency reactions, timers, heat/wet/dry fields
+
+### Tarot Atelier
+
+Planned attribution-piece mode where a tarot card becomes a four-, six-, or nine-cell unit. Each cell represents a card attribution such as element, planet, zodiac, process, suit, number, decan, or source label.
+
+Adapter needs:
+
+- `toTarotUnit(cardRecord, options)`
+- `toAttributionCell(attribution)`
+- `toSpreadPuzzlePiece(tarotUnit)`
+- `toBalanceTarotPiece(tarotUnit)`
+
+Mode-specific logic:
+
+- deck/tradition declaration
+- card draw or selection
+- attribution-cell composition
+- rotate/place composite unit
+- spread or correspondence scoring
+- source frame describing which attribution system is being used
 
 ### Alchemical Flow / Pipe Puzzle
 
