@@ -203,6 +203,8 @@ Purpose:
 
 - small always-visible Tree showing current glow
 - lets the player see which initiatory zones are awakening
+- uses the coordinate and clickable-path idea from the user's earlier `TreeTapperApp`
+- supports clickable sefirot and 22 broad path hit targets
 
 ### Tree Detail
 
@@ -210,6 +212,53 @@ Purpose:
 
 - zoomed-in character sheet
 - shows node names, attributions, progress, and current interpretation bonuses
+
+### Rose Cross Lamen Pad
+
+Purpose:
+
+- shows the Golden Dawn-style rose as an input pad
+- groups the twenty-two Hebrew letters into Sefer Yetzirah classes
+- lights petals when the player owns the matching attention coin
+- lets the player spend that coin as a specific letter/trump power
+- webifies the user's Rose Cross lamen reference image as a game SVG rather than a static illustration
+
+Prototype groups:
+
+| Row | Letters | Game Role |
+| --- | --- | --- |
+| 3 Mothers | Aleph, Mem, Shin | Elemental powers: Air, Water, Fire. |
+| 7 Doubles | Beth, Gimel, Daleth, Kaph, Peh, Resh, Tau | Planetary powers: Mercury, Moon, Venus, Jupiter, Mars, Sun, Saturn. |
+| 12 Singles | Heh through Qoph | Zodiac powers: Aries through Pisces. |
+
+Prototype letter/trump mapping:
+
+| Letter | Class | Power Coin | Trump |
+| --- | --- | --- | --- |
+| Aleph | Mother | Air | The Fool |
+| Mem | Mother | Water | The Hanged Man |
+| Shin | Mother | Fire | Judgement |
+| Beth | Double | Mercury | The Magician |
+| Gimel | Double | Moon | The High Priestess |
+| Daleth | Double | Venus | The Empress |
+| Kaph | Double | Jupiter | Wheel of Fortune |
+| Peh | Double | Mars | The Tower |
+| Resh | Double | Sun | The Sun |
+| Tau | Double | Saturn | The Universe |
+| Heh | Single | Aries | The Emperor |
+| Vav | Single | Taurus | The Hierophant |
+| Zayin | Single | Gemini | The Lovers |
+| Cheth | Single | Cancer | The Chariot |
+| Teth | Single | Leo | Strength |
+| Yod | Single | Virgo | The Hermit |
+| Lamed | Single | Libra | Justice |
+| Nun | Single | Scorpio | Death |
+| Samekh | Single | Sagittarius | Temperance |
+| Ayin | Single | Capricorn | The Devil |
+| Tzaddi | Single | Aquarius | The Star |
+| Qoph | Single | Pisces | The Moon |
+
+Implementation note: this is a Golden Dawn-style prototype map. Later versions should make the attribution system explicit and swappable, since Marseille, Golden Dawn, Rider-Waite-Smith, Crowley/Harris, and later occult tarot traditions do not always agree on names, order, titles, or letter/card correspondences.
 
 ### Journey Log
 
@@ -241,4 +290,3 @@ Frame bonus examples:
 This mode should make the player feel that interpretation is earned. The player is not merely choosing from vibes. They are spending attention backed by visible symbolic evidence.
 
 The design should stay flexible. Some tarot systems use different attributions. The game must eventually label the tradition used for every deck and spread.
-

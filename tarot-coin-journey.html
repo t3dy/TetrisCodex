@@ -155,11 +155,104 @@
   .coin.planet { border-color: #fbbf24; }
   .coin.zodiac { border-color: #c084fc; }
   .coin.special { border-color: #5eead4; }
+  .rose-pad {
+    display: grid;
+    gap: 10px;
+  }
+  .lamen-svg {
+    display: block;
+    width: min(100%, 520px);
+    height: auto;
+    margin: 0 auto 12px;
+    border-radius: 8px;
+    background: #050709;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+  }
+  .lamen-petal {
+    cursor: pointer;
+    transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease;
+    transform-origin: center;
+  }
+  .lamen-petal.available {
+    filter: drop-shadow(0 0 9px rgba(251, 191, 36, 0.9));
+  }
+  .lamen-petal.spent {
+    filter: drop-shadow(0 0 10px rgba(94, 234, 212, 0.95));
+  }
+  .lamen-petal:hover {
+    transform: scale(1.08);
+  }
+  .lamen-letter {
+    font-family: "Segoe UI", "Arial", sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .lamen-symbol {
+    font-size: 26px;
+    font-weight: 900;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .rose-row {
+    display: grid;
+    gap: 8px;
+  }
+  .rose-row.mothers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rose-row.doubles { grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); }
+  .rose-row.singles { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
+  .petal {
+    min-height: 88px;
+    text-align: center;
+    background: #111827;
+    border-color: rgba(148, 163, 184, 0.26);
+  }
+  .petal.available {
+    border-color: #fbbf24;
+    box-shadow: 0 0 18px rgba(251, 191, 36, 0.14);
+  }
+  .petal.spent {
+    border-color: #5eead4;
+    box-shadow: 0 0 20px rgba(94, 234, 212, 0.18);
+  }
+  .petal-letter {
+    display: block;
+    color: #fef3c7;
+    font-size: 26px;
+    font-weight: 900;
+  }
   .tree {
     position: relative;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 9px;
+  }
+  .tree-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: #081317;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+  }
+  .tree-path {
+    cursor: pointer;
+    opacity: 0.76;
+  }
+  .tree-path:hover, .tree-path.focused {
+    opacity: 1;
+    filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.45));
+  }
+  .tree-circle {
+    cursor: pointer;
+    filter: drop-shadow(0 0 8px rgba(94, 234, 212, 0.16));
+  }
+  .tree-label {
+    fill: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    pointer-events: none;
+    text-anchor: middle;
   }
   .node {
     min-height: 66px;
@@ -251,6 +344,13 @@
         <h2>Reader Questions</h2>
         <div id="questions" class="grid three"></div>
       </section>
+
+      <section>
+        <span class="tagline">5. rose cross lamen input pad</span>
+        <h2>Golden Dawn Rose Petals</h2>
+        <p class="small">Webified from the Rose Cross lamen reference: the central rose has twenty-two clickable Hebrew-letter petals grouped as 3 Mothers, 7 Doubles, and 12 Singles. Lit petals can spend matching attention coins.</p>
+        <div id="rosePad" class="rose-pad"></div>
+      </section>
     </div>
 
     <aside class="right">
@@ -314,11 +414,78 @@
     { id: 'malkuth', name: 'Malkuth', attrs: ['Earth', 'Pentacles', 'Salt'], meaning: 'body and result' }
   ];
 
+  const treeTapperSefirot = {
+    Kether: { x: 250, y: 50, node: 'kether' },
+    Chokmah: { x: 350, y: 150, node: 'chokmah' },
+    Binah: { x: 150, y: 150, node: 'binah' },
+    Chesed: { x: 350, y: 250, node: 'chesed' },
+    Geburah: { x: 150, y: 250, node: 'geburah' },
+    Tiphareth: { x: 250, y: 350, node: 'tiphareth' },
+    Netzach: { x: 350, y: 450, node: 'netzach' },
+    Hod: { x: 150, y: 450, node: 'hod' },
+    Yesod: { x: 250, y: 550, node: 'yesod' },
+    Malkuth: { x: 250, y: 650, node: 'malkuth' }
+  };
+
+  const treeTapperPaths = [
+    { from: 'Kether', to: 'Chokmah' },
+    { from: 'Kether', to: 'Binah' },
+    { from: 'Kether', to: 'Tiphareth' },
+    { from: 'Binah', to: 'Chokmah' },
+    { from: 'Chokmah', to: 'Chesed' },
+    { from: 'Chokmah', to: 'Tiphareth' },
+    { from: 'Binah', to: 'Tiphareth' },
+    { from: 'Binah', to: 'Geburah' },
+    { from: 'Chesed', to: 'Geburah' },
+    { from: 'Chesed', to: 'Tiphareth' },
+    { from: 'Chesed', to: 'Netzach' },
+    { from: 'Geburah', to: 'Tiphareth' },
+    { from: 'Geburah', to: 'Hod' },
+    { from: 'Tiphareth', to: 'Netzach' },
+    { from: 'Tiphareth', to: 'Yesod' },
+    { from: 'Tiphareth', to: 'Hod' },
+    { from: 'Hod', to: 'Netzach' },
+    { from: 'Netzach', to: 'Yesod' },
+    { from: 'Netzach', to: 'Malkuth' },
+    { from: 'Hod', to: 'Yesod' },
+    { from: 'Hod', to: 'Malkuth' },
+    { from: 'Yesod', to: 'Malkuth' }
+  ];
+
+  const treeTapperColors = ['#1f2937', '#ef4444', '#facc15', '#fb923c', '#fbbf24', '#60a5fa', '#22c55e', '#a855f7', '#8b5e34', '#111827', '#9ca3af'];
+  const treeCircleRadius = 30;
+  const treePathWidth = 14;
+
   const spendActions = [
     { id: 'element', name: 'Elemental Sympathy', className: 'special', coinFrom: card => card.element, bonus: ['Fire', 'Water', 'Air', 'Earth'], text: 'trace the elemental current between the last two cards' },
     { id: 'planet', name: 'Planetary Dignity', className: 'planet', coinFrom: card => card.planet, bonus: ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Saturn', 'Jupiter'], text: 'read the planet as timing, temperament, or pressure' },
     { id: 'zodiac', name: 'Zodiacal Pathwork', className: 'zodiac', coinFrom: card => card.zodiac, bonus: ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'], text: 'follow the sign as a path through the reading' },
     { id: 'process', name: 'Alchemical Process', className: 'special', coinFrom: card => card.process, bonus: ['Calcination', 'Dissolution', 'Fixation', 'Projection', 'Separation', 'Distillation'], text: 'name the operation being performed on the question' }
+  ];
+
+  const rosePetals = [
+    { row: 'mothers', letter: 'א', name: 'Aleph', trump: 'The Fool', power: 'Air', coin: 'Air', note: 'Mother letter of air and balance' },
+    { row: 'mothers', letter: 'מ', name: 'Mem', trump: 'The Hanged Man', power: 'Water', coin: 'Water', note: 'Mother letter of water and suspension' },
+    { row: 'mothers', letter: 'ש', name: 'Shin', trump: 'Judgement', power: 'Fire', coin: 'Fire', note: 'Mother letter of fire and awakening' },
+    { row: 'doubles', letter: 'ב', name: 'Beth', trump: 'The Magician', power: 'Mercury', coin: 'Mercury', note: 'Double letter, planetary Mercury' },
+    { row: 'doubles', letter: 'ג', name: 'Gimel', trump: 'The High Priestess', power: 'Moon', coin: 'Moon', note: 'Double letter, lunar mediation' },
+    { row: 'doubles', letter: 'ד', name: 'Daleth', trump: 'The Empress', power: 'Venus', coin: 'Venus', note: 'Double letter, Venusian attraction' },
+    { row: 'doubles', letter: 'כ', name: 'Kaph', trump: 'Wheel of Fortune', power: 'Jupiter', coin: 'Jupiter', note: 'Double letter, Jovian expansion' },
+    { row: 'doubles', letter: 'פ', name: 'Peh', trump: 'The Tower', power: 'Mars', coin: 'Mars', note: 'Double letter, Martian rupture' },
+    { row: 'doubles', letter: 'ר', name: 'Resh', trump: 'The Sun', power: 'Sun', coin: 'Sun', note: 'Double letter, solar clarity' },
+    { row: 'doubles', letter: 'ת', name: 'Tau', trump: 'The Universe', power: 'Saturn', coin: 'Saturn', note: 'Double letter, Saturnian limit' },
+    { row: 'singles', letter: 'ה', name: 'Heh', trump: 'The Emperor', power: 'Aries', coin: 'Aries', note: 'Single letter, zodiacal Aries' },
+    { row: 'singles', letter: 'ו', name: 'Vav', trump: 'The Hierophant', power: 'Taurus', coin: 'Taurus', note: 'Single letter, zodiacal Taurus' },
+    { row: 'singles', letter: 'ז', name: 'Zayin', trump: 'The Lovers', power: 'Gemini', coin: 'Gemini', note: 'Single letter, zodiacal Gemini' },
+    { row: 'singles', letter: 'ח', name: 'Cheth', trump: 'The Chariot', power: 'Cancer', coin: 'Cancer', note: 'Single letter, zodiacal Cancer' },
+    { row: 'singles', letter: 'ט', name: 'Teth', trump: 'Strength', power: 'Leo', coin: 'Leo', note: 'Single letter, zodiacal Leo' },
+    { row: 'singles', letter: 'י', name: 'Yod', trump: 'The Hermit', power: 'Virgo', coin: 'Virgo', note: 'Single letter, zodiacal Virgo' },
+    { row: 'singles', letter: 'ל', name: 'Lamed', trump: 'Justice', power: 'Libra', coin: 'Libra', note: 'Single letter, zodiacal Libra' },
+    { row: 'singles', letter: 'נ', name: 'Nun', trump: 'Death', power: 'Scorpio', coin: 'Scorpio', note: 'Single letter, zodiacal Scorpio' },
+    { row: 'singles', letter: 'ס', name: 'Samekh', trump: 'Temperance', power: 'Sagittarius', coin: 'Sagittarius', note: 'Single letter, zodiacal Sagittarius' },
+    { row: 'singles', letter: 'ע', name: 'Ayin', trump: 'The Devil', power: 'Capricorn', coin: 'Capricorn', note: 'Single letter, zodiacal Capricorn' },
+    { row: 'singles', letter: 'צ', name: 'Tzaddi', trump: 'The Star', power: 'Aquarius', coin: 'Aquarius', note: 'Single letter, zodiacal Aquarius' },
+    { row: 'singles', letter: 'ק', name: 'Qoph', trump: 'The Moon', power: 'Pisces', coin: 'Pisces', note: 'Single letter, zodiacal Pisces' }
   ];
 
   let state = initialState();
@@ -335,6 +502,7 @@
   const treeDetailEl = document.getElementById('treeDetail');
   const scoreEl = document.getElementById('score');
   const logEl = document.getElementById('log');
+  const rosePadEl = document.getElementById('rosePad');
 
   drawBtn.addEventListener('click', drawCard);
   resetBtn.addEventListener('click', () => {
@@ -351,6 +519,9 @@
       frame: 'career',
       score: 0,
       tree: Object.fromEntries(treeNodes.map(node => [node.id, 0])),
+      treePathColors: treeTapperPaths.map(() => 0),
+      focusedNode: null,
+      roseSpent: {},
       log: ['Choose a frame, draw cards, then spend matching attention coins on connections.']
     };
   }
@@ -394,6 +565,22 @@
     render();
   }
 
+  function spendRose(letter) {
+    const petal = rosePetals.find(item => item.letter === letter);
+    if (!petal || !state.coins[petal.coin]) return;
+    const latest = state.cards[state.cards.length - 1];
+    const frame = frames.find(item => item.id === state.frame);
+    const frameBonus = frame.likes.includes(petal.coin) ? 2 : 0;
+    const cardBonus = latest && latest.coins.includes(petal.coin) ? 2 : 0;
+    const points = 3 + frameBonus + cardBonus;
+    state.coins[petal.coin] -= 1;
+    state.score += points;
+    state.roseSpent[petal.letter] = (state.roseSpent[petal.letter] || 0) + 1;
+    lightTree([petal.coin], Math.max(1, Math.ceil(points / 3)));
+    state.log.unshift(`Rose Cross petal ${petal.letter} ${petal.name}: spent ${petal.coin} attention on ${petal.trump}. ${petal.note}. Scored +${points}.`);
+    render();
+  }
+
   function lightTree(coins, amount) {
     treeNodes.forEach(node => {
       const hit = coins.some(coin => node.attrs.includes(coin) || (isZodiac(coin) && node.attrs.includes('Zodiac')));
@@ -409,6 +596,25 @@
     state.frame = id;
     const frame = frames.find(item => item.id === id);
     state.log.unshift(`Frame changed to ${frame.name}. Rewarded attributions: ${frame.likes.join(', ')}.`);
+    render();
+  }
+
+  function focusSefirah(nodeId) {
+    const node = treeNodes.find(item => item.id === nodeId);
+    if (!node) return;
+    state.focusedNode = nodeId;
+    state.tree[nodeId] += 1;
+    state.score += 1;
+    state.log.unshift(`TreeTapper focus: touched ${node.name}. ${node.meaning}. The node gains one light and the journey scores +1.`);
+    render();
+  }
+
+  function cycleTreePath(index) {
+    const path = treeTapperPaths[index];
+    if (!path) return;
+    state.treePathColors[index] = (state.treePathColors[index] + 1) % treeTapperColors.length;
+    state.score += 1;
+    state.log.unshift(`TreeTapper path: ${path.from} -> ${path.to} changed color. The path is marked as an attended route through the reading. Scored +1.`);
     render();
   }
 
@@ -436,6 +642,7 @@
     renderCoins();
     renderConnections();
     renderQuestions();
+    renderRosePad();
     renderTree();
     renderScore();
     logEl.textContent = state.log.join('\n\n');
@@ -528,21 +735,138 @@
     });
   }
 
-  function renderTree() {
-    treeEl.innerHTML = treeNodes.map(node => {
-      const level = glowLevel(state.tree[node.id]);
-      return `<div class="node lit${level}">
-        <b>${node.name}</b>
-        <span class="meta">${node.meaning}</span><br>
-        <span class="meta">${state.tree[node.id]} light</span>
+  function renderRosePad() {
+    const rows = [
+      { id: 'mothers', title: '3 Mothers: Aleph, Mem, Shin' },
+      { id: 'doubles', title: '7 Doubles: planets' },
+      { id: 'singles', title: '12 Singles: zodiac signs' }
+    ];
+    const lamenPetals = rosePetals.map((petal, index) => {
+      const rowIndex = petal.row === 'mothers'
+        ? rosePetals.filter(item => item.row === 'mothers').findIndex(item => item.letter === petal.letter)
+        : petal.row === 'doubles'
+          ? rosePetals.filter(item => item.row === 'doubles').findIndex(item => item.letter === petal.letter)
+          : rosePetals.filter(item => item.row === 'singles').findIndex(item => item.letter === petal.letter);
+      const rowCount = petal.row === 'mothers' ? 3 : petal.row === 'doubles' ? 7 : 12;
+      const radius = petal.row === 'mothers' ? 34 : petal.row === 'doubles' ? 64 : 94;
+      const point = radialPoint(rowIndex, rowCount, radius, -90);
+      const available = state.coins[petal.coin] || 0;
+      const spent = state.roseSpent[petal.letter] || 0;
+      const litClass = spent ? 'spent' : available ? 'available' : '';
+      const fill = petal.row === 'mothers' ? '#fef3c7' : petal.row === 'doubles' ? '#f97316' : petalColor(index);
+      const textFill = petal.row === 'mothers' ? '#111827' : '#071013';
+      const size = petal.row === 'mothers' ? 18 : petal.row === 'doubles' ? 19 : 21;
+      return `<g class="lamen-petal ${litClass}" data-letter="${petal.letter}">
+        <circle cx="${point.x}" cy="${point.y}" r="${size}" fill="${fill}" stroke="${available ? '#fef3c7' : '#071013'}" stroke-width="3"></circle>
+        <text class="lamen-letter" x="${point.x}" y="${point.y}" fill="${textFill}">${petal.letter}</text>
+        <title>${petal.name}: ${petal.trump}, ${petal.power}. Coin available: ${available}</title>
+      </g>`;
+    }).join('');
+    const lamenSvg = `<svg class="lamen-svg" viewBox="0 0 520 650" role="img" aria-label="Interactive Rose Cross lamen input pad">
+      <rect x="215" y="34" width="90" height="216" rx="45" fill="#f4f000"></rect>
+      <rect x="66" y="204" width="166" height="92" rx="42" fill="#f02017"></rect>
+      <rect x="288" y="204" width="166" height="92" rx="42" fill="#1237ff"></rect>
+      <rect x="215" y="238" width="90" height="244" fill="#f7f7ef"></rect>
+      <path d="M215 482 L260 548 L305 482 Z" fill="#d2b51b"></path>
+      <path d="M215 482 L215 574 L260 548 Z" fill="#b45b2d"></path>
+      <path d="M305 482 L305 574 L260 548 Z" fill="#738c2c"></path>
+      <circle cx="260" cy="250" r="125" fill="#071013" opacity="0.34"></circle>
+      <circle cx="260" cy="250" r="112" fill="#f7f7ef" opacity="0.72"></circle>
+      <circle cx="260" cy="250" r="25" fill="#e11d48" stroke="#071013" stroke-width="3"></circle>
+      <text class="lamen-symbol" x="260" y="75" fill="#d946ef">☿</text>
+      <text class="lamen-symbol" x="140" y="250" fill="#22c55e">✶</text>
+      <text class="lamen-symbol" x="380" y="250" fill="#f97316">✶</text>
+      <text class="lamen-symbol" x="260" y="532" fill="#111827">☉</text>
+      <text class="lamen-symbol" x="260" y="602" fill="#f7f7ef">☿</text>
+      <g transform="translate(260 250)">${lamenPetals}</g>
+    </svg>`;
+    const rowLegend = rows.map(row => {
+      const petals = rosePetals.filter(petal => petal.row === row.id).map(petal => {
+        const available = state.coins[petal.coin] || 0;
+        const spent = state.roseSpent[petal.letter] || 0;
+        const litClass = spent ? 'spent' : available ? 'available' : '';
+        return `<button class="petal ${litClass}" ${available ? '' : 'disabled'} data-letter="${petal.letter}">
+          <span class="petal-letter">${petal.letter}</span>
+          <strong>${petal.name}</strong><br>
+          <span class="meta">${petal.trump}</span><br>
+          <span class="meta">${petal.power} coin: ${available}</span>
+        </button>`;
+      }).join('');
+      return `<div>
+        <h3>${row.title}</h3>
+        <div class="rose-row ${row.id}">${petals}</div>
       </div>`;
     }).join('');
+    rosePadEl.innerHTML = lamenSvg + rowLegend;
+    rosePadEl.querySelectorAll('[data-letter]').forEach(button => {
+      button.addEventListener('click', () => spendRose(button.dataset.letter));
+    });
+  }
+
+  function radialPoint(index, count, radius, offsetDegrees) {
+    const angle = ((360 / count) * index + offsetDegrees) * Math.PI / 180;
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius
+    };
+  }
+
+  function petalColor(index) {
+    const colors = ['#ef4444', '#f97316', '#facc15', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#d946ef', '#ec4899'];
+    return colors[index % colors.length];
+  }
+
+  function renderTree() {
+    const pathMarkup = treeTapperPaths.map((path, index) => {
+      const points = treePathPolygon(path.from, path.to);
+      const color = treeTapperColors[state.treePathColors[index] || 0];
+      const focused = state.treePathColors[index] ? 'focused' : '';
+      return `<polygon class="tree-path ${focused}" points="${points}" fill="${color}" stroke="#071013" stroke-width="2" data-tree-path="${index}">
+        <title>${path.from} -> ${path.to}</title>
+      </polygon>`;
+    }).join('');
+    const circleMarkup = Object.entries(treeTapperSefirot).map(([name, point]) => {
+      const level = glowLevel(state.tree[point.node]);
+      const fill = level === 3 ? '#fef3c7' : level === 2 ? '#fbbf24' : level === 1 ? '#5eead4' : '#102832';
+      const stroke = state.focusedNode === point.node ? '#fef3c7' : '#071013';
+      return `<g data-sefirah="${point.node}">
+        <circle class="tree-circle" cx="${point.x}" cy="${point.y}" r="${treeCircleRadius}" fill="${fill}" stroke="${stroke}" stroke-width="4"></circle>
+        <text class="tree-label" x="${point.x}" y="${point.y + 5}">${name.slice(0, 3)}</text>
+      </g>`;
+    }).join('');
+    treeEl.innerHTML = `<svg class="tree-svg" viewBox="0 0 500 700" role="img" aria-label="Clickable Tree of Life visualizer adapted from TreeTapper">
+      ${pathMarkup}
+      ${circleMarkup}
+    </svg>`;
+    treeEl.querySelectorAll('[data-sefirah]').forEach(item => {
+      item.addEventListener('click', () => focusSefirah(item.dataset.sefirah));
+    });
+    treeEl.querySelectorAll('[data-tree-path]').forEach(item => {
+      item.addEventListener('click', () => cycleTreePath(Number(item.dataset.treePath)));
+    });
     treeDetailEl.innerHTML = treeNodes.map(node => `
       <div class="score-row">
         <span><b>${node.name}</b><br><span class="meta">${node.attrs.join(', ')}</span></span>
         <b>${state.tree[node.id]}</b>
       </div>
     `).join('');
+  }
+
+  function treePathPolygon(from, to) {
+    const start = treeTapperSefirot[from];
+    const end = treeTapperSefirot[to];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.hypot(dx, dy);
+    const ux = dx / length;
+    const uy = dy / length;
+    const startX = start.x + ux * treeCircleRadius;
+    const startY = start.y + uy * treeCircleRadius;
+    const endX = end.x - ux * treeCircleRadius;
+    const endY = end.y - uy * treeCircleRadius;
+    const offsetX = -uy * (treePathWidth / 2);
+    const offsetY = ux * (treePathWidth / 2);
+    return `${startX + offsetX},${startY + offsetY} ${startX - offsetX},${startY - offsetY} ${endX - offsetX},${endY - offsetY} ${endX + offsetX},${endY + offsetY}`;
   }
 
   function renderScore() {
@@ -552,6 +876,8 @@
       <div class="score-row"><span>Total score</span><b>${state.score}</b></div>
       <div class="score-row"><span>Cards drawn</span><b>${state.cards.length}</b></div>
       <div class="score-row"><span>Attention spent</span><b>${state.spent.length}</b></div>
+      <div class="score-row"><span>Rose petals spent</span><b>${Object.values(state.roseSpent).reduce((sum, value) => sum + value, 0)}</b></div>
+      <div class="score-row"><span>Tree paths marked</span><b>${state.treePathColors.filter(value => value > 0).length}/22</b></div>
       <div class="score-row"><span>Connection points</span><b>${spentScore}</b></div>
       <div class="score-row"><span>Tree nodes lit</span><b>${lit}/10</b></div>
     `;
