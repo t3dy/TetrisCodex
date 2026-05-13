@@ -117,6 +117,27 @@ Example relationship prompt:
 
 This is the model for beginner-friendly "obvious attribution" questions. The player should learn that a wrong answer can be wrong because it belongs to a different symbolic family, not because it is badly written.
 
+### Trump Pressure
+
+Positions:
+
+- Trump / Major Force / What kind of pressure does a Trump usually signal first
+
+Use:
+
+- softball quizzes for card class
+- teaching scale before interpretation
+- preventing the player from reading every card as personal empowerment
+
+Example prompt:
+
+| Prompt | Correct choice | Wrong choice | Why |
+| --- | --- | --- | --- |
+| The Tower as Trump / Major Force | Forces outside their control | User discovers super powers | A Trump/Major card usually foregrounds archetypal, structural, or fate-scale pressure before personal empowerment. |
+| The Tower as Trump / Major Force | Initiation through pressure | A small daily mood | The initiation answer can be partly right, but the scale must remain Trump-scale rather than minor everyday weather. |
+
+This gives the tutorial a very easy card-class quiz. It should feel almost too obvious, because the purpose is to train the player's eye toward the displayed attribution family: Trump/Major means a large pressure or archetype first.
+
 ## Prompt Structure
 
 Every drawn card should produce choices like:

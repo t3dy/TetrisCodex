@@ -279,16 +279,25 @@
         { id: 'wands-five', name: 'Five of Wands', question: 'How does that will develop under pressure?' }
       ],
       cards: ['four-wands', 'five-wands']
+    },
+    {
+      id: 'trump-pressure',
+      name: 'Trump Pressure',
+      desc: 'A softball Major/Trump drill: archetypal force before personal wish fulfillment.',
+      positions: [
+        { id: 'trump-force', name: 'Trump / Major Force', question: 'What kind of pressure does a Trump usually signal first?' }
+      ],
+      cards: ['tower']
     }
   ];
 
   const deck = [
-    { id: 'magician', name: 'The Magician', emoji: '🪄', element: 'Air', planet: 'Mercury', process: 'Projection', tags: ['skill', 'mercury', 'language'], meanings: ['skillful agency', 'translation', 'the tool made conscious'] },
-    { id: 'tower', name: 'The Tower', emoji: '🗼', element: 'Fire', planet: 'Mars', process: 'Calcination', tags: ['danger', 'fire', 'rupture'], meanings: ['rupture', 'necessary break', 'accident turned lesson'] },
-    { id: 'moon-card', name: 'The Moon', emoji: '🌙', element: 'Water', planet: 'Moon', process: 'Dissolution', tags: ['water', 'uncertainty', 'dream'], meanings: ['uncertain reflection', 'solvent imagination', 'night knowledge'] },
-    { id: 'sun-card', name: 'The Sun', emoji: '☉', element: 'Fire', planet: 'Sun', process: 'Projection', tags: ['clarity', 'gold', 'joy'], meanings: ['clarity', 'golden result', 'visible truth'] },
-    { id: 'temperance', name: 'Temperance', emoji: '⚖️', element: 'Fire/Water', planet: 'Sagittarius', process: 'Ceration', tags: ['balance', 'mixing', 'moderation'], meanings: ['measured mixture', 'patient adjustment', 'opposites in vessel'] },
-    { id: 'devil', name: 'The Devil', emoji: '⛓️', element: 'Earth', planet: 'Capricorn', process: 'Fermentation', tags: ['earth', 'bond', 'shadow'], meanings: ['binding appetite', 'fermenting shadow', 'matter too fascinating'] },
+    { id: 'magician', name: 'The Magician', emoji: '🪄', element: 'Air', planet: 'Mercury', process: 'Projection', type: 'Trump', tags: ['skill', 'mercury', 'language', 'trump'], meanings: ['skillful agency', 'translation', 'the tool made conscious'] },
+    { id: 'tower', name: 'The Tower', emoji: '🗼', element: 'Fire', planet: 'Mars', process: 'Calcination', type: 'Trump', tags: ['danger', 'fire', 'rupture', 'trump', 'outside-force'], meanings: ['rupture', 'necessary break', 'accident turned lesson'] },
+    { id: 'moon-card', name: 'The Moon', emoji: '🌙', element: 'Water', planet: 'Moon', process: 'Dissolution', type: 'Trump', tags: ['water', 'uncertainty', 'dream', 'trump'], meanings: ['uncertain reflection', 'solvent imagination', 'night knowledge'] },
+    { id: 'sun-card', name: 'The Sun', emoji: '☉', element: 'Fire', planet: 'Sun', process: 'Projection', type: 'Trump', tags: ['clarity', 'gold', 'joy', 'trump'], meanings: ['clarity', 'golden result', 'visible truth'] },
+    { id: 'temperance', name: 'Temperance', emoji: '⚖️', element: 'Fire/Water', planet: 'Sagittarius', process: 'Ceration', type: 'Trump', tags: ['balance', 'mixing', 'moderation', 'trump'], meanings: ['measured mixture', 'patient adjustment', 'opposites in vessel'] },
+    { id: 'devil', name: 'The Devil', emoji: '⛓️', element: 'Earth', planet: 'Capricorn', process: 'Fermentation', type: 'Trump', tags: ['earth', 'bond', 'shadow', 'trump'], meanings: ['binding appetite', 'fermenting shadow', 'matter too fascinating'] },
     { id: 'ace-cups', name: 'Ace of Cups', emoji: '🏆', element: 'Water', planet: 'Moon', process: 'Dissolution', tags: ['water', 'opening', 'vessel'], meanings: ['new vessel', 'emotional solvent', 'the first water'] },
     { id: 'ace-wands', name: 'Ace of Wands', emoji: '🕯️', element: 'Fire', planet: 'Sun', process: 'Calcination', tags: ['fire', 'beginning', 'heat'], meanings: ['first flame', 'impulse', 'heat seeking form'] },
     { id: 'four-wands', name: 'Four of Wands', emoji: '🕯️4', element: 'Fire', planet: 'Venus', process: 'Fixation', suit: 'Wands', number: 4, tags: ['fire', 'wands', 'will', 'stability', 'structure'], meanings: ['stable will', 'celebrated structure', 'fire given a frame'] },
@@ -358,6 +367,14 @@
   }
 
   function optionsFor(card, position) {
+    if (position.id === 'trump-force' && card.tags.includes('trump')) {
+      return [
+        { id: 'trump-outside-force', label: 'Forces outside their control', score: 3, tags: ['trump', 'outside-force', 'pressure'], phrase: 'read the Trump as a large archetypal force pressing on the querent before treating it as personal power', why: 'Correct: a Trump/Major card usually foregrounds an archetypal or structural force larger than ordinary agency.' },
+        { id: 'wrong-trump-superpowers', label: 'User discovers super powers', score: -2, tags: ['wrong'], phrase: 'turn the Trump immediately into personal superpowers or wish fulfillment', why: 'Wrong: this skips the Trump scale and converts outside pressure into fantasy self-upgrade too quickly.' },
+        { id: 'trump-initiation', label: 'Initiation through pressure', score: 2, tags: ['trump', 'trial'], phrase: 'read the pressure as an initiation that may change the querent after they endure it', why: 'Good but more developed: the first lesson is still the pressure, then the possible transformation.' },
+        { id: 'wrong-trump-minor', label: 'A small daily mood', score: -2, tags: ['wrong'], phrase: 'shrink the Trump into a passing mood or tiny errand', why: 'Wrong: Trumps should not be flattened into minor, ordinary-scale weather.' }
+      ];
+    }
     const picked = [];
     const add = (id, score, why) => {
       const opt = optionBank.find(o => o.id === id);
@@ -563,11 +580,12 @@
     cardsEl.innerHTML = state.drawn.map((card, index) => {
       const pos = spread.positions[index];
       const suitMeta = card.suit ? ` · ${card.suit} ${card.number}` : '';
+      const typeMeta = card.type ? ` · ${card.type}` : '';
       return `<article class="card">
         <div class="emoji">${card.emoji}</div>
         <h3>${card.name}</h3>
         <p class="meta">${pos.name}: ${pos.question}</p>
-        <p class="meta">${card.element} · ${card.planet} · ${card.process}${suitMeta}</p>
+        <p class="meta">${card.element} · ${card.planet} · ${card.process}${suitMeta}${typeMeta}</p>
       </article>`;
     }).join('');
   }
