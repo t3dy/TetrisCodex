@@ -51,6 +51,9 @@ Modes can have wildly different controls, but they should translate controls int
 | `move_actor` | Move player-controlled actor. | Ship thrust, character movement, cursor. |
 | `strike_body` | Apply impulse to a body for billiards, pinball, or dream-course modes. | Cue drag/release, power meter, launch button. |
 | `collide_body` | Report a physical impact that may trigger reactions. | Ball-ball hit, bumper contact, apparatus impact. |
+| `push_block` | Move a block by actor pressure on a grid. | Arrow into block, shove command, tool lever. |
+| `reveal_cell` | Reveal a hidden lab tile and report danger. | Click/step in Minesweeper mode. |
+| `grant_power` | Add temporary or starting properties to the player actor. | Snake digestion, class select, talisman pickup. |
 | `activate_apparatus` | Trigger a process/furniture tile. | Click alembic, beam crucible, push lever. |
 | `route_substance` | Direct flow or falling matter. | Pipe switch, flipper, conveyor, drawbridge. |
 | `inspect_source` | Open source/codex metadata. | Hover, right-click, codex button. |
@@ -86,6 +89,44 @@ Mode-specific logic:
 - reaction queue
 - shot readout
 - optional later 3D-ish dream-course branch
+
+### Alchemical Breakout
+
+Planned paddle-and-ball lab disturbance mode. It shares collision/cascade language with Billiards, but uses repeated ball impacts rather than deliberate cue shots.
+
+Adapter needs:
+
+- `toBreakoutBrick(block)`
+- durability, restitution, cascade tags, heat/wet/volatile output, score family
+
+### Alchemical Push
+
+Planned Sokoban-like grid mode.
+
+Adapter needs:
+
+- `toPushBlock(block)`
+- push weight, slide rule, fragility, heat/contact hazard, receiver affinity
+
+### Lab Minesweeper
+
+Planned hidden-information lab exploration mode.
+
+Adapter needs:
+
+- `toHazardClue(block)`
+- clue family, accident type, resistance interaction, warning text, source note
+
+### Medieval Siege Alchemy
+
+Planned family of action/tactics modes: Bomber Alchemist, tower defense, turn-based siege lab, lob-shot artillery, and fire/ice arcade.
+
+Adapter needs will depend on chosen version:
+
+- `toBombReagent(block)`
+- `toTowerApparatus(block)`
+- `toSiegeProjectile(block)`
+- `toTacticsHazard(block)`
 
 ### Lab Cascade Sandbox
 

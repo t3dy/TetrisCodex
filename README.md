@@ -38,6 +38,12 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Game Guide](game-guide.html)  
   Public-facing overview of game modes, asset families, and creator tools.
 
+- [12 Processes Atlas](process-atlas.html)  
+  Website tab mapping zodiac-linked alchemical processes to grid verbs across the arcade.
+
+- [New Historiography Of Alchemy](alchemy-historiography.html)  
+  Website tab framing the scholarly values, source topics, and level side-panel logic for historical alchemy.
+
 - [Design Rationale](design-rationale.html)  
   Website section preserving original feature prompts, interpretations, choices made, and alternate design paths.
 
@@ -91,6 +97,8 @@ A separate original tile-placement experiment with blooms, blight, glyph placeme
 
 A BASIC-style Snake mode that proves the alchemical block system can work outside tilting or Tetris placement. The snake digests shared `alchemy-block/v1` matter, and a narration parser converts inputs, collisions, and outcomes into alchemical feedback.
 
+Planned power expansion: snakes can start with or digest alchemical powers such as Salt stability, Mercury phase, Sulphur ignition, planetary constitutions, and apparatus process lenses.
+
 ### Alchemical Three
 
 A grid puzzle mode that treats Tetris rotation as a shared action characters can perform. The Salt-Bearer, Mercury-Runner, and Sulphur-Smith move blocks differently, proving that `alchemy-block/v1` matter can power character puzzles as well as falling-block games.
@@ -98,6 +106,18 @@ A grid puzzle mode that treats Tetris rotation as a shared action characters can
 ### Alchemical Billiards
 
 A planned pool-shot cascade mode. Players aim cue shots into alchemical balls, blocks, furniture, pockets, and apparatus so collisions trigger zany laboratory reactions. The 3D-ish dream-course idea is documented as a later branch, not a current build.
+
+### Alchemical Breakout
+
+A planned paddle-and-ball lab disturbance mode. Hitting alchemical bricks can calcine, dissolve, split, ferment, project, ignite, crystallize, or reveal hidden properties.
+
+### Alchemical Push And Lab Minesweeper
+
+Planned grid modes. Push mode treats alchemical matter as movable lab blocks with weight, slipperiness, heat, and fragility. Minesweeper mode turns hidden laboratory accidents into readable clues and player-property interactions.
+
+### Medieval Siege Alchemy
+
+Planned only until a version is chosen. Options include Bomber Alchemist, Tower Defense Athanor, Turn-Based Siege Laboratory, Lob-Shot Artillery, and Flamethrower/Ice Arcade.
 
 ## Creator Tools
 
@@ -177,9 +197,17 @@ Mode and asset docs:
 - [docs/ALCHEMICAL_POETRY_TIMELINE.md](docs/ALCHEMICAL_POETRY_TIMELINE.md)
 - [docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md](docs/ALCHEMICAL_POETRY_RESPONSE_BANK.md)
 - [docs/ALCHEMY_SNAKE_MODE.md](docs/ALCHEMY_SNAKE_MODE.md)
+- [docs/SNAKE_ALCHEMICAL_POWERS.md](docs/SNAKE_ALCHEMICAL_POWERS.md)
 - [docs/ROTATION_MECHANIC_CONTRACT.md](docs/ROTATION_MECHANIC_CONTRACT.md)
 - [docs/ALCHEMICAL_THREE_MODE.md](docs/ALCHEMICAL_THREE_MODE.md)
 - [docs/ALCHEMICAL_BILLIARDS_MODE.md](docs/ALCHEMICAL_BILLIARDS_MODE.md)
+- [docs/ALCHEMICAL_BREAKOUT_MODE.md](docs/ALCHEMICAL_BREAKOUT_MODE.md)
+- [docs/GRID_PUSH_AND_MINESWEEPER_MODES.md](docs/GRID_PUSH_AND_MINESWEEPER_MODES.md)
+- [docs/MEDIEVAL_SIEGE_ALCHEMY_MODES.md](docs/MEDIEVAL_SIEGE_ALCHEMY_MODES.md)
+- [docs/ALCHEMY_HISTORIOGRAPHY_ESSAY.md](docs/ALCHEMY_HISTORIOGRAPHY_ESSAY.md)
+- [docs/ALCHEMICAL_HISTORY_BY_MODE.md](docs/ALCHEMICAL_HISTORY_BY_MODE.md)
+- [docs/TWELVE_PROCESSES_MODE_ATLAS.md](docs/TWELVE_PROCESSES_MODE_ATLAS.md)
+- [docs/SYMBOL_INPUT_GRAMMAR.md](docs/SYMBOL_INPUT_GRAMMAR.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

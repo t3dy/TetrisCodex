@@ -109,6 +109,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `ALCHEMY_SNAKE_MODE.md`  
   BASIC-style Snake mode using shared alchemy blocks, digestion effects, and a narration parser.
 
+- `SNAKE_ALCHEMICAL_POWERS.md`  
+  Power expansion plan for snakes that begin with or digest Salt, Sulphur, Mercury, planetary, and apparatus abilities.
+
 - `ROTATION_MECHANIC_CONTRACT.md`  
   Shared rotation intent for falling pieces, carried blocks, apparatus, platforms, and editor objects.
 
@@ -117,6 +120,27 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 
 - `ALCHEMICAL_BILLIARDS_MODE.md`  
   Planning stub for pool-shot alchemical cascades, apparatus furniture, scoring pockets, and a later dream-course 3D-ish branch.
+
+- `ALCHEMICAL_BREAKOUT_MODE.md`  
+  Planned Breakout-style lab disturbance mode where alchemical bricks react to ball impacts.
+
+- `GRID_PUSH_AND_MINESWEEPER_MODES.md`  
+  Plans for Sokoban-like block pushing and hidden lab accident exploration.
+
+- `MEDIEVAL_SIEGE_ALCHEMY_MODES.md`  
+  Plans for Bomber Alchemist, tower defense, turn-based siege, lob-shot artillery, and fire/ice arcade variants.
+
+- `ALCHEMY_HISTORIOGRAPHY_ESSAY.md`  
+  Website-facing essay on the scholarly values and topic areas of the new historiography of alchemy.
+
+- `ALCHEMICAL_HISTORY_BY_MODE.md`  
+  Commentary on how each game mode can explore alchemical history and chemistry while fudging physics honestly.
+
+- `TWELVE_PROCESSES_MODE_ATLAS.md`  
+  Mode-by-mode modeling ideas for the twelve zodiac-linked alchemical processes.
+
+- `SYMBOL_INPUT_GRAMMAR.md`  
+  Stable input grammar for zodiac processes, Tria Prima principles, and seven planetary/metmetal buttons.
 
 ## Documentation Rule Going Forward
 

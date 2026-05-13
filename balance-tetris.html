@@ -59,6 +59,7 @@ const DEFAULT_SETTINGS = {
   playerCount: 1,      // 1 = solo, 2+ = hot-seat
   stiffnessMul: 1.0,   // 0.5 = floppy platform, 2.0 = rigid
   maxTiltMul: 1.0,     // 0.7 = strict game-over threshold, 1.3 = lenient
+  openingGracePlacements: 3, // no instant tip-over during the first learning moves
   lineClear: 'off',    // 'off' | 'classic' — clear full rows after placement
   // Alchemy mode rules
   alchemySlideThreshold: Math.PI / 9,  // 20° — tilt at which groups slide
@@ -188,6 +189,16 @@ const SETTING_SPECS = {
       { label: 'Strict',  value: 0.7 },
       { label: 'Normal',  value: 1.0 },
       { label: 'Lenient', value: 1.3 },
+    ]
+  },
+  openingGracePlacements: {
+    label: 'OPENING GRACE',
+    hint: 'Early placements warn instead of ending the run immediately.',
+    presets: [
+      { label: 'Off', value: 0 },
+      { label: '1', value: 1 },
+      { label: '3', value: 3 },
+      { label: '5', value: 5 },
     ]
   },
   lineClear: {
@@ -2292,13 +2303,20 @@ function isStableEnoughAfterPlacement(g) {
 
   // Give the player a real opening. The tabletop version is fun because the
   // first few moves teach you the board; instant failure teaches nothing.
-  // This grace is intentionally small: it prevents first-move gotchas while
-  // still letting genuinely wild stacks fail.
+  // Earlier versions still failed in hard modes because the grace was limited
+  // to a narrow angle band. The grace is now explicit and user-tunable: early
+  // placements warn and cap the visible tilt, then normal physics returns.
   const baseLimit = g.platform.maxTilt || Math.PI / 4;
-  const gracePlacements = g.modeId === 'wildhunt' ? 2 : 1;
-  const graceLimit = Math.min(Math.PI * 0.62, baseLimit * (g.modeId === 'wildhunt' ? 1.85 : 1.55));
-  if (g.piecesPlaced <= gracePlacements && Math.abs(g.targetTilt) <= graceLimit) {
+  const settingGrace = Number.isFinite(settings.openingGracePlacements) ? settings.openingGracePlacements : 3;
+  const platformGraceBonus = (g.platformId === 'narrowPole' || g.platformId === 'twoFulcrum') ? 1 : 0;
+  const modeGraceBonus = g.modeId === 'wildhunt' ? 1 : 0;
+  const gracePlacements = Math.max(0, settingGrace + platformGraceBonus + modeGraceBonus);
+  if (g.piecesPlaced <= gracePlacements) {
+    const direction = Math.sign(g.targetTilt || 1);
+    const cappedTilt = Math.min(Math.abs(g.targetTilt), baseLimit * 0.82);
+    g.targetTilt = direction * cappedTilt;
     g.balanceWarningFrames = 150;
+    addFeedback(g, `Opening grace: ${g.platform.name} would have tipped. Use the next move as a counterweight near center or toward the high side.`);
     return true;
   }
   return false;
@@ -4173,7 +4191,7 @@ function drawMenuSettings(g) {
 
   let y = 130;
   const keys = ['playerCount', 'lineClear', 'fallSpeed', 'softDropMul', 'hardDropSpeedMul',
-                'windSpeed', 'stiffnessMul', 'maxTiltMul', 'blockFriction',
+                'windSpeed', 'stiffnessMul', 'maxTiltMul', 'openingGracePlacements', 'blockFriction',
                 'blockSlipperiness', 'slideSteps', 'shakeMul',
                 'alchemySlideThreshold', 'alchemyMinGroup', 'alchemySingletonPenalty', 'alchemyItemRate'];
   let drewAlchemyHeader = false;

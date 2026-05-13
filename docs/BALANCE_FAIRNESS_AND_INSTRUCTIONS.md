@@ -21,6 +21,26 @@ Added a shared stability helper:
 
 The platform still uses its real stability rules, but the first placement gets a small teaching grace if the tilt is not catastrophically beyond the limit.
 
+### 1A. 2026-05-12 Opening Grace Expansion
+
+Playtesting still showed first-placement tip-overs in harder platform and special-mode combinations. The previous grace only applied inside a moderate over-tilt band, which meant a player could still lose before receiving useful guidance.
+
+Updated rule:
+
+- `openingGracePlacements` is now a player-facing physics setting.
+- Default is 3 early placements.
+- Narrow Pole and Two-Fulcrum Bridge get one extra grace placement.
+- Wild Hunt gets one extra grace placement.
+- During grace, unstable placements warn instead of ending the run.
+- The visible target tilt is capped to a recoverable warning angle.
+- After the grace window, the normal platform stability rule returns.
+
+Design intent:
+
+- The player should always get at least one correction opportunity.
+- Hard platforms can still be hard after the opening.
+- The game should teach "counterweight near center or high side" instead of simply saying "you lost."
+
 Mode-specific grace:
 
 - Standard/alchemy/other modes: first placement can survive a moderate over-tilt.

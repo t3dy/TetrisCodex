@@ -8,13 +8,35 @@ The player has access to:
 
 - 12 zodiac/process buttons
 - 3 Tria Prima modifier buttons
+- 7 planetary/metmetal buttons
 
 This creates:
 
 - 12 pure process apparatus tiles
 - 3 pure principle substance tiles
 - 36 process-plus-principle compound substances
-- 51 total outputs from 15 buttons
+- 7 pure planetary/metmetal selections
+- additional advanced process-plus-planet and process-plus-principle-plus-planet outputs
+- 51 first-layer outputs from the 12 zodiac plus 3 principle buttons
+
+The original 51-output grammar remains the first teachable layer. Planet buttons are a second layer and should be visually distinct from Tria Prima buttons.
+
+## Three Button Families
+
+| Family | Meaning | UI treatment |
+| --- | --- | --- |
+| Zodiac/process | Operation: calcination, dissolution, projection, etc. | Ring or seasonal band. |
+| Tria Prima | Philosophical matter quality: fixed, oily/combustible, volatile. | Triangular principle buttons. |
+| Planet/metmetal | Metal and celestial affinity: Sun/gold, Moon/silver, Saturn/lead, etc. | Circular planet buttons. |
+
+### Mercury Disambiguation
+
+There are two different Mercury buttons:
+
+- **Principle Mercury**: volatile/spiritual matter quality.
+- **Planet Mercury**: planetary/metmetal affinity.
+
+Do not rely on the glyph alone. Use different button shapes, labels, color frames, and hover text.
 
 ## Two-Step Grammar
 

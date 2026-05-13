@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 Alchemical Processes Atlas</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #071013; color: #ecfeff; font-family: "Segoe UI", system-ui, sans-serif; }
+  main { width: min(1180px, calc(100vw - 32px)); margin: 0 auto; padding: 44px 0 76px; }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+  nav a { color: #d1fae5; text-decoration: none; padding: 8px 10px; border: 1px solid rgba(148,163,184,.28); border-radius: 999px; background: #0f1d22; font-size: 13px; font-weight: 800; }
+  h1 { max-width: 980px; margin: 0 0 14px; font-size: clamp(34px, 6vw, 72px); line-height: .92; letter-spacing: 0; }
+  .lead { max-width: 940px; color: #a7c9c2; font-size: 19px; line-height: 1.5; margin: 0 0 34px; }
+  section { margin-top: 42px; }
+  h2 { margin: 0 0 16px; color: #fef3c7; font-size: 30px; }
+  table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; }
+  th, td { padding: 12px; border-bottom: 1px solid rgba(148,163,184,.18); text-align: left; vertical-align: top; }
+  th { color: #fef3c7; background: #102329; }
+  td { color: #bad7d1; background: #0d1a1f; line-height: 1.45; }
+  .cta { display: inline-block; margin-top: 14px; margin-right: 8px; padding: 10px 13px; border: 1px solid #5eead4; border-radius: 6px; color: #ecfeff; text-decoration: none; font-weight: 900; background: #164e63; }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="alchemy-historiography.html">Historiography</a>
+    <a href="balance-tetris.html">Balance Tetris</a>
+    <a href="snake-alchemy.html">Alchemy Snake</a>
+  </nav>
+
+  <h1>12 Alchemical Processes Atlas</h1>
+  <p class="lead">
+    A practical atlas for turning zodiac/process buttons into emoji-grid mechanics.
+    Each mode can interpret the symbol differently, but the core grammar stays stable:
+    zodiac means operation, Tria Prima means philosophical matter quality, planet means metal or celestial affinity.
+  </p>
+
+  <section>
+    <h2>Process Verbs</h2>
+    <table>
+      <thead><tr><th>Zodiac</th><th>Process</th><th>Grid Verb</th><th>Game Uses</th></tr></thead>
+      <tbody>
+        <tr><td>♈ Aries</td><td>Calcination</td><td>Burn/reduce to ash</td><td>Breakout heat bricks, Siege fire bombs, Balance ash cells.</td></tr>
+        <tr><td>♉ Taurus</td><td>Congelation</td><td>Solidify/freeze</td><td>Push blockers, Snake stability, frozen lab surfaces.</td></tr>
+        <tr><td>♊ Gemini</td><td>Fixation</td><td>Clamp/bind</td><td>Alchemical Three tools, Billiards pin bumpers, Minesweeper safe anchors.</td></tr>
+        <tr><td>♋ Cancer</td><td>Dissolution</td><td>Wet/loosen/dissolve</td><td>Solvent floors, Mercury slides, corrosion clues.</td></tr>
+        <tr><td>♌ Leo</td><td>Digestion</td><td>Warm over turns</td><td>Fermenting timers, Snake digestion powers, lab heat fields.</td></tr>
+        <tr><td>♍ Virgo</td><td>Distillation</td><td>Extract/purify</td><td>Alembic redirects, source reveal, purified scoring.</td></tr>
+        <tr><td>♎ Libra</td><td>Sublimation</td><td>Lift/lighten</td><td>Ramps, vapor paths, floating blocks, 3D-ish future branch.</td></tr>
+        <tr><td>♏ Scorpio</td><td>Separation</td><td>Split/filter/divide</td><td>Breakout ball splitting, Billiards splitter, Push gates.</td></tr>
+        <tr><td>♐ Sagittarius</td><td>Ceration/Incineration</td><td>Soften or burn</td><td>Oily hazards, Sulphur heat, siege incendiaries.</td></tr>
+        <tr><td>♑ Capricorn</td><td>Fermentation</td><td>Rot/grow over time</td><td>Regrowing bricks, delayed hazards, Rune Bloom growth.</td></tr>
+        <tr><td>♒ Aquarius</td><td>Multiplication</td><td>Copy/increase</td><td>Clone balls, duplicate blocks, score amplifiers.</td></tr>
+        <tr><td>♓ Pisces</td><td>Projection</td><td>Cast/transmute outward</td><td>Lead-to-gold levels, row beams, artillery/projector puzzles.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Reference Docs</h2>
+    <a class="cta" href="docs/TWELVE_PROCESSES_MODE_ATLAS.md">Full Atlas</a>
+    <a class="cta" href="docs/SYMBOL_INPUT_GRAMMAR.md">Symbol Grammar</a>
+    <a class="cta" href="docs/COMBINATORIAL_ALCHEMY_PALETTE_SPEC.md">Palette Spec</a>
+  </section>
+</main>
+</body>
+</html>
