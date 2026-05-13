@@ -45,6 +45,25 @@ The first prototype is a fixed mock reading, not a random deck simulation.
 7. The program composes a written reading from card meanings, positions, relationships, and chosen angles.
 8. The reading can later be saved, cited, remixed into a level objective, or used as a source frame.
 
+## Saved Writing Loop
+
+The interface now treats generated writing as a durable game artifact.
+
+Every player choice should save:
+
+- prompt label
+- selected answer
+- score
+- rationale
+- current generated text snapshot
+- timestamp
+
+The prompt/question section can be toggled hidden. This lets the player move from quiz mode into reading mode, where the generated text and saved journal become the main surface.
+
+Local prototype storage:
+
+- `localStorage.tarotReadingJournal`
+
 ## Prepared Layouts
 
 ### Threefold Vessel

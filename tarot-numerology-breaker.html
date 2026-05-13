@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarot Numerology Breaker</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #071013; color: #ecfeff; font-family: "Segoe UI", system-ui, sans-serif; }
+  main { width: min(1180px, calc(100vw - 28px)); margin: 0 auto; padding: 30px 0 56px; }
+  nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+  nav a { color: #d1fae5; text-decoration: none; padding: 8px 10px; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 999px; background: #0f1d22; font-size: 13px; font-weight: 800; }
+  h1 { max-width: 940px; margin: 0 0 12px; font-size: clamp(34px, 6vw, 68px); line-height: 0.94; letter-spacing: 0; }
+  .lead { max-width: 900px; margin: 0 0 24px; color: #a7c9c2; font-size: 18px; line-height: 1.5; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(330px, 0.9fr); gap: 14px; align-items: start; }
+  section, .panel { border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #0f1d22; padding: 15px; }
+  section + section, .panel + .panel { margin-top: 14px; }
+  h2 { margin: 0 0 12px; color: #fef3c7; font-size: 23px; }
+  h3 { margin: 0 0 8px; font-size: 18px; }
+  p { color: #bad7d1; line-height: 1.45; margin: 0 0 10px; }
+  button { border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 7px; background: #102832; color: #ecfeff; padding: 10px; font: inherit; text-align: left; cursor: pointer; }
+  button:hover, button:focus { outline: 2px solid #5eead4; background: #143742; }
+  button.selected { border-color: #fbbf24; background: #3a2b12; }
+  .primary { background: #164e63; border-color: #5eead4; font-weight: 900; text-align: center; }
+  .grid { display: grid; gap: 10px; }
+  .three { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; }
+  .card { min-height: 148px; border: 1px solid rgba(250, 204, 21, 0.34); border-radius: 8px; background: #111827; padding: 13px; }
+  .emoji { font-size: 34px; margin-bottom: 8px; }
+  .meta { color: #8fb7ae; font-size: 13px; line-height: 1.35; }
+  .tagline { display: inline-block; margin: 0 0 10px; color: #5eead4; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  .score { font-size: 42px; color: #fef3c7; font-weight: 900; }
+  .log { min-height: 340px; max-height: 650px; overflow: auto; white-space: pre-wrap; color: #d9fff7; line-height: 1.5; }
+  .combo { padding: 9px; border-radius: 7px; background: #07171c; border: 1px solid rgba(148, 163, 184, 0.22); }
+  .combo.hot { border-color: #fbbf24; box-shadow: 0 0 18px rgba(251, 191, 36, 0.14); }
+  @media (max-width: 900px) { .layout { display: block; } .right { margin-top: 14px; } }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="tarot-reading.html">Reading Lab</a>
+    <a href="tarot-coin-journey.html">Coin Journey</a>
+    <a href="docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md">Mode Doc</a>
+  </nav>
+  <h1>Tarot Numerology Breaker</h1>
+  <p class="lead">A Balatro-like tarot sketch: play a hand, trigger weird Golden Dawn numerology correspondences, break rules, and watch generated interpretation text stack into absurd high-score fireworks.</p>
+
+  <div class="layout">
+    <div>
+      <section>
+        <span class="tagline">1. hand</span>
+        <h2>Tarot Hand</h2>
+        <div id="hand" class="card-grid"></div>
+        <div class="grid three" style="margin-top:12px">
+          <button id="scoreBtn" class="primary">Score Correspondences</button>
+          <button id="breakBtn">Buy Rule Break</button>
+          <button id="resetBtn">Reset Run</button>
+        </div>
+      </section>
+      <section>
+        <span class="tagline">2. combo opportunities</span>
+        <h2>Triggered Meanings</h2>
+        <div id="combos" class="grid three"></div>
+      </section>
+      <section>
+        <span class="tagline">3. quiz variants</span>
+        <h2>Interpretive Constraints</h2>
+        <div id="quizzes" class="grid three"></div>
+      </section>
+    </div>
+    <aside class="right">
+      <div class="panel">
+        <span class="tagline">score</span>
+        <div id="score" class="score">0</div>
+        <p id="mult" class="meta"></p>
+      </div>
+      <div class="panel">
+        <span class="tagline">generated writing</span>
+        <h2>Combo Reading</h2>
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const baseHand = [
+    { name: 'Four of Wands', emoji: '🕯️4', number: 4, suit: 'Wands', element: 'Fire', planet: 'Venus', sign: 'Aries', scale: 'Pip' },
+    { name: 'Five of Wands', emoji: '🕯️5', number: 5, suit: 'Wands', element: 'Fire', planet: 'Saturn', sign: 'Leo', scale: 'Pip' },
+    { name: 'The Tower', emoji: '♂🗼', number: 16, suit: 'Trump', element: 'Fire', planet: 'Mars', sign: 'Scorpio', scale: 'Trump' },
+    { name: 'The Sun', emoji: '☉', number: 19, suit: 'Trump', element: 'Fire', planet: 'Sun', sign: 'Leo', scale: 'Trump' },
+    { name: 'Ten of Pentacles', emoji: '🪙10', number: 10, suit: 'Pentacles', element: 'Earth', planet: 'Saturn', sign: 'Virgo', scale: 'Pip' }
+  ];
+
+  const ruleBreaks = [
+    { name: 'False Sephirah', text: 'One card may score as the wrong Tree node if the generated interpretation admits the fraud.', mult: 2 },
+    { name: 'Rose Cross Lens', text: 'A lit Hebrew letter can add its planet/sign to the whole hand.', mult: 3 },
+    { name: 'Broken Decan Wheel', text: 'A zodiac sign also scores its neighbors.', mult: 2 },
+    { name: 'Numeral Fire', text: 'Any repeated or adjacent number counts as Fire.', mult: 2 }
+  ];
+
+  const quizzes = [
+    { label: 'Direct quiz', right: 'Wands mean will, so 4 -> 5 develops will.', wrong: 'Call it emotional stability.' },
+    { label: 'Frame quiz', right: 'Career frame turns Mars/Tower into pressure and crisis management.', wrong: 'Declare automatic victory.' },
+    { label: 'Spend quiz', right: 'Spend Mars on Tower before spending Water on comfort.', wrong: 'Spend Moon where no lunar card appears.' }
+  ];
+
+  let state = {
+    hand: baseHand,
+    score: 0,
+    multiplier: 1,
+    breaks: [],
+    log: ['Score the hand to start the correspondence cascade.']
+  };
+
+  const handEl = document.getElementById('hand');
+  const combosEl = document.getElementById('combos');
+  const quizzesEl = document.getElementById('quizzes');
+  const scoreEl = document.getElementById('score');
+  const multEl = document.getElementById('mult');
+  const logEl = document.getElementById('log');
+  document.getElementById('scoreBtn').addEventListener('click', scoreHand);
+  document.getElementById('breakBtn').addEventListener('click', buyBreak);
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    state = { hand: baseHand, score: 0, multiplier: 1, breaks: [], log: ['Score the hand to start the correspondence cascade.'] };
+    render();
+  });
+
+  function scoreHand() {
+    const combos = detectCombos();
+    const base = combos.reduce((sum, combo) => sum + combo.points, 0);
+    const gain = base * state.multiplier;
+    state.score += gain;
+    const lines = combos.map(combo => `${combo.name}: ${combo.text} (+${combo.points})`).join('\n');
+    state.log.unshift(`Scored ${gain} points at x${state.multiplier}.\n${lines}\n\nGenerated reading: ${generatedReading(combos)}`);
+    render();
+  }
+
+  function buyBreak() {
+    const next = ruleBreaks[state.breaks.length % ruleBreaks.length];
+    state.breaks.push(next);
+    state.multiplier += next.mult;
+    state.log.unshift(`Rule break acquired: ${next.name}. ${next.text} Multiplier is now x${state.multiplier}.`);
+    render();
+  }
+
+  function detectCombos() {
+    const combos = [];
+    const fireCount = state.hand.filter(card => card.element === 'Fire').length;
+    const trumpCount = state.hand.filter(card => card.scale === 'Trump').length;
+    const wands = state.hand.filter(card => card.suit === 'Wands');
+    if (wands.some(card => card.number === 4) && wands.some(card => card.number === 5)) {
+      combos.push({ name: '4 -> 5 Wands', points: 40, text: 'stable will enters contest and scores development of will' });
+    }
+    if (fireCount >= 4) combos.push({ name: 'Fire Flood', points: 60, text: 'too much heat becomes dazzling action pressure' });
+    if (trumpCount >= 2) combos.push({ name: 'Trump Scale', points: 50, text: 'forces outside control overrun ordinary agency' });
+    if (state.hand.some(card => card.planet === 'Mars') && state.hand.some(card => card.name === 'The Tower')) {
+      combos.push({ name: 'Mars Tower Rupture', points: 70, text: 'Peh/Tower/Mars creates a controlled catastrophe' });
+    }
+    if (state.hand.some(card => card.planet === 'Sun') && state.hand.some(card => card.number === 19)) {
+      combos.push({ name: 'Solar Clarification', points: 45, text: 'Sun card crowns the hand with visible meaning' });
+    }
+    if (state.hand.some(card => card.number === 10)) combos.push({ name: 'Malkuth Load', points: 25, text: 'a 10 grounds the hand into heavy manifestation' });
+    state.breaks.forEach(rule => combos.push({ name: rule.name, points: 30 * rule.mult, text: rule.text }));
+    return combos;
+  }
+
+  function generatedReading(combos) {
+    return combos.map(combo => combo.text).join('; ') + '. The system is broken, but it breaks in a readable direction.';
+  }
+
+  function render() {
+    handEl.innerHTML = state.hand.map(card => `
+      <article class="card">
+        <div class="emoji">${card.emoji}</div>
+        <h3>${card.name}</h3>
+        <p class="meta">${card.scale} · ${card.number} · ${card.suit}</p>
+        <p class="meta">${card.element} · ${card.planet} · ${card.sign}</p>
+      </article>
+    `).join('');
+    combosEl.innerHTML = detectCombos().map(combo => `<div class="combo hot"><b>${combo.name}</b><br><span class="meta">${combo.text}<br>+${combo.points}</span></div>`).join('');
+    quizzesEl.innerHTML = quizzes.map(quiz => `<div class="combo"><b>${quiz.label}</b><br><span class="meta">Right: ${quiz.right}<br>Wrong: ${quiz.wrong}</span></div>`).join('');
+    scoreEl.textContent = state.score;
+    multEl.textContent = `Multiplier x${state.multiplier}. Rule breaks: ${state.breaks.map(item => item.name).join(', ') || 'none yet'}.`;
+    logEl.textContent = state.log.join('\n\n---\n\n');
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

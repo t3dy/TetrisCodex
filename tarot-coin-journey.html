@@ -273,6 +273,7 @@
     color: #d9fff7;
     line-height: 1.5;
   }
+  .hidden { display: none !important; }
   .score-row {
     display: flex;
     justify-content: space-between;
@@ -296,6 +297,7 @@
   <nav>
     <a href="index.html">Arcade</a>
     <a href="tarot-reading.html">Tarot Reading Lab</a>
+    <a href="tarot-numerology-breaker.html">Numerology Breaker</a>
     <a href="game-guide.html">Guide</a>
     <a href="docs/TAROT_COIN_ATTENTION_MODE.md">Mode Doc</a>
     <a href="docs/TAROT_READING_MODE.md">Reading Doc</a>
@@ -342,6 +344,11 @@
       <section>
         <span class="tagline">4. textual readouts</span>
         <h2>Reader Questions</h2>
+        <div class="grid three">
+          <button id="toggleQuestionsBtn">Hide Questions</button>
+          <button id="saveJourneyBtn">Save Journey Text</button>
+          <button id="clearJourneyBtn">Clear Saved Text</button>
+        </div>
         <div id="questions" class="grid three"></div>
       </section>
 
@@ -371,6 +378,11 @@
         <span class="tagline">initiatory journey</span>
         <h2>Journey Log</h2>
         <div id="log" class="log"></div>
+      </div>
+      <div class="panel">
+        <span class="tagline">saved writing</span>
+        <h2>Saved Readouts</h2>
+        <div id="savedLog" class="log small"></div>
       </div>
     </aside>
   </div>
@@ -503,12 +515,20 @@
   const scoreEl = document.getElementById('score');
   const logEl = document.getElementById('log');
   const rosePadEl = document.getElementById('rosePad');
+  const savedLogEl = document.getElementById('savedLog');
+  let savedWriting = loadSavedWriting();
 
   drawBtn.addEventListener('click', drawCard);
   resetBtn.addEventListener('click', () => {
     state = initialState();
     render();
   });
+  document.getElementById('toggleQuestionsBtn').addEventListener('click', () => {
+    state.questionsHidden = !state.questionsHidden;
+    render();
+  });
+  document.getElementById('saveJourneyBtn').addEventListener('click', () => saveWriting('Saved journey text', state.log.join('\n\n')));
+  document.getElementById('clearJourneyBtn').addEventListener('click', clearSavedWriting);
 
   function initialState() {
     return {
@@ -522,6 +542,7 @@
       treePathColors: treeTapperPaths.map(() => 0),
       focusedNode: null,
       roseSpent: {},
+      questionsHidden: false,
       log: ['Choose a frame, draw cards, then spend matching attention coins on connections.']
     };
   }
@@ -539,6 +560,7 @@
     state.score += 1;
     lightTree(card.coins, 1);
     state.log.unshift(`Drew ${card.name}. Minted: ${card.coins.join(', ')}. The card offers ${card.text}.`);
+    saveWriting(`Draw: ${card.name}`, state.log[0]);
     render();
   }
 
@@ -562,6 +584,7 @@
     const support = isCardBacked ? 'backed by the visible cards' : 'not directly shown by the latest cards';
     const frameText = isFrameBacked ? `The ${frame.name} frame rewards that attention.` : `The ${frame.name} frame does not especially reward it.`;
     state.log.unshift(`${action.name}: spent ${coin} attention to ${action.text}. ${support}. ${frameText} Scored ${points > 0 ? '+' : ''}${points}.`);
+    saveWriting(`Attention: ${action.name}`, state.log[0]);
     render();
   }
 
@@ -578,6 +601,7 @@
     state.roseSpent[petal.letter] = (state.roseSpent[petal.letter] || 0) + 1;
     lightTree([petal.coin], Math.max(1, Math.ceil(points / 3)));
     state.log.unshift(`Rose Cross petal ${petal.letter} ${petal.name}: spent ${petal.coin} attention on ${petal.trump}. ${petal.note}. Scored +${points}.`);
+    saveWriting(`Rose petal: ${petal.name}`, state.log[0]);
     render();
   }
 
@@ -596,6 +620,7 @@
     state.frame = id;
     const frame = frames.find(item => item.id === id);
     state.log.unshift(`Frame changed to ${frame.name}. Rewarded attributions: ${frame.likes.join(', ')}.`);
+    saveWriting(`Frame: ${frame.name}`, state.log[0]);
     render();
   }
 
@@ -606,6 +631,7 @@
     state.tree[nodeId] += 1;
     state.score += 1;
     state.log.unshift(`TreeTapper focus: touched ${node.name}. ${node.meaning}. The node gains one light and the journey scores +1.`);
+    saveWriting(`Tree focus: ${node.name}`, state.log[0]);
     render();
   }
 
@@ -615,6 +641,7 @@
     state.treePathColors[index] = (state.treePathColors[index] + 1) % treeTapperColors.length;
     state.score += 1;
     state.log.unshift(`TreeTapper path: ${path.from} -> ${path.to} changed color. The path is marked as an attended route through the reading. Scored +1.`);
+    saveWriting(`Tree path: ${path.from} to ${path.to}`, state.log[0]);
     render();
   }
 
@@ -631,6 +658,7 @@
     } else {
       state.log.unshift(`Interpretation: you made a risky frame translation for ${latest.name}. It remains playable, but it scores only +${points}.`);
     }
+    saveWriting(`Interpretation: ${latest.name}`, state.log[0]);
     render();
   }
 
@@ -646,6 +674,7 @@
     renderTree();
     renderScore();
     logEl.textContent = state.log.join('\n\n');
+    renderSavedWriting();
   }
 
   function renderFrames() {
@@ -713,6 +742,8 @@
     const latest = state.cards[state.cards.length - 1];
     if (!latest) {
       questionsEl.innerHTML = '<p class="small">Draw a card to receive interpretive choices.</p>';
+      questionsEl.classList.toggle('hidden', state.questionsHidden);
+      document.getElementById('toggleQuestionsBtn').textContent = state.questionsHidden ? 'Show Questions' : 'Hide Questions';
       return;
     }
     const frame = frames.find(item => item.id === state.frame);
@@ -730,6 +761,8 @@
         <span class="meta">Use a visible coin as evidence for a richer but still supported sentence.</span>
       </button>
     `;
+    questionsEl.classList.toggle('hidden', state.questionsHidden);
+    document.getElementById('toggleQuestionsBtn').textContent = state.questionsHidden ? 'Show Questions' : 'Hide Questions';
     questionsEl.querySelectorAll('button').forEach(button => {
       button.addEventListener('click', () => answerQuestion(button.dataset.question));
     });
@@ -881,6 +914,35 @@
       <div class="score-row"><span>Connection points</span><b>${spentScore}</b></div>
       <div class="score-row"><span>Tree nodes lit</span><b>${lit}/10</b></div>
     `;
+  }
+
+  function loadSavedWriting() {
+    try {
+      return JSON.parse(localStorage.getItem('tarotCoinJourneyWriting') || '[]');
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveWriting(title, body) {
+    savedWriting.unshift({ title, body, stamp: new Date().toLocaleString() });
+    savedWriting = savedWriting.slice(0, 100);
+    localStorage.setItem('tarotCoinJourneyWriting', JSON.stringify(savedWriting));
+    renderSavedWriting();
+  }
+
+  function clearSavedWriting() {
+    savedWriting = [];
+    localStorage.removeItem('tarotCoinJourneyWriting');
+    renderSavedWriting();
+  }
+
+  function renderSavedWriting() {
+    if (!savedWriting.length) {
+      savedLogEl.textContent = 'No saved readouts yet. Draws, frame changes, questions, Tree touches, and Rose Cross spends will be recorded here.';
+      return;
+    }
+    savedLogEl.textContent = savedWriting.map(entry => `[${entry.stamp}] ${entry.title}\n${entry.body}`).join('\n\n---\n\n');
   }
 
   function glowLevel(value) {

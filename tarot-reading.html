@@ -141,6 +141,14 @@
     color: #d9fff7;
     line-height: 1.55;
   }
+  .hidden { display: none !important; }
+  .journal {
+    max-height: 360px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: #d9fff7;
+    line-height: 1.45;
+  }
   .score {
     display: grid;
     gap: 8px;
@@ -174,6 +182,7 @@
     <a href="index.html">Arcade</a>
     <a href="game-guide.html">Guide</a>
     <a href="tarot-coin-journey.html">Coin Journey</a>
+    <a href="tarot-numerology-breaker.html">Numerology Breaker</a>
     <a href="docs/TAROT_READING_MODE.md">Mode Doc</a>
     <a href="docs/TAROT_ATTRIBUTION_BLOCK_MODE.md">Attribution Blocks</a>
   </nav>
@@ -205,6 +214,9 @@
       <section>
         <span class="tagline">3. interpretation choices</span>
         <h2 id="promptTitle">Prompts</h2>
+        <div class="actions">
+          <button id="togglePromptsBtn">Hide Questions</button>
+        </div>
         <div id="promptBody"></div>
       </section>
     </div>
@@ -222,6 +234,15 @@
       <div class="panel">
         <h2>Score</h2>
         <div id="score" class="score"></div>
+      </div>
+      <div class="panel">
+        <span class="tagline">saved writing</span>
+        <h2>Reading Journal</h2>
+        <div class="actions">
+          <button id="saveReadingBtn">Save Current Reading</button>
+          <button id="clearJournalBtn">Clear Journal</button>
+        </div>
+        <div id="journal" class="journal small"></div>
       </div>
     </aside>
   </div>
@@ -331,8 +352,11 @@
   let state = {
     spreadId: readings[0].id,
     drawn: [],
-    choices: {}
+    choices: {},
+    promptsHidden: false
   };
+
+  let journal = loadJournal();
 
   const spreadsEl = document.getElementById('spreads');
   const cardsEl = document.getElementById('cards');
@@ -340,8 +364,12 @@
   const promptBody = document.getElementById('promptBody');
   const readingEl = document.getElementById('reading');
   const scoreEl = document.getElementById('score');
+  const journalEl = document.getElementById('journal');
   document.getElementById('loadBtn').addEventListener('click', loadMockReading);
   document.getElementById('resetBtn').addEventListener('click', reset);
+  document.getElementById('togglePromptsBtn').addEventListener('click', togglePrompts);
+  document.getElementById('saveReadingBtn').addEventListener('click', () => saveJournalEntry('Saved reading', generateReading()));
+  document.getElementById('clearJournalBtn').addEventListener('click', clearJournal);
 
   function currentSpread() {
     return readings.find(s => s.id === state.spreadId) || readings[0];
@@ -351,11 +379,12 @@
     const spread = currentSpread();
     state.drawn = spread.cards.map(id => deck.find(card => card.id === id));
     state.choices = {};
+    saveJournalEntry('Loaded spread', `${spread.name}: ${spread.desc}`);
     render();
   }
 
   function reset() {
-    state = { spreadId: readings[0].id, drawn: [], choices: {} };
+    state = { spreadId: readings[0].id, drawn: [], choices: {}, promptsHidden: state.promptsHidden };
     render();
   }
 
@@ -364,6 +393,7 @@
     const spread = currentSpread();
     state.drawn = spread.cards.map(cardId => deck.find(card => card.id === cardId));
     state.choices = {};
+    saveJournalEntry('Selected spread', `${spread.name}: ${spread.desc}`);
     render();
   }
 
@@ -469,7 +499,55 @@
 
   function choose(positionId, optionId) {
     state.choices[positionId] = optionId;
+    recordChoice(positionId, optionId);
     render();
+  }
+
+  function togglePrompts() {
+    state.promptsHidden = !state.promptsHidden;
+    render();
+  }
+
+  function recordChoice(positionId, optionId) {
+    const spread = currentSpread();
+    const position = spread.positions.find(pos => pos.id === positionId);
+    let label = position ? position.name : positionId;
+    let option;
+    if (position) {
+      const card = state.drawn[spread.positions.indexOf(position)];
+      option = optionsFor(card, position).find(item => item.id === optionId);
+      label = `${position.name}: ${card.name}`;
+    } else {
+      const rel = relationshipPrompts(spread).find(item => item.id === positionId);
+      if (rel) {
+        option = rel.options.find(item => item.id === optionId);
+        label = rel.title;
+      }
+    }
+    if (!option) return;
+    saveJournalEntry(`Choice: ${label}`, `${option.label}\n${option.phrase}\nScore: ${option.score > 0 ? '+' : ''}${option.score}\n\nCurrent generated text:\n${generateReading()}`);
+  }
+
+  function loadJournal() {
+    try {
+      return JSON.parse(localStorage.getItem('tarotReadingJournal') || '[]');
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveJournalEntry(title, body) {
+    const stamp = new Date().toLocaleString();
+    journal.unshift({ title, body, stamp });
+    journal = journal.slice(0, 80);
+    localStorage.setItem('tarotReadingJournal', JSON.stringify(journal));
+    renderJournal();
+  }
+
+  function clearJournal() {
+    journal = [];
+    localStorage.removeItem('tarotReadingJournal');
+    renderJournal();
   }
 
   function generateReading() {
@@ -596,6 +674,8 @@
     if (!state.drawn.length) {
       promptTitle.textContent = 'Prompts';
       promptBody.innerHTML = '<p class="small">Load the pre-laid reading to receive interpretation prompts.</p>';
+      promptBody.classList.toggle('hidden', state.promptsHidden);
+      document.getElementById('togglePromptsBtn').textContent = state.promptsHidden ? 'Show Questions' : 'Hide Questions';
       return;
     }
     promptTitle.textContent = 'Interpret Positions And Relationships';
@@ -622,6 +702,8 @@
       </div>
     `).join('');
     promptBody.innerHTML = positionHtml + relationHtml;
+    promptBody.classList.toggle('hidden', state.promptsHidden);
+    document.getElementById('togglePromptsBtn').textContent = state.promptsHidden ? 'Show Questions' : 'Hide Questions';
     promptBody.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => choose(btn.dataset.prompt, btn.dataset.option));
     });
@@ -645,7 +727,16 @@
     renderCards();
     renderPrompts();
     renderScore();
+    renderJournal();
     readingEl.textContent = generateReading();
+  }
+
+  function renderJournal() {
+    if (!journal.length) {
+      journalEl.textContent = 'No saved writing yet. Each choice and saved reading will be kept here.';
+      return;
+    }
+    journalEl.textContent = journal.map(entry => `[${entry.stamp}] ${entry.title}\n${entry.body}`).join('\n\n---\n\n');
   }
 
   render();

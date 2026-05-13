@@ -56,6 +56,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Tarot Coin Journey](tarot-coin-journey.html)  
   Attention-economy tarot prototype. Draw cards, mint elemental/planetary/zodiacal/suit/process coins, spend them on connections, and light a Tree of Life character sheet.
 
+- [Tarot Numerology Breaker](tarot-numerology-breaker.html)  
+  Balatro-like tarot combo prototype. Break Golden Dawn numerology with strange rule modifiers, correspondence cascades, and generated high-score readings.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -136,6 +139,10 @@ A playable interface mockup for tarot reading as a game loop. Cards are pre-laid
 ### Tarot Coin Journey
 
 A playable prototype for tarot reading as an attention economy. Every drawn card mints attribution coins such as Fire, Sun, Aries, Wands, Trump, or Calcination. The player spends those coins on connections between cards, earns points for supported interpretation, chooses a reading frame such as Career or Relationships, and lights up an automap-like Tree of Life character sheet.
+
+### Tarot Numerology Breaker
+
+A playable mockup of a roguelike tarot scoring mode inspired by Balatro's way of breaking poker. The player scores card numbers, suits, Trumps, planets, zodiac signs, Tree paths, and rule-breaking relics to generate cascading interpretations.
 
 ## Creator Tools
 
@@ -229,6 +236,11 @@ Mode and asset docs:
 - [docs/TAROT_ATTRIBUTION_BLOCK_MODE.md](docs/TAROT_ATTRIBUTION_BLOCK_MODE.md)
 - [docs/TAROT_READING_MODE.md](docs/TAROT_READING_MODE.md)
 - [docs/TAROT_COIN_ATTENTION_MODE.md](docs/TAROT_COIN_ATTENTION_MODE.md)
+- [docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md](docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md)
+- [docs/TAROT_TETRIS_SYMBOL_STACKS.md](docs/TAROT_TETRIS_SYMBOL_STACKS.md)
+- [docs/TAROT_QUIZ_VARIANTS.md](docs/TAROT_QUIZ_VARIANTS.md)
+- [docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md](docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md)
+- [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

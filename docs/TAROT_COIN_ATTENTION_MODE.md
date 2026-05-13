@@ -265,6 +265,12 @@ Implementation note: this is a Golden Dawn-style prototype map. Later versions s
 Purpose:
 
 - permanent textual history of draws, coins, choices, contradictions, and breakthroughs
+- hideable reader questions so the generated text can become the main reading screen
+- local saved readouts for every draw, frame change, attention spend, Tree touch, Rose Cross spend, and interpretation choice
+
+Prototype storage:
+
+- `localStorage.tarotCoinJourneyWriting`
 
 ## Scoring
 
