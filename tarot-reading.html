@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarot Reading Lab</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #071013;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1180px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 34px 0 54px;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  nav a {
+    color: #d1fae5;
+    text-decoration: none;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
+    background: #0f1d22;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  h1 {
+    max-width: 940px;
+    margin: 0 0 12px;
+    font-size: clamp(34px, 6vw, 72px);
+    line-height: 0.92;
+    letter-spacing: 0;
+  }
+  .lead {
+    max-width: 900px;
+    margin: 0 0 24px;
+    color: #a7c9c2;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    gap: 16px;
+    align-items: start;
+  }
+  section, .panel {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: #0f1d22;
+    padding: 16px;
+  }
+  section + section, .panel + .panel { margin-top: 14px; }
+  h2 {
+    margin: 0 0 12px;
+    color: #fef3c7;
+    font-size: 24px;
+  }
+  h3 {
+    margin: 0 0 8px;
+    font-size: 19px;
+  }
+  p {
+    color: #bad7d1;
+    line-height: 1.45;
+    margin: 0 0 10px;
+  }
+  .spread-grid, .card-grid, .option-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .spread-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .card-grid { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+  button {
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 7px;
+    background: #102832;
+    color: #ecfeff;
+    padding: 10px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  button:hover, button:focus {
+    outline: 2px solid #5eead4;
+    background: #143742;
+  }
+  button.selected {
+    border-color: #fbbf24;
+    background: #3a2b12;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .primary {
+    background: #164e63;
+    border-color: #5eead4;
+    font-weight: 900;
+    text-align: center;
+  }
+  .card {
+    min-height: 154px;
+    border: 1px solid rgba(250, 204, 21, 0.34);
+    border-radius: 8px;
+    background: #111827;
+    padding: 13px;
+  }
+  .card .emoji {
+    font-size: 34px;
+    margin-bottom: 8px;
+  }
+  .meta {
+    color: #8fb7ae;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .tagline {
+    display: inline-block;
+    margin: 0 0 10px;
+    color: #5eead4;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .reading {
+    min-height: 280px;
+    white-space: pre-wrap;
+    color: #d9fff7;
+    line-height: 1.55;
+  }
+  .small {
+    color: #86a8a2;
+    font-size: 13px;
+  }
+  @media (max-width: 900px) {
+    .layout { display: block; }
+    .right { margin-top: 14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Guide</a>
+    <a href="docs/TAROT_READING_MODE.md">Mode Doc</a>
+    <a href="docs/TAROT_ATTRIBUTION_BLOCK_MODE.md">Attribution Blocks</a>
+  </nav>
+
+  <h1>Tarot Reading Lab</h1>
+  <p class="lead">
+    Walk through a pre-laid reading, make multiple-choice interpretive decisions, and receive a deterministic written result.
+    This mockup tests the interface loop before we add random draws, full deck data, or source-labeled attribution systems.
+  </p>
+
+  <div class="layout">
+    <div>
+      <section>
+        <span class="tagline">1. choose prepared layout</span>
+        <h2>Spread</h2>
+        <div id="spreads" class="spread-grid"></div>
+        <div class="actions">
+          <button class="primary" id="loadBtn">Load Mock Reading</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+      </section>
+
+      <section>
+        <span class="tagline">2. pre-laid cards</span>
+        <h2>Cards</h2>
+        <div id="cards" class="card-grid"></div>
+      </section>
+
+      <section>
+        <span class="tagline">3. interpretation choices</span>
+        <h2 id="promptTitle">Prompts</h2>
+        <div id="promptBody"></div>
+      </section>
+    </div>
+
+    <aside class="right">
+      <div class="panel">
+        <span class="tagline">deterministic output</span>
+        <h2>Reading</h2>
+        <div id="reading" class="reading">Choose a spread and draw cards. The reading will be built from your choices.</div>
+      </div>
+      <div class="panel">
+        <h2>Source Frame</h2>
+        <p class="small">Prototype tradition: project-specific tarot/alchemy training data. Later versions should label Marseille, Golden Dawn, Rider-Waite-Smith, Crowley/Harris, or other attribution systems explicitly.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const readings = [
+    {
+      id: 'threefold-vessel',
+      name: 'Threefold Vessel',
+      desc: 'Salt, Mercury, and Sulphur: what is fixed, what moves, what ignites.',
+      positions: [
+        { id: 'salt', name: 'Salt', question: 'What is fixed or embodied?' },
+        { id: 'mercury', name: 'Mercury', question: 'What moves, translates, or evades?' },
+        { id: 'sulphur', name: 'Sulphur', question: 'What burns, desires, or transforms?' }
+      ],
+      cards: ['ten-pentacles', 'moon-card', 'tower']
+    },
+    {
+      id: 'operation-cross',
+      name: 'Operation Cross',
+      desc: 'Matter, vessel, heat, obstacle, and projection.',
+      positions: [
+        { id: 'matter', name: 'Matter', question: 'What substance is being worked?' },
+        { id: 'vessel', name: 'Vessel', question: 'What contains or shapes the work?' },
+        { id: 'heat', name: 'Heat', question: 'What pressure changes it?' },
+        { id: 'obstacle', name: 'Obstacle', question: 'What resists the operation?' },
+        { id: 'projection', name: 'Projection', question: 'What result is cast outward?' }
+      ],
+      cards: ['ace-cups', 'devil', 'ace-wands', 'moon-card', 'sun-card']
+    },
+    {
+      id: 'seven-metals',
+      name: 'Seven Metals',
+      desc: 'Planetary/metmetal sequence: lead, tin, iron, gold, copper, quicksilver, silver.',
+      positions: [
+        { id: 'saturn', name: 'Saturn / Lead', question: 'What is heavy or old?' },
+        { id: 'jupiter', name: 'Jupiter / Tin', question: 'What expands or judges?' },
+        { id: 'mars', name: 'Mars / Iron', question: 'What cuts or contests?' },
+        { id: 'sun', name: 'Sun / Gold', question: 'What clarifies or crowns?' },
+        { id: 'venus', name: 'Venus / Copper', question: 'What attracts or reconciles?' },
+        { id: 'planet-mercury', name: 'Planet Mercury', question: 'What translates or exchanges?' },
+        { id: 'moon', name: 'Moon / Silver', question: 'What reflects or fluctuates?' }
+      ],
+      cards: ['devil', 'temperance', 'tower', 'sun-card', 'ace-cups', 'magician', 'moon-card']
+    }
+  ];
+
+  const deck = [
+    { id: 'magician', name: 'The Magician', emoji: '🪄', element: 'Air', planet: 'Mercury', process: 'Projection', tags: ['skill', 'mercury', 'language'], meanings: ['skillful agency', 'translation', 'the tool made conscious'] },
+    { id: 'tower', name: 'The Tower', emoji: '🗼', element: 'Fire', planet: 'Mars', process: 'Calcination', tags: ['danger', 'fire', 'rupture'], meanings: ['rupture', 'necessary break', 'accident turned lesson'] },
+    { id: 'moon-card', name: 'The Moon', emoji: '🌙', element: 'Water', planet: 'Moon', process: 'Dissolution', tags: ['water', 'uncertainty', 'dream'], meanings: ['uncertain reflection', 'solvent imagination', 'night knowledge'] },
+    { id: 'sun-card', name: 'The Sun', emoji: '☉', element: 'Fire', planet: 'Sun', process: 'Projection', tags: ['clarity', 'gold', 'joy'], meanings: ['clarity', 'golden result', 'visible truth'] },
+    { id: 'temperance', name: 'Temperance', emoji: '⚖️', element: 'Fire/Water', planet: 'Sagittarius', process: 'Ceration', tags: ['balance', 'mixing', 'moderation'], meanings: ['measured mixture', 'patient adjustment', 'opposites in vessel'] },
+    { id: 'devil', name: 'The Devil', emoji: '⛓️', element: 'Earth', planet: 'Capricorn', process: 'Fermentation', tags: ['earth', 'bond', 'shadow'], meanings: ['binding appetite', 'fermenting shadow', 'matter too fascinating'] },
+    { id: 'ace-cups', name: 'Ace of Cups', emoji: '🏆', element: 'Water', planet: 'Moon', process: 'Dissolution', tags: ['water', 'opening', 'vessel'], meanings: ['new vessel', 'emotional solvent', 'the first water'] },
+    { id: 'ace-wands', name: 'Ace of Wands', emoji: '🕯️', element: 'Fire', planet: 'Sun', process: 'Calcination', tags: ['fire', 'beginning', 'heat'], meanings: ['first flame', 'impulse', 'heat seeking form'] },
+    { id: 'ten-pentacles', name: 'Ten of Pentacles', emoji: '🪙', element: 'Earth', planet: 'Saturn', process: 'Fixation', tags: ['earth', 'salt', 'structure'], meanings: ['inherited structure', 'fixed wealth', 'body of the work'] }
+  ];
+
+  const optionBank = [
+    { id: 'skill', label: 'Skill / craft', tags: ['skill', 'clarity'], phrase: 'treat this as a craft problem: name the tool, then use it deliberately' },
+    { id: 'warning', label: 'Warning / accident', tags: ['danger', 'caution'], phrase: 'read this as a warning: the vessel is signaling risk before rupture' },
+    { id: 'release', label: 'Release / breakthrough', tags: ['rupture', 'clarity'], phrase: 'let this become release: something brittle must break so the work can continue' },
+    { id: 'dissolve', label: 'Dissolve / soften', tags: ['water', 'solvent'], phrase: 'soften the boundary and let the fixed matter confess what it contains' },
+    { id: 'fix', label: 'Fix / stabilize', tags: ['earth', 'salt'], phrase: 'stabilize the body of the question before seeking a brighter result' },
+    { id: 'ignite', label: 'Ignite / act', tags: ['fire', 'action'], phrase: 'apply heat carefully: action is needed, but excess heat will distort the work' },
+    { id: 'translate', label: 'Translate / mediate', tags: ['mercury', 'language'], phrase: 'translate between unlike signs instead of forcing them to agree too soon' },
+    { id: 'reflect', label: 'Reflect / wait', tags: ['moon', 'patience'], phrase: 'pause for reflection; the image is not false, but it is not yet fixed' },
+    { id: 'contain', label: 'Contain / vessel', tags: ['vessel', 'structure'], phrase: 'read the position as a vessel problem: improve the container before changing the matter' },
+    { id: 'diagnose', label: 'Diagnose / name obstacle', tags: ['source', 'clarity'], phrase: 'name the resistance precisely; interpretation begins by distinguishing the hazard' },
+    { id: 'commit', label: 'Commit / project', tags: ['projection', 'action'], phrase: 'commit the clarified result outward, but only after the prior positions have been honored' }
+  ];
+
+  let state = {
+    spreadId: readings[0].id,
+    drawn: [],
+    choices: {}
+  };
+
+  const spreadsEl = document.getElementById('spreads');
+  const cardsEl = document.getElementById('cards');
+  const promptTitle = document.getElementById('promptTitle');
+  const promptBody = document.getElementById('promptBody');
+  const readingEl = document.getElementById('reading');
+  document.getElementById('loadBtn').addEventListener('click', loadMockReading);
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  function currentSpread() {
+    return readings.find(s => s.id === state.spreadId) || readings[0];
+  }
+
+  function loadMockReading() {
+    const spread = currentSpread();
+    state.drawn = spread.cards.map(id => deck.find(card => card.id === id));
+    state.choices = {};
+    render();
+  }
+
+  function reset() {
+    state = { spreadId: readings[0].id, drawn: [], choices: {} };
+    render();
+  }
+
+  function selectSpread(id) {
+    state.spreadId = id;
+    const spread = currentSpread();
+    state.drawn = spread.cards.map(cardId => deck.find(card => card.id === cardId));
+    state.choices = {};
+    render();
+  }
+
+  function optionsFor(card, position) {
+    const picked = [];
+    const add = id => {
+      const opt = optionBank.find(o => o.id === id);
+      if (opt && !picked.includes(opt)) picked.push(opt);
+    };
+    if (card.tags.includes('danger')) add('warning');
+    if (card.tags.includes('fire')) add('ignite');
+    if (card.tags.includes('water')) add('dissolve');
+    if (card.tags.includes('earth')) add('fix');
+    if (card.tags.includes('mercury')) add('translate');
+    if (card.tags.includes('clarity')) add('skill');
+    if (position.id === 'sulphur' || position.id === 'heat' || position.id === 'mars') add('ignite');
+    if (position.id === 'mercury' || position.id === 'planet-mercury') add('translate');
+    if (position.id === 'salt' || position.id === 'saturn') add('fix');
+    if (position.id === 'moon') add('reflect');
+    if (position.id === 'vessel') add('contain');
+    if (position.id === 'obstacle') add('diagnose');
+    if (position.id === 'projection') add('commit');
+    add('release');
+    add('reflect');
+    add('skill');
+    return picked.slice(0, 4);
+  }
+
+  function choose(positionId, optionId) {
+    state.choices[positionId] = optionId;
+    render();
+  }
+
+  function generateReading() {
+    if (!state.drawn.length) return 'Choose a spread and draw cards. The reading will be built from your choices.';
+    const spread = currentSpread();
+    const missing = spread.positions.filter(pos => !state.choices[pos.id]);
+    if (missing.length) {
+      return `Drawn spread: ${spread.name}\n\nChoose an interpretation for ${missing[0].name} to continue.`;
+    }
+    const paragraphs = [];
+    paragraphs.push(`${spread.name}: ${spread.desc}`);
+    const tagCounts = {};
+    spread.positions.forEach((pos, index) => {
+      const card = state.drawn[index];
+      const option = optionBank.find(o => o.id === state.choices[pos.id]);
+      [...card.tags, ...option.tags].forEach(tag => tagCounts[tag] = (tagCounts[tag] || 0) + 1);
+      paragraphs.push(`${pos.name}: ${card.name} brings ${card.meanings[0]} into the place of "${pos.question}" You chose to ${option.phrase}.`);
+    });
+    paragraphs.push(synthesis(tagCounts));
+    paragraphs.push(counsel(tagCounts));
+    return paragraphs.join('\n\n');
+  }
+
+  function synthesis(tags) {
+    const entries = Object.entries(tags).sort((a, b) => b[1] - a[1]);
+    const top = entries.slice(0, 3).map(e => e[0]);
+    if (top.includes('danger') || top.includes('caution')) {
+      return 'Synthesis: the reading gathers around risk and timing. The work is not forbidden, but it should be contained before it is intensified.';
+    }
+    if (top.includes('water') || top.includes('moon')) {
+      return 'Synthesis: the reading is lunar and solvent. Meaning arrives by reflection, softening, and careful attention to what changes shape.';
+    }
+    if (top.includes('fire') || top.includes('action')) {
+      return 'Synthesis: the reading is fiery. It asks for action, but action as operation rather than impulse.';
+    }
+    if (top.includes('earth') || top.includes('salt')) {
+      return 'Synthesis: the reading is fixed and earthy. Build the vessel first; the bright result depends on structure.';
+    }
+    if (top.includes('mercury') || top.includes('language')) {
+      return 'Synthesis: the reading is mercurial. Translate, mediate, and keep the signs moving until a clearer form appears.';
+    }
+    return 'Synthesis: the spread asks for a measured operation: observe, choose the vessel, apply the process, and only then project a result.';
+  }
+
+  function counsel(tags) {
+    if ((tags.fire || 0) > 2 && (tags.danger || 0) > 0) return 'Counsel: lower the heat before you seek transformation.';
+    if ((tags.water || 0) > 2) return 'Counsel: let the solvent work, but do not mistake looseness for completion.';
+    if ((tags.earth || 0) > 2) return 'Counsel: fix one true support, then move the rest around it.';
+    if ((tags.mercury || 0) > 1) return 'Counsel: write the question in two languages and notice what changes in translation.';
+    return 'Counsel: make one deliberate choice, record the result, and return to the vessel with better evidence.';
+  }
+
+  function renderSpreads() {
+    spreadsEl.innerHTML = readings.map(spread => `
+      <button class="${spread.id === state.spreadId ? 'selected' : ''}" data-spread="${spread.id}">
+        <strong>${spread.name}</strong><br><span class="meta">${spread.desc}</span>
+      </button>
+    `).join('');
+    spreadsEl.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => selectSpread(btn.dataset.spread));
+    });
+  }
+
+  function renderCards() {
+    const spread = currentSpread();
+    if (!state.drawn.length) {
+      cardsEl.innerHTML = '<p class="small">No mock reading loaded yet. Pick a prepared layout or press Load Mock Reading.</p>';
+      return;
+    }
+    cardsEl.innerHTML = state.drawn.map((card, index) => {
+      const pos = spread.positions[index];
+      return `<article class="card">
+        <div class="emoji">${card.emoji}</div>
+        <h3>${card.name}</h3>
+        <p class="meta">${pos.name}: ${pos.question}</p>
+        <p class="meta">${card.element} · ${card.planet} · ${card.process}</p>
+      </article>`;
+    }).join('');
+  }
+
+  function renderPrompts() {
+    const spread = currentSpread();
+    if (!state.drawn.length) {
+      promptTitle.textContent = 'Prompts';
+      promptBody.innerHTML = '<p class="small">Load the pre-laid reading to receive interpretation prompts.</p>';
+      return;
+    }
+    promptTitle.textContent = 'Interpret Each Position';
+    promptBody.innerHTML = spread.positions.map((pos, index) => {
+      const card = state.drawn[index];
+      const opts = optionsFor(card, pos);
+      return `<div class="panel">
+        <h3>${pos.name}: ${card.name}</h3>
+        <p>${pos.question}</p>
+        <div class="option-grid">
+          ${opts.map(opt => `<button class="${state.choices[pos.id] === opt.id ? 'selected' : ''}" data-position="${pos.id}" data-option="${opt.id}">${opt.label}<br><span class="meta">${opt.phrase}</span></button>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    promptBody.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => choose(btn.dataset.position, btn.dataset.option));
+    });
+  }
+
+  function render() {
+    renderSpreads();
+    renderCards();
+    renderPrompts();
+    readingEl.textContent = generateReading();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

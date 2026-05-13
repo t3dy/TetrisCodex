@@ -50,6 +50,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Alchemical Poetry Codex](alchemical-poetry.html)  
   Website section for alchemical poetry timelines, anthology summaries, and source-flavored canned response text for game feedback.
 
+- [Tarot Reading Lab](tarot-reading.html)  
+  Mock reading interface. Choose a prepared spread, walk through interpretation choices, and generate a deterministic written reading.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -122,6 +125,10 @@ Planned only until a version is chosen. Options include Bomber Alchemist, Tower 
 ### Tarot Atelier
 
 A planned tarot-attribution mode where a card becomes a composite block unit. The cells can represent element, planet, zodiac, process, suit, number, decan, or source tradition, using four-, six-, nine-cell, or tetromino-like footprints.
+
+### Tarot Reading Lab
+
+A playable interface mockup for tarot reading as a game loop. Cards are pre-laid rather than random; the player chooses interpretations for each position, and the system deterministically writes a reading from those choices.
 
 ## Creator Tools
 
@@ -213,6 +220,7 @@ Mode and asset docs:
 - [docs/TWELVE_PROCESSES_MODE_ATLAS.md](docs/TWELVE_PROCESSES_MODE_ATLAS.md)
 - [docs/SYMBOL_INPUT_GRAMMAR.md](docs/SYMBOL_INPUT_GRAMMAR.md)
 - [docs/TAROT_ATTRIBUTION_BLOCK_MODE.md](docs/TAROT_ATTRIBUTION_BLOCK_MODE.md)
+- [docs/TAROT_READING_MODE.md](docs/TAROT_READING_MODE.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
 - [docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md](docs/WILDHUNT_EMOJI_BLOCK_SYSTEM.md)

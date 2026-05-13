@@ -145,6 +145,9 @@ This folder is the living design record for Rune Bloom. The game is intentionall
 - `TAROT_ATTRIBUTION_BLOCK_MODE.md`  
   Planned tarot-attribution mode where cards become four-, six-, nine-cell, or tetromino-like composite block units.
 
+- `TAROT_READING_MODE.md`  
+  Interface mockup where a pre-laid tarot spread leads the player through multiple-choice interpretation and deterministic written feedback.
+
 ## Documentation Rule Going Forward
 
 Every substantial feature should get a Markdown note before or alongside implementation:
