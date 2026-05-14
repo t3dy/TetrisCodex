@@ -70,6 +70,7 @@ This audit consolidates the user's accumulated feature requests and maps them to
 | Tree Tapper quiz | `tree-tapper-quiz.html`, `TREE_TAPPER_CORRESPONDENCE_QUIZ.md` | Playable | Add more knowledge lecture decks. |
 | GD symbol quizzes: pentagram, zodiac, tarot, magic squares, sigils | `gd-quiz-suite.html`, `magic-square-workbench.html`, docs | Playable/Stub | Add drawn sigil scoring. |
 | Ritual modes: LBRP, Middle Pillar, Hexagram, Rose Cross | `ritual-trainer.html`, `GD_RITUAL_TRAINER.md` | Stub | Import ritual source data and drawn gesture scoring. |
+| Golden Dawn rituals, diagrams, painted items, and Vault of the Adepti | `gd-ritual-implements.html`, `GD_RITUAL_DIAGRAM_AND_IMPLEMENT_MODES.md` | Stub/Documented | Build Vault Painter as first playable painted-object mode. |
 | Sefer Yetzirah combinatorics and recensions | `sefer-yetzirah-lab.html`, `SEFER_YETZIRAH_LAB.md` | Stub | Build real digital edition comparator. |
 | Tarot Balatro-like numerology breaker | `tarot-numerology-breaker.html`, `TAROT_BALATRO_NUMEROLOGY_BREAKER.md` | Playable | Add more rule relics and card sets. |
 | Tarot Auto-Machine / stream reading | `tarot-auto-reader.html`, `TAROT_AUTO_MACHINE.md` | Playable | Add saved reading archive. |

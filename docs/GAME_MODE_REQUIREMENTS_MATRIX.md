@@ -37,6 +37,7 @@ Every game mode should eventually provide:
 | GD Symbol Quiz Suite | Token placement and diagrams | Zodiac, lamen, magic squares | More exact knowledge lecture quizzes |
 | Magic Square Workbench | Square construction, sigil tracing | Planetary squares, print-shop preview | Drawn path scoring and export templates |
 | Ritual Trainer Lab | Quarter/body/action clicks | GD ritual stubs, readout, storyboard | Source-labeled ritual records |
+| GD Implements Atlas | Ritual object cards and filters | Vault/tablet/banner/color-scale mode atlas | Build Vault Painter first playable slice |
 | Sefer Yetzirah Lab | Letter/gate clicks, quiz answers | Hebrew letters, SY classes, GD overlays | Real recension comparator |
 | Level Builder | WYSIWYG placement | Level JSON schema, physics knobs | Templates for each mode |
 | Asset Studio | Form-based asset creation | Asset JSON schema | Import/export libraries and source links |
@@ -66,6 +67,7 @@ Every game mode should eventually provide:
 | Golden Dawn symbols | Explorer, Tree Tapper, GD Suite, Ritual, SY Lab | symbol id, class, glyph, source, quiz decks, unlock tier |
 | Magic squares/sigils | GD Suite, Magic Square Workbench, Ritual, Hexagram | planet, order, square values, figure, path drawing rules |
 | Ritual actions | Ritual Trainer | action type, direction, body point, formula, source, sequence |
+| Ritual diagrams and implements | GD Implements Atlas, Vault Painter, Tablet Constructor | object id, region, color scale, inscription, version, source note |
 | Sefer Yetzirah records | SY Lab, GD Suite, lamen, tarot | recension, section, letter class, world/year/body, variant links |
 | Source excerpts | Historiography, poetry, Wild Hunt, SY, tarot | source id, summary, citation, allowed quote, game hooks |
 

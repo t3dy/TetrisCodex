@@ -89,6 +89,9 @@ The site currently documents or prototypes these major feature families:
 - [Ritual Trainer Lab](ritual-trainer.html)
   Golden Dawn-style ritual study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross rehearsal: quarter maps, gesture pads, body-center clicks, memorization quizzes, and printable storyboard drills.
 
+- [Golden Dawn Implements Atlas](gd-ritual-implements.html)
+  Ritual diagram and painted-object mode atlas for the Vault of the Adepti, elemental tablets, banners, lamens, color scales, ritual furniture, and adept-level study objects.
+
 - [Sefer Yetzirah Lab](sefer-yetzirah-lab.html)
   Letter-combinatorics prototype for the 231 Gates, Mother/Double/Single classes, world-year-body mapping, recension comparison, and Golden Dawn knowledge quizzes.
 
@@ -200,6 +203,10 @@ A playable print-shop prototype for the magic-square branch. It lets the player 
 ### Ritual Trainer Lab
 
 A playable stub suite for ritual memorization. It experiments with graphical ritual enactment: click through temple quarters, body centers, gesture/action nodes, memorization prompts, and storyboard cards for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
+
+### Golden Dawn Implements Atlas
+
+A clickable mode atlas for ritual diagrams and painted items. It expands the Golden Dawn branch into Vault of the Adepti building, elemental tablet construction, banner/lamen painting, color-scale drills, temple furniture layout, grade diagram exams, and source-gallery study modes.
 
 ### Sefer Yetzirah Lab
 
@@ -313,6 +320,7 @@ Mode and asset docs:
 - [docs/GD_QUIZ_DATA_ARCHITECTURE.md](docs/GD_QUIZ_DATA_ARCHITECTURE.md)
 - [docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md](docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md)
 - [docs/GD_RITUAL_TRAINER.md](docs/GD_RITUAL_TRAINER.md)
+- [docs/GD_RITUAL_DIAGRAM_AND_IMPLEMENT_MODES.md](docs/GD_RITUAL_DIAGRAM_AND_IMPLEMENT_MODES.md)
 - [docs/SEFER_YETZIRAH_LAB.md](docs/SEFER_YETZIRAH_LAB.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)

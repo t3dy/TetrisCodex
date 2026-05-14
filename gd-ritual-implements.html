@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golden Dawn Implements Atlas</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(246, 196, 83, 0.12), transparent 32%),
+      radial-gradient(circle at 88% 14%, rgba(94, 234, 212, 0.12), transparent 34%),
+      #070b10;
+    color: #f8fafc;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1260px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 28px 0 60px;
+  }
+  nav, .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  nav a, button {
+    border: 1px solid rgba(226, 232, 240, 0.22);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.8);
+    color: #f8fafc;
+    font: inherit;
+    text-decoration: none;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  nav a:hover, button:hover, button.active { outline: 2px solid #f6c453; }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 62px;
+    line-height: 0.94;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .lead {
+    max-width: 960px;
+    color: #a9bacb;
+    line-height: 1.5;
+    font-size: 18px;
+    margin: 0 0 22px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 16px;
+    align-items: start;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .card, .panel {
+    border: 1px solid rgba(226, 232, 240, 0.18);
+    border-radius: 8px;
+    background: rgba(16, 25, 35, 0.9);
+    padding: 16px;
+  }
+  .card {
+    min-height: 310px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    text-align: left;
+  }
+  .card h2 { margin: 0; font-size: 23px; }
+  p { margin: 0; color: #a9bacb; line-height: 1.45; }
+  .icon {
+    font-size: 42px;
+    line-height: 1;
+  }
+  .pill {
+    display: inline-block;
+    width: fit-content;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(94, 234, 212, 0.12);
+    color: #99f6e4;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .next {
+    padding: 10px;
+    border-left: 4px solid #f6c453;
+    background: rgba(246, 196, 83, 0.08);
+    color: #fef3c7;
+  }
+  .readout {
+    display: grid;
+    gap: 9px;
+    position: sticky;
+    top: 16px;
+  }
+  .event {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #dbeafe;
+    line-height: 1.45;
+  }
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .swatch {
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .readout { position: static; }
+  }
+  @media (max-width: 720px) {
+    h1 { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Guide</a>
+    <a href="ritual-trainer.html">Ritual Trainer</a>
+    <a href="gd-quiz-suite.html">GD Quiz Suite</a>
+    <a href="golden-dawn-explorer.html">GD Explorer</a>
+    <a href="docs/GD_RITUAL_DIAGRAM_AND_IMPLEMENT_MODES.md">Atlas Doc</a>
+  </nav>
+
+  <h1>Golden Dawn Implements Atlas</h1>
+  <p class="lead">
+    A design and study-game atlas for Golden Dawn ritual diagrams, painted implements, colored chambers,
+    tablets, banners, lamens, and grade objects. This is a source-labeled prototype surface: exact ritual
+    attributions should be imported from the user's chosen corpus before becoming an authority.
+  </p>
+
+  <section class="filters" id="filters"></section>
+
+  <section class="layout">
+    <div class="grid" id="cards"></div>
+    <aside class="panel readout">
+      <h2>Move Readout</h2>
+      <div id="readout" class="event">Click a ritual object family to see how it can become a game mode.</div>
+      <h2>Prototype Palette</h2>
+      <p>Color-scale mechanics can start as labeled swatches before exact source data is imported.</p>
+      <div class="swatches">
+        <div class="swatch" style="background:#ef4444"></div>
+        <div class="swatch" style="background:#f97316"></div>
+        <div class="swatch" style="background:#facc15"></div>
+        <div class="swatch" style="background:#22c55e"></div>
+        <div class="swatch" style="background:#38bdf8"></div>
+        <div class="swatch" style="background:#6366f1"></div>
+        <div class="swatch" style="background:#f8fafc"></div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script>
+const ITEMS = [
+  {
+    id: 'vault',
+    family: 'adept',
+    icon: '&#127963;&#65039;&#127912;',
+    title: 'Vault Of The Adepti Builder',
+    pitch: 'Assemble and paint a symbolic chamber wall by wall, then repair corrupted panels from memory.',
+    input: 'Click a wall, choose a color scale or symbol, validate the chamber.',
+    next: 'Build the first Vault Painter stub with simplified panels and source warnings.'
+  },
+  {
+    id: 'tablets',
+    family: 'tablets',
+    icon: '&#9638;&#9997;',
+    title: 'Elemental Tablet Constructor',
+    pitch: 'Reconstruct letter grids, quadrants, names, and color overlays as a tablet puzzle.',
+    input: 'Place letters into cells, paint quadrants, trace names through the grid.',
+    next: 'Create a Tablet Sudoku / Name Trace prototype.'
+  },
+  {
+    id: 'banners',
+    family: 'painted',
+    icon: '&#9873;&#65039;&#127912;',
+    title: 'Banner And Lamen Studio',
+    pitch: 'Build ritual banners, lamens, badges, and officer objects as symbolic paint-and-place diagrams.',
+    input: 'Use shape stencils, color swatches, inscriptions, and source toggles.',
+    next: 'Add printable blank and answer-key templates.'
+  },
+  {
+    id: 'grades',
+    family: 'exam',
+    icon: '&#127891;&#128220;',
+    title: 'Grade Diagram Exam',
+    pitch: 'Progress through grade-linked diagrams and prove you know symbols, colors, names, and placements.',
+    input: 'Choose a grade, place tokens, answer why the placement is correct.',
+    next: 'Fold in the existing knowledge lecture atlas as grade decks.'
+  },
+  {
+    id: 'colors',
+    family: 'painted',
+    icon: '&#127912;&#9635;',
+    title: 'Color Scale Painter',
+    pitch: 'Paint Tree paths, Vault panels, lamen petals, and tarot blocks with the right color-scale logic.',
+    input: 'Select scale, region, and swatch; compare close colors with labels.',
+    next: 'Create color-scale data records and colorblind-safe labels.'
+  },
+  {
+    id: 'furniture',
+    family: 'temple',
+    icon: '&#9978;&#128506;',
+    title: 'Ritual Furniture Layout',
+    pitch: 'Set up a temple map: altar, pillars, tablets, banners, implements, and officer stations.',
+    input: 'Place objects on a top-down grid and validate orientation/adjacency.',
+    next: 'Make this a Level Builder template.'
+  },
+  {
+    id: 'translator',
+    family: 'ritual',
+    icon: '&#10017;&#10145;',
+    title: 'Diagram-To-Action Translator',
+    pitch: 'Click a diagram element and choose the ritual action it implies: trace, vibrate, seal, circulate.',
+    input: 'Pair diagram regions with action cards and build a ritual timeline.',
+    next: 'Integrate with Ritual Trainer sequence cards.'
+  },
+  {
+    id: 'museum',
+    family: 'source',
+    icon: '&#127963;&#65039;&#128269;',
+    title: 'Adept Museum / Source Gallery',
+    pitch: 'Walk through ritual objects as source cards, game assets, and study prompts.',
+    input: 'Inspect object parts, source notes, and mode uses.',
+    next: 'Import source records and attach object cards to the registry.'
+  },
+  {
+    id: 'enochian',
+    family: 'advanced',
+    icon: '&#9638;&#10024;',
+    title: 'Enochian And Spirit Diagram Unlocks',
+    pitch: 'Late-game diagram mode for tablets, name tracing, spirit sigils, and print-shop exports.',
+    input: 'Trace names, reconstruct grids, compare copied diagrams.',
+    next: 'Keep source-labeled and grade-gated until data is imported.'
+  }
+];
+
+let active = 'all';
+const families = ['all', ...Array.from(new Set(ITEMS.map(item => item.family)))];
+
+function renderFilters() {
+  document.getElementById('filters').innerHTML = families.map(family => `
+    <button class="${active === family ? 'active' : ''}" data-filter="${family}">${family}</button>
+  `).join('');
+}
+
+function renderCards() {
+  const visible = active === 'all' ? ITEMS : ITEMS.filter(item => item.family === active);
+  document.getElementById('cards').innerHTML = visible.map(item => `
+    <button class="card" data-id="${item.id}">
+      <span class="icon">${item.icon}</span>
+      <span class="pill">${item.family}</span>
+      <h2>${item.title}</h2>
+      <p>${item.pitch}</p>
+      <p><strong>Input:</strong> ${item.input}</p>
+      <p class="next"><strong>Next:</strong> ${item.next}</p>
+    </button>
+  `).join('');
+}
+
+document.getElementById('filters').addEventListener('click', event => {
+  const button = event.target.closest('[data-filter]');
+  if (!button) return;
+  active = button.dataset.filter;
+  renderFilters();
+  renderCards();
+  document.getElementById('readout').textContent = `Filtered ritual implement atlas to ${active}.`;
+});
+
+document.getElementById('cards').addEventListener('click', event => {
+  const card = event.target.closest('[data-id]');
+  if (!card) return;
+  const item = ITEMS.find(candidate => candidate.id === card.dataset.id);
+  document.getElementById('readout').innerHTML = `<strong>${item.title}</strong><br>${item.pitch}<br><br><strong>Prototype move:</strong> ${item.input}<br><strong>Next build:</strong> ${item.next}`;
+});
+
+renderFilters();
+renderCards();
+</script>
+</body>
+</html>

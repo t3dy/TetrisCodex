@@ -40,6 +40,10 @@ Current playable files:
   - Playable ritual-study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
 - `docs/GD_RITUAL_TRAINER.md`
   - Design notes for ritual graphics, click-through enactment, memorization tests, and print-shop drills.
+- `gd-ritual-implements.html`
+  - Ritual object and painted-diagram mode atlas for Vault, tablets, banners, lamens, color scales, and temple furniture.
+- `docs/GD_RITUAL_DIAGRAM_AND_IMPLEMENT_MODES.md`
+  - Design notes for Vault Painter, tablet construction, banner/lamen studio, grade diagram exams, and ritual furniture layouts.
 - `sefer-yetzirah-lab.html`
   - Playable Sefer Yetzirah letter-combinatorics and Golden Dawn overlay trainer.
 - `docs/SEFER_YETZIRAH_LAB.md`
