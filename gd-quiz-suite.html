@@ -159,6 +159,15 @@
     fill: rgba(15, 23, 42, 0.78);
   }
   .drop-zone:hover, .drop-zone.active { stroke: var(--gold); fill: rgba(64, 43, 22, 0.68); }
+  .lamen-petal {
+    cursor: pointer;
+    stroke: rgba(8, 13, 20, 0.72);
+    stroke-width: 1.5;
+  }
+  .lamen-petal:hover {
+    stroke: var(--gold);
+    stroke-width: 3;
+  }
   .zone-label, .placed-label {
     pointer-events: none;
     fill: var(--ink);
@@ -333,9 +342,9 @@ const MODES = [
   {
     id: 'lamen',
     title: 'Rose Cross Lamen Letters',
-    prompt: 'Place the Hebrew letter into its Mother, Double, or Single letter ring.',
-    source: 'Second lecture Mother/Double/Single memory',
-    tokens: () => GD.paths.map(path => ({ id: `letter-${path.path}`, label: path.transliteration, glyph: path.letter, targetId: path.class.toLowerCase(), detail: `${path.class} / ${path.power}` })),
+    prompt: 'Place the Hebrew letter on its exact Rose Cross lamen petal.',
+    source: 'Second lecture Mother/Double/Single memory; exact-petal lamen drill',
+    tokens: () => GD.paths.map(path => ({ id: `letter-${path.path}`, label: path.transliteration, glyph: path.letter, targetId: `lamen-${path.path}`, detail: `${path.class} / ${path.power}` })),
     stage: renderLamenStage
   },
   {
@@ -536,27 +545,44 @@ function slot(id, label, value) {
 }
 
 function renderLamenStage() {
+  const groups = [
+    { className: 'Mother', radius: 54, size: 42 },
+    { className: 'Double', radius: 98, size: 34 },
+    { className: 'Single', radius: 148, size: 30 }
+  ];
+  const petals = groups.map(group => {
+    const paths = GD.paths.filter(path => path.class === group.className);
+    return paths.map((path, index) => {
+      const angle = (-90 + index * 360 / paths.length) * Math.PI / 180;
+      const x = Math.cos(angle) * group.radius;
+      const y = Math.sin(angle) * group.radius;
+      const target = `lamen-${path.path}`;
+      return `
+        <g transform="translate(${x.toFixed(2)} ${y.toFixed(2)})">
+          <circle class="lamen-petal" data-target-id="${target}" r="${group.size}" fill="${petalColor(path)}"></circle>
+          <text class="zone-label" x="0" y="-8" font-size="18">${placed(target) || '?'}</text>
+          <text class="zone-label" x="0" y="13" font-size="12">${path.glyph}</text>
+        </g>
+      `;
+    }).join('');
+  }).join('');
   return `
     <svg viewBox="-210 -210 420 420" role="img" aria-label="Rose Cross lamen ring quiz">
       <circle cx="0" cy="0" r="182" fill="rgba(96,165,250,0.12)" stroke="rgba(248,250,252,0.22)"></circle>
       <circle cx="0" cy="0" r="126" fill="rgba(245,158,11,0.15)" stroke="rgba(248,250,252,0.22)"></circle>
       <circle cx="0" cy="0" r="68" fill="rgba(225,29,72,0.18)" stroke="rgba(248,250,252,0.22)"></circle>
-      ${ringZone('single', 0, -162, 'Singles / Zodiac', placed('single'))}
-      ${ringZone('double', 0, -108, 'Doubles / Planets', placed('double'))}
-      ${ringZone('mother', 0, -48, 'Mothers / Elements', placed('mother'))}
+      ${petals}
       <circle cx="0" cy="0" r="22" fill="#f43f5e" stroke="#fff"></circle>
       <text class="zone-label" x="0" y="1" font-size="15">✚</text>
     </svg>
-    <p class="small">This mode checks the class ring first; exact petal placement can be added as the next difficulty layer.</p>
+    <p class="small">This mode now checks exact letter petals. The petal color still cues class: Mothers red, Doubles gold, Singles blue.</p>
   `;
 }
 
-function ringZone(id, x, y, label, value) {
-  return `
-    <rect class="drop-zone" data-target-id="${id}" x="${x - 86}" y="${y - 24}" width="172" height="48" rx="8"></rect>
-    <text class="zone-label" x="${x}" y="${y - 5}" font-size="13">${label}</text>
-    <text class="placed-label" x="${x}" y="${y + 15}" font-size="22">${value}</text>
-  `;
+function petalColor(path) {
+  if (path.class === 'Mother') return '#e11d48';
+  if (path.class === 'Double') return '#f59e0b';
+  return '#2563eb';
 }
 
 function renderMagicSquareStage() {

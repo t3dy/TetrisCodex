@@ -30,6 +30,8 @@ Current playable files:
   - Design atlas for diagram-based Golden Dawn symbol drills.
 - `docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md`
   - Source-linked atlas mapping online knowledge lecture topics to quiz families.
+- `docs/GD_QUIZ_DATA_ARCHITECTURE.md`
+  - Proposed schema for quiz prompts, target regions, source labels, and scoring tags.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 

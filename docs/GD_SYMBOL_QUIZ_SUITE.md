@@ -65,13 +65,15 @@ This is the prelude to Tarot Tetris, where cards become physical pieces made out
 
 ### Rose Cross Lamen Letters
 
-The player places Hebrew letters into:
+The player places Hebrew letters onto exact Rose Cross lamen petals.
 
-- Mother ring
-- Double ring
-- Single ring
+The class rings are still visually cued:
 
-The current version quizzes class membership. The next version should require exact petal placement on the lamen.
+- Mother petals are red
+- Double petals are gold
+- Single petals are blue
+
+The first version only checked class membership. The current version checks exact-petal placement, so Aleph, Beth, Gimel, and the other letters must go to their own specific petal targets.
 
 ### Agrippa Magic Square Drill
 
@@ -126,10 +128,9 @@ The same symbol can appear in several schemes. A zodiac sign is a wheel position
 
 ## Next Steps
 
-1. Add exact Rose Cross lamen petal placement.
-2. Add a true sigil-drawing mode for magic squares.
-3. Add a zodiac wheel with houses, triplicities, modalities, rulers, and decans.
-4. Add a ritual-order quiz for the Lesser Banishing Ritual of the Pentagram.
-5. Add a tarot spread quiz where the player places all attributions on the card before interpreting it.
-6. Add source labels per item: Golden Dawn, OSOGD adaptation, Agrippa, Regardie, project house rule.
-7. Store mastery per symbol family and feed it into Tarot Coin Journey scoring.
+1. Add a true sigil-drawing mode for magic squares.
+2. Add a zodiac wheel with houses, triplicities, modalities, rulers, and decans.
+3. Add a ritual-order quiz for the Lesser Banishing Ritual of the Pentagram.
+4. Add a tarot spread quiz where the player places all attributions on the card before interpreting it.
+5. Add source labels per item: Golden Dawn, OSOGD adaptation, Agrippa, Regardie, project house rule.
+6. Store mastery per symbol family and feed it into Tarot Coin Journey scoring.
