@@ -20,6 +20,10 @@ Current playable files:
   - Mode-by-mode explanation of how lamen clicks can become coins, powers, tarot cells, board rules, and creator-tool metadata.
 - `docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md`
   - Implementation choices, prompt interpretation, alternatives, and next steps.
+- `tree-tapper-quiz.html`
+  - Playable correspondence trainer for placing Hebrew letters, powers, tarot trumps, divine names, archangels, and angelic orders onto paths and sefirot.
+- `docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md`
+  - Mode design, user-prompt interpretation, implemented decks, and next steps.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 

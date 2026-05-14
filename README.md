@@ -61,6 +61,8 @@ The project is organized around emoji blocks with physical and symbolic properti
 
 - [Golden Dawn Correspondence Explorer](golden-dawn-explorer.html) - Clickable Rose Cross lamen, Tree paths, Hebrew letters, Unicode symbol families, and grade unlock tiers for tarot and TreeTapper-style mechanics.
 
+- [Tree Tapper Correspondence Quiz](tree-tapper-quiz.html) - Quiz game for placing Hebrew letters, zodiacal powers, planetary attributions, tarot trumps, divine names, archangels, and angelic orders onto the Tree of Life.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -149,6 +151,10 @@ A playable mockup of a roguelike tarot scoring mode inspired by Balatro's way of
 ### Golden Dawn Explorer
 
 A playable correspondence pad for the tarot branch. It uses `golden-dawn-correspondences.js` as a shared prototype database for elements, planets, zodiac signs, suits, 10 sefirot, 22 Hebrew-letter paths, tarot trumps, Rose Cross lamen petals, and grade unlocks.
+
+### Tree Tapper Quiz
+
+A playable memorization mode for Golden Dawn-style correspondences. The player chooses a token from a bank, taps the correct Tree path or sefirah, and receives immediate feedback explaining the expected placement.
 
 ## Creator Tools
 
@@ -249,6 +255,7 @@ Mode and asset docs:
 - [docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md](docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md)
 - [docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md](docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md)
 - [docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md](docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md)
+- [docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md](docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
