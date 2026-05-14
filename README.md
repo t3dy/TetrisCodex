@@ -68,6 +68,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 - [Magic Square Sigil Workbench](magic-square-workbench.html)
   Planetary magic-square lab for construction drills, click-traced sigils, animated path playback, and printable talisman-style study sheets.
 
+- [Ritual Trainer Lab](ritual-trainer.html)
+  Golden Dawn-style ritual study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross rehearsal: quarter maps, gesture pads, body-center clicks, memorization quizzes, and printable storyboard drills.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -168,6 +171,10 @@ A playable collection of diagram drills. It tests ritual pentagram quarters, zod
 ### Magic Square Workbench
 
 A playable print-shop prototype for the magic-square branch. It lets the player construct planetary squares, trace number-path sigils, animate the tracing process, and preview printable study/talisman sheets.
+
+### Ritual Trainer Lab
+
+A playable stub suite for ritual memorization. It experiments with graphical ritual enactment: click through temple quarters, body centers, gesture/action nodes, memorization prompts, and storyboard cards for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
 
 ## Creator Tools
 

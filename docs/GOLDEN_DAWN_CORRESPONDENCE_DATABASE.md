@@ -36,6 +36,10 @@ Current playable files:
   - Magic-square construction, sigil tracing, animation, and print-shop prototype.
 - `docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md`
   - Design notes for magic-square game modes and export/print-shop needs.
+- `ritual-trainer.html`
+  - Playable ritual-study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
+- `docs/GD_RITUAL_TRAINER.md`
+  - Design notes for ritual graphics, click-through enactment, memorization tests, and print-shop drills.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 

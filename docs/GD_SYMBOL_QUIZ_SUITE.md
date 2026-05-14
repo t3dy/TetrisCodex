@@ -91,6 +91,20 @@ Prototype mapping:
 
 The next layer now lives in `magic-square-workbench.html`, which experiments with construction, click-tracing, animation, and print-shop output.
 
+### Ritual Trainer Branch
+
+The next ritual-specific layer now lives in `ritual-trainer.html`.
+
+It experiments with:
+
+- quarter-walk temple maps
+- gesture/action conductor pads
+- Middle Pillar body-center maps
+- multiple-choice memorization prompts
+- storyboard cards for print-shop drill sheets
+
+The current implementation is a study-game stub. It should import source-labeled ritual records before it claims to represent a complete Golden Dawn ritual curriculum.
+
 ### Knowledge Lecture Sampler
 
 The player matches terms to the knowledge lecture where the topic is trained.
@@ -129,7 +143,7 @@ The same symbol can appear in several schemes. A zodiac sign is a wheel position
 ## Next Steps
 
 1. Add a zodiac wheel with houses, triplicities, modalities, rulers, and decans.
-2. Add a ritual-order quiz for the Lesser Banishing Ritual of the Pentagram.
+2. Add drawn pentagram and hexagram path scoring to `ritual-trainer.html`.
 3. Add a tarot spread quiz where the player places all attributions on the card before interpreting it.
 4. Add source labels per item: Golden Dawn, OSOGD adaptation, Agrippa, Regardie, project house rule.
 5. Store mastery per symbol family and feed it into Tarot Coin Journey scoring.
