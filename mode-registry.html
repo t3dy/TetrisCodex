@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TetrisCodex Mode Registry</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #071013;
+    color: #ecfeff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1220px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 42px 0 70px;
+  }
+  nav, .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  nav a, button {
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+    background: #0f1d22;
+    color: #ecfeff;
+    font: inherit;
+    text-decoration: none;
+    padding: 9px 12px;
+    cursor: pointer;
+  }
+  nav a:hover, button:hover, button.active {
+    outline: 2px solid #5eead4;
+  }
+  h1 {
+    max-width: 920px;
+    margin: 0 0 12px;
+    font-size: 60px;
+    line-height: 0.94;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .lead {
+    max-width: 900px;
+    margin: 0 0 28px;
+    color: #a7c9c2;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    min-height: 275px;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 8px;
+    background: #0f1d22;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(94, 234, 212, 0.12);
+    color: #99f6e4;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .status-playable { color: #bbf7d0; background: rgba(34, 197, 94, 0.14); }
+  .status-stub { color: #fde68a; background: rgba(245, 158, 11, 0.15); }
+  .status-documented { color: #bfdbfe; background: rgba(96, 165, 250, 0.15); }
+  .status-tool { color: #ddd6fe; background: rgba(167, 139, 250, 0.15); }
+  h2 {
+    margin: 0;
+    font-size: 23px;
+  }
+  p {
+    margin: 0;
+    color: #bad7d1;
+    line-height: 1.45;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .links a {
+    color: #ecfeff;
+    text-decoration: none;
+    padding: 7px 9px;
+    border: 1px solid rgba(94, 234, 212, 0.35);
+    border-radius: 6px;
+    background: #164e63;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .next {
+    padding: 10px;
+    border-left: 4px solid #fbbf24;
+    background: rgba(251, 191, 36, 0.08);
+    color: #fef3c7;
+  }
+  @media (max-width: 720px) {
+    h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="game-guide.html">Game Guide</a>
+    <a href="docs/PROMPT_COVERAGE_AUDIT.md">Prompt Audit</a>
+    <a href="docs/GAME_MODE_REQUIREMENTS_MATRIX.md">Requirements Matrix</a>
+    <a href="README.md">README</a>
+  </nav>
+
+  <h1>Mode Registry</h1>
+  <p class="lead">
+    A single map of playable modes, stubs, planned branches, creator tools, and documentation outputs. Use this page to decide what needs implementation next without losing any of the prompt trail.
+  </p>
+
+  <section class="filters" id="filters"></section>
+  <section class="grid" id="registry"></section>
+</main>
+
+<script>
+const MODES = [
+  { name: 'Balance Tetris', status: 'playable', family: 'alchemy physics', page: 'balance-tetris.html', doc: 'docs/BALANCE_FAIRNESS_AND_INSTRUCTIONS.md', input: 'Keyboard and mouse placement/rotation', next: 'More campaign templates, source sidebars, and level-builder platform presets.' },
+  { name: 'Wild Hunt', status: 'playable', family: 'folklore balance', page: 'balance-tetris.html#wildhunt-campaign', doc: 'docs/WILDHUNT_IMPLEMENTATION_LOG.md', input: 'Balance Tetris campaign play', next: 'Expand Trithemius-sourced levels and move more omen blocks into data.' },
+  { name: 'Rune Bloom', status: 'playable', family: 'tile puzzle', page: 'rune-bloom.html', doc: 'docs/RUNE_BLOOM_DOC_INDEX.md', input: 'Glyph/tile placement', next: 'Add selectable fast variants and alchemical palette variants.' },
+  { name: 'Alchemy Snake', status: 'playable', family: 'grid action', page: 'snake-alchemy.html', doc: 'docs/ALCHEMY_SNAKE_MODE.md', input: 'Arrow-key snake movement', next: 'Add selectable starting powers and more digestion events.' },
+  { name: 'Alchemical Three', status: 'playable', family: 'character puzzle', page: 'alchemical-three.html', doc: 'docs/ALCHEMICAL_THREE_MODE.md', input: 'Character switch, pickup, rotate', next: 'Add tool inventory and richer character-specific levels.' },
+  { name: 'VALIS Space Taxi', status: 'playable', family: 'vehicle physics', page: 'valis-space-taxi.html', doc: 'docs/VALIS_SPACE_TAXI_MODE.md', input: 'Ship thrust and docking', next: 'Add station campaign and cargo cascade depth.' },
+  { name: 'Tarot Reading Lab', status: 'playable', family: 'tarot writing', page: 'tarot-reading.html', doc: 'docs/TAROT_READING_MODE.md', input: 'Multiple-choice interpretation', next: 'Add hideable prompts and reading export archive.' },
+  { name: 'Tarot Auto-Machine', status: 'playable', family: 'tarot writing', page: 'tarot-auto-reader.html', doc: 'docs/TAROT_AUTO_MACHINE.md', input: 'Card placement and chat-choice scoring', next: 'Save generated readings and add more spreads.' },
+  { name: 'Tarot Coin Journey', status: 'playable', family: 'tarot economy', page: 'tarot-coin-journey.html', doc: 'docs/TAROT_COIN_ATTENTION_MODE.md', input: 'Draw cards, spend attribution coins', next: 'Persist long-term Tree of Life journey state.' },
+  { name: 'Tarot Numerology Breaker', status: 'playable', family: 'tarot combo', page: 'tarot-numerology-breaker.html', doc: 'docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md', input: 'Card combo scoring', next: 'Add more rule relics and full deck breadth.' },
+  { name: 'Golden Dawn Explorer', status: 'playable', family: 'gd symbols', page: 'golden-dawn-explorer.html', doc: 'docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md', input: 'Clickable diagrams', next: 'Import authoritative source-labeled correspondence data.' },
+  { name: 'Tree Tapper Quiz', status: 'playable', family: 'gd symbols', page: 'tree-tapper-quiz.html', doc: 'docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md', input: 'Token placement', next: 'More decks and mastery tracking.' },
+  { name: 'GD Symbol Quiz Suite', status: 'playable', family: 'gd symbols', page: 'gd-quiz-suite.html', doc: 'docs/GD_SYMBOL_QUIZ_SUITE.md', input: 'Diagram token placement', next: 'More knowledge lecture quizzes and drawn sigil scoring.' },
+  { name: 'Magic Square Workbench', status: 'stub', family: 'gd symbols', page: 'magic-square-workbench.html', doc: 'docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md', input: 'Construct, trace, animate, print', next: 'Add freehand sigil scoring and export templates.' },
+  { name: 'Ritual Trainer Lab', status: 'stub', family: 'gd rituals', page: 'ritual-trainer.html', doc: 'docs/GD_RITUAL_TRAINER.md', input: 'Quarter/body/action clicks', next: 'Import source-labeled ritual records and gesture scoring.' },
+  { name: 'Sefer Yetzirah Lab', status: 'stub', family: 'sy combinatorics', page: 'sefer-yetzirah-lab.html', doc: 'docs/SEFER_YETZIRAH_LAB.md', input: 'Letter gates, sorting, quiz', next: 'Build real recension comparator and gate catalog.' },
+  { name: 'Level Builder', status: 'tool', family: 'creator tools', page: 'level-builder.html', doc: 'docs/LEVEL_BUILDER_CONSTRUCTION_KIT.md', input: 'WYSIWYG level authoring', next: 'Add per-mode templates and validation.' },
+  { name: 'Asset Studio', status: 'tool', family: 'creator tools', page: 'asset-studio.html', doc: 'docs/DEV_TOOLS_AND_WEBSITE_ROADMAP.md', input: 'Asset form editor', next: 'Add import/export libraries and source-link fields.' },
+  { name: 'Alchemical Billiards', status: 'documented', family: 'planned arcade', page: '', doc: 'docs/ALCHEMICAL_BILLIARDS_MODE.md', input: 'Cue-shot plan', next: 'Build first 2D cue-shot cascade prototype.' },
+  { name: 'Alchemical Breakout', status: 'documented', family: 'planned arcade', page: '', doc: 'docs/ALCHEMICAL_BREAKOUT_MODE.md', input: 'Paddle-and-ball plan', next: 'Build first playable breakout lab.' },
+  { name: 'Push And Minesweeper', status: 'documented', family: 'planned grid', page: '', doc: 'docs/GRID_PUSH_AND_MINESWEEPER_MODES.md', input: 'Grid movement/reveal plan', next: 'Split into two playable prototypes.' },
+  { name: 'Medieval Siege Alchemy', status: 'documented', family: 'planned arcade', page: '', doc: 'docs/MEDIEVAL_SIEGE_ALCHEMY_MODES.md', input: 'Plan-only per user request', next: 'Choose Bomber, Tower Defense, Turn-Based, Lob-Shot, or Fire/Ice first.' },
+  { name: 'Tarot Atelier / Tarot Tetris', status: 'documented', family: 'planned tarot', page: '', doc: 'docs/TAROT_ATTRIBUTION_BLOCK_MODE.md', input: 'Composite card-piece plan', next: 'Build four-cell Tarot Atelier prototype.' }
+];
+
+let current = 'all';
+const families = ['all', ...Array.from(new Set(MODES.map(mode => mode.status)))];
+
+function renderFilters() {
+  document.getElementById('filters').innerHTML = families.map(name => `
+    <button class="${current === name ? 'active' : ''}" data-filter="${name}">${name}</button>
+  `).join('');
+}
+
+function statusClass(status) {
+  if (status === 'playable') return 'status-playable';
+  if (status === 'stub') return 'status-stub';
+  if (status === 'tool') return 'status-tool';
+  return 'status-documented';
+}
+
+function renderRegistry() {
+  const visible = current === 'all' ? MODES : MODES.filter(mode => mode.status === current);
+  document.getElementById('registry').innerHTML = visible.map(mode => `
+    <article class="card">
+      <div class="meta">
+        <span class="pill ${statusClass(mode.status)}">${mode.status}</span>
+        <span class="pill">${mode.family}</span>
+      </div>
+      <h2>${mode.name}</h2>
+      <p><strong>Input:</strong> ${mode.input}</p>
+      <p class="next"><strong>Next build:</strong> ${mode.next}</p>
+      <div class="links">
+        ${mode.page ? `<a href="${mode.page}">Open Page</a>` : ''}
+        <a href="${mode.doc}">Open Doc</a>
+      </div>
+    </article>
+  `).join('');
+}
+
+document.getElementById('filters').addEventListener('click', event => {
+  const button = event.target.closest('[data-filter]');
+  if (!button) return;
+  current = button.dataset.filter;
+  renderFilters();
+  renderRegistry();
+});
+
+renderFilters();
+renderRegistry();
+</script>
+</body>
+</html>

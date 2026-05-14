@@ -50,6 +50,9 @@ The site currently documents or prototypes these major feature families:
 - [Game Guide](game-guide.html)  
   Public-facing overview of game modes, asset families, and creator tools.
 
+- [Mode Registry](mode-registry.html)
+  Central project map for playable modes, stubs, planned branches, creator tools, docs, core inputs, and next implementation needs.
+
 - [12 Processes Atlas](process-atlas.html)  
   Website tab mapping zodiac-linked alchemical processes to grid verbs across the arcade.
 
@@ -270,6 +273,8 @@ Start here:
 - [docs/DEV_TOOLS_AND_WEBSITE_ROADMAP.md](docs/DEV_TOOLS_AND_WEBSITE_ROADMAP.md)
 - [docs/SHARED_ALCHEMY_BLOCK_ENGINE.md](docs/SHARED_ALCHEMY_BLOCK_ENGINE.md)
 - [docs/GAME_MODE_ADAPTER_CONTRACTS.md](docs/GAME_MODE_ADAPTER_CONTRACTS.md)
+- [docs/PROMPT_COVERAGE_AUDIT.md](docs/PROMPT_COVERAGE_AUDIT.md)
+- [docs/GAME_MODE_REQUIREMENTS_MATRIX.md](docs/GAME_MODE_REQUIREMENTS_MATRIX.md)
 
 Mode and asset docs:
 
