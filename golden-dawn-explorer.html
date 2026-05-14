@@ -200,6 +200,22 @@
     overflow: auto;
     margin-top: 12px;
   }
+  .hook-grid {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .hook-card {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(8, 13, 20, 0.78);
+  }
+  .hook-card strong {
+    display: block;
+    color: #fde68a;
+    margin-bottom: 4px;
+  }
   .event {
     padding: 10px;
     border-radius: 8px;
@@ -230,6 +246,7 @@
     <a href="tarot-numerology-breaker.html">Numerology Breaker</a>
     <a href="game-guide.html">Guide</a>
     <a href="docs/GOLDEN_DAWN_CORRESPONDENCE_DATABASE.md">Database Doc</a>
+    <a href="docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md">Lamen Atlas</a>
   </nav>
 
   <h1>Golden Dawn Correspondence Explorer</h1>
@@ -278,6 +295,8 @@
       <h2>Inspector</h2>
       <div id="selectedSummary"></div>
       <div class="pill-row" id="selectedPills"></div>
+      <h3>Mode Hooks</h3>
+      <div class="hook-grid" id="modeHooks"></div>
       <h3>Move Readout</h3>
       <div class="event-log" id="eventLog"></div>
     </aside>
@@ -298,6 +317,81 @@
 <script src="golden-dawn-correspondences.js"></script>
 <script>
 const GD = window.GD_CORRESPONDENCES;
+const MODE_HOOKS = [
+  {
+    mode: 'Balance Tetris',
+    formula: 'Spawn a labeled block, adjust mass/friction, or set a profitable tipping receiver.',
+    examples: {
+      element: 'Elemental cells change weight, heat, flow, or lift.',
+      planet: 'Planetary cells route the block toward a left/right receiver and score by proper disposal.',
+      zodiac: 'Zodiac cells choose the alchemical process furniture placed under the falling piece.',
+      path: 'A path click becomes a one-turn platform law, such as air swap, Saturn lock, or Mars rupture.',
+      node: 'A sefirah click changes the board objective: synthesize at Tiphareth, ground at Malkuth, reflect at Yesod.',
+      symbol: 'The symbol becomes a cell printed on the next piece.'
+    }
+  },
+  {
+    mode: 'Tarot Coin Journey',
+    formula: 'Mint attention coins and spend them to justify relationships between cards.',
+    examples: {
+      element: 'Add a coin for a suit, temperament, or reading tone.',
+      planet: 'Add a planetary coin that can bridge card motives or external forces.',
+      zodiac: 'Add a zodiac coin used to connect decans, process verbs, and timing language.',
+      path: 'Spend a path coin to extend the reading along the Tree.',
+      node: 'Light a Tree character-sheet region and unlock related prompts.',
+      symbol: 'Bank a reusable interpretation token.'
+    }
+  },
+  {
+    mode: 'Numerology Breaker',
+    formula: 'Turn correspondences into scoring jackpots and rule-breaking triggers.',
+    examples: {
+      element: 'Element runs multiply matching suit cards.',
+      planet: 'Planet pairs score when a trump and pip share an attribution.',
+      zodiac: 'Zodiac decan chains trigger combo text.',
+      path: 'Hebrew-letter path matches score large if the trump number also participates.',
+      node: 'Sefirah numbers score when card ranks, path numbers, and Tree regions align.',
+      symbol: 'The glyph becomes a visible combo badge.'
+    }
+  },
+  {
+    mode: 'Tarot Tetris',
+    formula: 'Turn a drawn card into a piece made of attribution cells.',
+    examples: {
+      element: 'Element cells repel, settle, burn, dissolve, or anchor neighboring cells.',
+      planet: 'Planet cells attract or conflict with other planetary cells.',
+      zodiac: 'Zodiac cells determine shape density and process reaction.',
+      path: 'A trump piece gets a Hebrew-letter cell with a special clear condition.',
+      node: 'Sefirah cells are high-value anchors or clearing targets.',
+      symbol: 'Any glyph can become one square in the composite card-piece.'
+    }
+  },
+  {
+    mode: 'Alchemy Snake',
+    formula: 'Digest a symbol as a temporary snake power, hazard, or narration tag.',
+    examples: {
+      element: 'Fire speeds up, Water grants fluid turning, Air phase-shifts, Earth slows but protects.',
+      planet: 'Planetary digestion changes scoring tone and next-food behavior.',
+      zodiac: 'Zodiac digestion adds a process verb to the next collision.',
+      path: 'A path grants a short route-bending power.',
+      node: 'A sefirah food lights a character-sheet region.',
+      symbol: 'The symbol becomes the next narrated digestion event.'
+    }
+  },
+  {
+    mode: 'Creator Tools',
+    formula: 'Write the click into asset, level, or source metadata.',
+    examples: {
+      element: 'Tag an asset with a physical behavior family.',
+      planet: 'Tag an asset with metal, receiver, or scoring affiliation.',
+      zodiac: 'Tag an apparatus tile with a process family.',
+      path: 'Tag a level with a path challenge or unlock requirement.',
+      node: 'Tag a campaign chapter with a Tree region.',
+      symbol: 'Add the Unicode glyph and source note to the asset studio.'
+    }
+  }
+];
+
 const state = {
   selectedKey: null,
   grade: GD.grades[0].id,
@@ -320,7 +414,11 @@ function describeItem(item, kind) {
   const name = item.name || item.trump || item.transliteration || item.power || item.id;
   const family = kind === 'path' ? `${item.class} path ${item.path}` : kind;
   const effect = item.effect || item.note || item.keywords || 'No effect assigned yet.';
-  return { glyph, name, family, effect };
+  const hookKind = item.class ? 'path'
+    : item.attributions ? 'node'
+    : item.family ? item.family.replace(/s$/, '')
+    : kind;
+  return { glyph, name, family, effect, hookKind };
 }
 
 function selectItem(item, kind, source) {
@@ -356,6 +454,26 @@ function renderInspector(item, kind) {
     ...(item.attributions || [])
   ].filter(Boolean);
   byId('selectedPills').innerHTML = pillValues.map(value => `<span class="pill">${value}</span>`).join('');
+  renderModeHooks(desc, item);
+}
+
+function renderModeHooks(desc, item) {
+  const key = desc.hookKind;
+  const fallback = item.power && GD.symbols.zodiac.some(sign => sign.name === item.power) ? 'zodiac'
+    : item.power && GD.symbols.planets.some(planet => planet.name === item.power) ? 'planet'
+    : item.power && GD.symbols.elements.some(element => element.name === item.power) ? 'element'
+    : key;
+  byId('modeHooks').innerHTML = MODE_HOOKS.map(hook => {
+    const example = hook.examples[fallback] || hook.examples.symbol;
+    return `
+      <article class="hook-card">
+        <strong>${hook.mode}</strong>
+        <div class="small">Selected: ${desc.name}${item.power ? ` / ${item.power}` : ''}</div>
+        <div class="small">${hook.formula}</div>
+        <p>${example}</p>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderEvents() {

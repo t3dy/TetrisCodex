@@ -16,6 +16,10 @@ Current playable files:
   - Unicode symbol bank for elements, planets, zodiac signs, and suits.
   - Grade unlock ladder for future progression.
   - Inspector and move-readout panel that logs every player input.
+- `docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md`
+  - Mode-by-mode explanation of how lamen clicks can become coins, powers, tarot cells, board rules, and creator-tool metadata.
+- `docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md`
+  - Implementation choices, prompt interpretation, alternatives, and next steps.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 
