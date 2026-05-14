@@ -24,6 +24,12 @@ Current playable files:
   - Playable correspondence trainer for placing Hebrew letters, powers, tarot trumps, divine names, archangels, and angelic orders onto paths and sefirot.
 - `docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md`
   - Mode design, user-prompt interpretation, implemented decks, and next steps.
+- `gd-quiz-suite.html`
+  - Multi-mode quiz prototype for pentagram quarters, zodiac wheels, tarot-card correspondences, Rose Cross lamen rings, magic squares, and knowledge-lecture topics.
+- `docs/GD_SYMBOL_QUIZ_SUITE.md`
+  - Design atlas for diagram-based Golden Dawn symbol drills.
+- `docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md`
+  - Source-linked atlas mapping online knowledge lecture topics to quiz families.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 

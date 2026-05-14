@@ -63,6 +63,8 @@ The project is organized around emoji blocks with physical and symbolic properti
 
 - [Tree Tapper Correspondence Quiz](tree-tapper-quiz.html) - Quiz game for placing Hebrew letters, zodiacal powers, planetary attributions, tarot trumps, divine names, archangels, and angelic orders onto the Tree of Life.
 
+- [Golden Dawn Symbol Quiz Suite](gd-quiz-suite.html) - Multi-mode diagram trainer for pentagram quarters, zodiac wheels, tarot-card correspondences, Rose Cross lamen letter classes, magic squares, and knowledge-lecture topics.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -155,6 +157,10 @@ A playable correspondence pad for the tarot branch. It uses `golden-dawn-corresp
 ### Tree Tapper Quiz
 
 A playable memorization mode for Golden Dawn-style correspondences. The player chooses a token from a bank, taps the correct Tree path or sefirah, and receives immediate feedback explaining the expected placement.
+
+### Golden Dawn Symbol Quiz Suite
+
+A playable collection of diagram drills. It tests ritual pentagram quarters, zodiac order, tarot-card attribution cells, Rose Cross lamen letter classes, Agrippa-style magic square mappings, and knowledge-lecture topic recall.
 
 ## Creator Tools
 
@@ -256,6 +262,8 @@ Mode and asset docs:
 - [docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md](docs/ROSE_CROSS_LAMEN_GAMEPLAY_ATLAS.md)
 - [docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md](docs/GOLDEN_DAWN_EXPLORER_IMPLEMENTATION_LOG.md)
 - [docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md](docs/TREE_TAPPER_CORRESPONDENCE_QUIZ.md)
+- [docs/GD_SYMBOL_QUIZ_SUITE.md](docs/GD_SYMBOL_QUIZ_SUITE.md)
+- [docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md](docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)
