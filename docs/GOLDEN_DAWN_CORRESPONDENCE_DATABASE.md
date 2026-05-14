@@ -40,6 +40,10 @@ Current playable files:
   - Playable ritual-study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
 - `docs/GD_RITUAL_TRAINER.md`
   - Design notes for ritual graphics, click-through enactment, memorization tests, and print-shop drills.
+- `sefer-yetzirah-lab.html`
+  - Playable Sefer Yetzirah letter-combinatorics and Golden Dawn overlay trainer.
+- `docs/SEFER_YETZIRAH_LAB.md`
+  - Design notes for 231 Gates, recension comparison, world/year/body mapping, and GD quiz integration.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 

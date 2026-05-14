@@ -86,6 +86,9 @@ The site currently documents or prototypes these major feature families:
 - [Ritual Trainer Lab](ritual-trainer.html)
   Golden Dawn-style ritual study stubs for LBRP, Middle Pillar, Hexagram, and Rose Cross rehearsal: quarter maps, gesture pads, body-center clicks, memorization quizzes, and printable storyboard drills.
 
+- [Sefer Yetzirah Lab](sefer-yetzirah-lab.html)
+  Letter-combinatorics prototype for the 231 Gates, Mother/Double/Single classes, world-year-body mapping, recension comparison, and Golden Dawn knowledge quizzes.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -195,6 +198,10 @@ A playable print-shop prototype for the magic-square branch. It lets the player 
 
 A playable stub suite for ritual memorization. It experiments with graphical ritual enactment: click through temple quarters, body centers, gesture/action nodes, memorization prompts, and storyboard cards for LBRP, Middle Pillar, Hexagram, and Rose Cross training.
 
+### Sefer Yetzirah Lab
+
+A playable study-game for Hebrew-letter combinatorics. It lets the player open letter-pair gates, sort Mothers/Doubles/Singles, inspect world/year/body mapping ideas, compare recension lenses, and answer Golden Dawn-focused questions while keeping the later Hermetic overlay source-labeled.
+
 ## Creator Tools
 
 ### Level Builder
@@ -301,6 +308,7 @@ Mode and asset docs:
 - [docs/GD_QUIZ_DATA_ARCHITECTURE.md](docs/GD_QUIZ_DATA_ARCHITECTURE.md)
 - [docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md](docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md)
 - [docs/GD_RITUAL_TRAINER.md](docs/GD_RITUAL_TRAINER.md)
+- [docs/SEFER_YETZIRAH_LAB.md](docs/SEFER_YETZIRAH_LAB.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)

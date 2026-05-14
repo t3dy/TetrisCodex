@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sefer Yetzirah Lab</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #070b10;
+    --panel: #101923;
+    --ink: #f8fafc;
+    --muted: #a9bacb;
+    --line: rgba(226, 232, 240, 0.2);
+    --gold: #f6c453;
+    --cyan: #5eead4;
+    --rose: #fb7185;
+    --blue: #60a5fa;
+    --good: #34d399;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 16% 10%, rgba(94, 234, 212, 0.13), transparent 32%),
+      radial-gradient(circle at 82% 12%, rgba(246, 196, 83, 0.12), transparent 34%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1320px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 26px 0 58px;
+  }
+  nav, .tabs, .actions, .bank {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  nav { margin-bottom: 24px; }
+  nav a, button, select {
+    border: 1px solid rgba(226, 232, 240, 0.22);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.78);
+    color: var(--ink);
+    font: inherit;
+    overflow-wrap: anywhere;
+  }
+  nav a {
+    padding: 8px 12px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  button, select { padding: 9px 11px; cursor: pointer; }
+  button:hover, button:focus, button.active, nav a:hover, select:focus {
+    outline: 2px solid var(--gold);
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 64px;
+    line-height: 0.95;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  h2, h3 { margin: 0 0 12px; letter-spacing: 0; }
+  p { margin: 0 0 10px; color: var(--muted); line-height: 1.5; }
+  .lead {
+    max-width: 980px;
+    margin-bottom: 22px;
+    font-size: 18px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.82fr) minmax(450px, 1.08fr) minmax(320px, 0.82fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(16, 25, 35, 0.9);
+    padding: 16px;
+  }
+  .tabs { margin: 18px 0; }
+  .tab { min-height: 58px; text-align: left; }
+  .stage {
+    min-height: 670px;
+    display: grid;
+    gap: 16px;
+  }
+  .mode-note {
+    padding: 12px;
+    border-left: 4px solid var(--cyan);
+    background: rgba(94, 234, 212, 0.08);
+    color: #ccfbf1;
+  }
+  .score-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+    margin: 12px 0;
+  }
+  .score {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(7, 11, 16, 0.72);
+  }
+  .score b { display: block; color: #fde68a; font-size: 22px; }
+  .small { color: var(--muted); font-size: 13px; }
+  .wheel-wrap {
+    position: relative;
+    min-height: 540px;
+    border: 1px solid rgba(246, 196, 83, 0.28);
+    border-radius: 8px;
+    background: rgba(7, 11, 16, 0.82);
+    overflow: hidden;
+  }
+  .gate-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .letter-node {
+    position: absolute;
+    width: 64px;
+    min-height: 64px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(226, 232, 240, 0.24);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.9);
+    cursor: pointer;
+  }
+  .letter-node:hover, .letter-node.selected { outline: 2px solid var(--gold); }
+  .letter-node.mother { border-color: var(--rose); }
+  .letter-node.double { border-color: var(--gold); }
+  .letter-node.single { border-color: var(--blue); }
+  .hebrew {
+    display: block;
+    font-size: 30px;
+    line-height: 1;
+    font-family: "Times New Roman", serif;
+  }
+  .grid3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .bucket, .edition, .quiz-card {
+    min-height: 138px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(7, 11, 16, 0.72);
+  }
+  .bucket button {
+    width: 100%;
+    min-height: 58px;
+    margin-top: 10px;
+  }
+  .token {
+    min-width: 78px;
+    min-height: 58px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+  }
+  .token.selected { border-color: var(--gold); background: #3a2b12; }
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .matrix-card {
+    min-height: 190px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(7, 11, 16, 0.72);
+  }
+  .matrix-card strong {
+    color: #fde68a;
+  }
+  .edition-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+  }
+  .edition.active { outline: 2px solid var(--gold); }
+  .option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .log {
+    display: grid;
+    gap: 8px;
+    max-height: 510px;
+    overflow: auto;
+  }
+  .event {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #dbeafe;
+    line-height: 1.45;
+  }
+  @media (max-width: 1080px) {
+    .layout, .grid3, .matrix { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    h1 { font-size: 38px; }
+    main { width: min(100%, calc(100vw - 20px)); }
+    .letter-node { width: 54px; min-height: 54px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="golden-dawn-explorer.html">GD Explorer</a>
+    <a href="gd-quiz-suite.html">GD Quiz Suite</a>
+    <a href="ritual-trainer.html">Ritual Trainer</a>
+    <a href="magic-square-workbench.html">Magic Squares</a>
+    <a href="game-guide.html">Guide</a>
+    <a href="docs/SEFER_YETZIRAH_LAB.md">SY Lab Doc</a>
+  </nav>
+
+  <h1>Sefer Yetzirah Lab</h1>
+  <p class="lead">
+    A prototype playground for Sefer Yetzirah as a combinatorial letter system: click Hebrew letters,
+    form gates, sort Mothers/Doubles/Singles, compare recension notes, and quiz the Golden Dawn layer
+    without pretending that later Hermetic attributions are identical to the Jewish source tradition.
+  </p>
+
+  <section class="tabs" aria-label="Sefer Yetzirah mode selector" id="tabs"></section>
+
+  <section class="layout">
+    <aside class="panel">
+      <h2>Controls</h2>
+      <label>
+        Dataset lens
+        <select id="lensSelect">
+          <option value="sy">SY classes</option>
+          <option value="gd">Golden Dawn overlay</option>
+          <option value="edition">Edition comparison</option>
+        </select>
+      </label>
+      <div class="score-row">
+        <div class="score"><span class="small">Score</span><b id="score">0</b></div>
+        <div class="score"><span class="small">Gates</span><b id="gates">0</b></div>
+        <div class="score"><span class="small">Misses</span><b id="misses">0</b></div>
+      </div>
+      <div class="actions">
+        <button id="hintBtn">Hint</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div class="mode-note" id="modeNote"></div>
+      <h3>Selected Gate</h3>
+      <div class="event" id="selectionReadout">Choose two letters on the wheel.</div>
+    </aside>
+
+    <section class="panel stage" id="stage"></section>
+
+    <aside class="panel">
+      <h2>Move Readout</h2>
+      <div class="log" id="log"></div>
+    </aside>
+  </section>
+</main>
+
+<script>
+const LETTERS = [
+  { id: 'aleph', letter: '&#1488;', name: 'Aleph', value: 1, className: 'Mother', syPower: 'Air', gdPower: 'Air / Fool', glyph: 'Air' },
+  { id: 'beth', letter: '&#1489;', name: 'Beth', value: 2, className: 'Double', syPower: 'Planetary double', gdPower: 'Mercury / Magician', glyph: 'Mercury' },
+  { id: 'gimel', letter: '&#1490;', name: 'Gimel', value: 3, className: 'Double', syPower: 'Planetary double', gdPower: 'Moon / High Priestess', glyph: 'Moon' },
+  { id: 'daleth', letter: '&#1491;', name: 'Daleth', value: 4, className: 'Double', syPower: 'Planetary double', gdPower: 'Venus / Empress', glyph: 'Venus' },
+  { id: 'heh', letter: '&#1492;', name: 'Heh', value: 5, className: 'Single', syPower: 'Zodiac single', gdPower: 'Aries / Emperor', glyph: 'Aries' },
+  { id: 'vav', letter: '&#1493;', name: 'Vav', value: 6, className: 'Single', syPower: 'Zodiac single', gdPower: 'Taurus / Hierophant', glyph: 'Taurus' },
+  { id: 'zayin', letter: '&#1494;', name: 'Zayin', value: 7, className: 'Single', syPower: 'Zodiac single', gdPower: 'Gemini / Lovers', glyph: 'Gemini' },
+  { id: 'cheth', letter: '&#1495;', name: 'Cheth', value: 8, className: 'Single', syPower: 'Zodiac single', gdPower: 'Cancer / Chariot', glyph: 'Cancer' },
+  { id: 'teth', letter: '&#1496;', name: 'Teth', value: 9, className: 'Single', syPower: 'Zodiac single', gdPower: 'Leo / Strength', glyph: 'Leo' },
+  { id: 'yod', letter: '&#1497;', name: 'Yod', value: 10, className: 'Single', syPower: 'Zodiac single', gdPower: 'Virgo / Hermit', glyph: 'Virgo' },
+  { id: 'kaph', letter: '&#1499;', name: 'Kaph', value: 20, className: 'Double', syPower: 'Planetary double', gdPower: 'Jupiter / Wheel', glyph: 'Jupiter' },
+  { id: 'lamed', letter: '&#1500;', name: 'Lamed', value: 30, className: 'Single', syPower: 'Zodiac single', gdPower: 'Libra / Justice', glyph: 'Libra' },
+  { id: 'mem', letter: '&#1502;', name: 'Mem', value: 40, className: 'Mother', syPower: 'Water', gdPower: 'Water / Hanged Man', glyph: 'Water' },
+  { id: 'nun', letter: '&#1504;', name: 'Nun', value: 50, className: 'Single', syPower: 'Zodiac single', gdPower: 'Scorpio / Death', glyph: 'Scorpio' },
+  { id: 'samekh', letter: '&#1505;', name: 'Samekh', value: 60, className: 'Single', syPower: 'Zodiac single', gdPower: 'Sagittarius / Temperance', glyph: 'Sagittarius' },
+  { id: 'ayin', letter: '&#1506;', name: 'Ayin', value: 70, className: 'Single', syPower: 'Zodiac single', gdPower: 'Capricorn / Devil', glyph: 'Capricorn' },
+  { id: 'peh', letter: '&#1508;', name: 'Peh', value: 80, className: 'Double', syPower: 'Planetary double', gdPower: 'Mars / Tower', glyph: 'Mars' },
+  { id: 'tzaddi', letter: '&#1510;', name: 'Tzaddi', value: 90, className: 'Single', syPower: 'Zodiac single', gdPower: 'Aquarius / Star', glyph: 'Aquarius' },
+  { id: 'qoph', letter: '&#1511;', name: 'Qoph', value: 100, className: 'Single', syPower: 'Zodiac single', gdPower: 'Pisces / Moon', glyph: 'Pisces' },
+  { id: 'resh', letter: '&#1512;', name: 'Resh', value: 200, className: 'Double', syPower: 'Planetary double', gdPower: 'Sun / Sun', glyph: 'Sun' },
+  { id: 'shin', letter: '&#1513;', name: 'Shin', value: 300, className: 'Mother', syPower: 'Fire', gdPower: 'Fire / Judgement', glyph: 'Fire' },
+  { id: 'tau', letter: '&#1514;', name: 'Tau', value: 400, className: 'Double', syPower: 'Planetary double', gdPower: 'Saturn / Universe', glyph: 'Saturn' }
+];
+
+const MODES = [
+  { id: 'wheel', label: '231 Gates Wheel', brief: 'Click two letters to form a gate.', note: 'A radial Galgal-style visualization. Any two different letters form one of the 231 unordered pairs; the game shows class mixture, gematria, and GD overlay if selected.' },
+  { id: 'classes', label: 'Mothers Doubles Singles', brief: 'Sort letters into SY classes.', note: 'A memorization mode for the three Mother letters, seven Double letters, and twelve Single letters. This is the root of the Rose Cross lamen petal scheme already used elsewhere.' },
+  { id: 'triads', label: 'World Year Body', brief: 'Compare three mapping domains.', note: 'A visualization mode for the SY habit of mapping letters across cosmos, time, and body. Current data is schematic until the edition records are imported.' },
+  { id: 'edition', label: 'Recension Comparator', brief: 'Compare text traditions.', note: 'A digital-edition stub for Short, Long, Saadya, Donnolo, and later Hermetic receptions. It summarizes differences without collapsing Jewish source traditions into Golden Dawn overlays.' },
+  { id: 'quiz', label: 'GD Knowledge Quiz', brief: 'Answer SY-to-GD prompts.', note: 'A quiz mode focused on what the Golden Dawn cares about: letter classes, elemental Mothers, planetary Doubles, zodiacal Singles, paths, tarot overlays, and source caution.' }
+];
+
+const EDITIONS = [
+  { id: 'short', label: 'Short Recension', focus: 'Compact letter-cosmology and gate logic.', note: 'Useful as a tight source skeleton for a digital edition.' },
+  { id: 'long', label: 'Long Recension', focus: 'Expanded arrangement and interpretive material.', note: 'Useful for comparison panels and variant highlighting.' },
+  { id: 'saadya', label: 'Saadya Version', focus: 'Philosophical/rationalizing interpretation.', note: 'Segol frames Saadya as using philosophical tools to delimit magical/astrological readings.' },
+  { id: 'donnolo', label: 'Donnolo Commentary', focus: 'Astrological-theosophical reading.', note: 'Segol contrasts Donnolo with Saadya as more explicitly astrological and image-friendly.' },
+  { id: 'gd', label: 'Golden Dawn Overlay', focus: 'Mothers/Doubles/Singles become ritual, tarot, and path correspondences.', note: 'Game-useful, but must be labeled as a later Hermetic transformation.' }
+];
+
+const QUIZ = [
+  { prompt: 'Which three letters are the Mother letters in the common SY/GD teaching scheme?', answer: 'Aleph, Mem, Shin', options: ['Aleph, Mem, Shin', 'Beth, Gimel, Daleth', 'Heh, Vav, Zayin', 'Kaph, Peh, Resh'] },
+  { prompt: 'In the Golden Dawn overlay, the seven Double letters are most directly associated with what family?', answer: 'Planets', options: ['Planets', 'Zodiac signs', 'Four suits only', 'Alchemy vessels'] },
+  { prompt: 'In the Golden Dawn overlay, the twelve Single letters are most directly associated with what family?', answer: 'Zodiac signs', options: ['Zodiac signs', 'Seven planets', 'Three elements', 'Tarot courts'] },
+  { prompt: 'What is the safest way to display GD tarot/path attributions on a Sefer Yetzirah page?', answer: 'As a later overlay with source labels', options: ['As a later overlay with source labels', 'As the only original meaning', 'As random flavor text', 'As a replacement for the Hebrew text'] },
+  { prompt: 'What does the 231 Gates mechanic model in this prototype?', answer: 'All unordered pairs of 22 letters', options: ['All unordered pairs of 22 letters', 'Only the ten sefirot', 'Only the zodiac signs', 'A poker deck'] }
+];
+
+const state = {
+  mode: 'wheel',
+  lens: 'sy',
+  selected: [],
+  gates: [],
+  score: 0,
+  misses: 0,
+  quizIndex: 0,
+  pickedToken: null,
+  log: []
+};
+
+function byId(id) { return document.getElementById(id); }
+function activeMode() { return MODES.find(mode => mode.id === state.mode); }
+function letterById(id) { return LETTERS.find(letter => letter.id === id); }
+function addLog(text) {
+  state.log.unshift(text);
+  state.log = state.log.slice(0, 14);
+  renderLog();
+}
+function updateStats() {
+  byId('score').textContent = state.score;
+  byId('gates').textContent = state.gates.length;
+  byId('misses').textContent = state.misses;
+}
+function renderLog() {
+  byId('log').innerHTML = state.log.length
+    ? state.log.map(item => `<div class="event">${item}</div>`).join('')
+    : '<div class="event">Click a mode and make a first move. The readout explains every input.</div>';
+}
+function renderTabs() {
+  byId('tabs').innerHTML = MODES.map(mode => `
+    <button class="tab ${mode.id === state.mode ? 'active' : ''}" data-mode="${mode.id}">
+      <strong>${mode.label}</strong><br><span class="small">${mode.brief}</span>
+    </button>
+  `).join('');
+}
+function renderSelection() {
+  if (state.selected.length < 2) {
+    byId('selectionReadout').innerHTML = state.selected.length
+      ? `Selected ${letterById(state.selected[0]).name}. Choose a second letter.`
+      : 'Choose two letters on the wheel.';
+    return;
+  }
+  const [a, b] = state.selected.map(letterById);
+  byId('selectionReadout').innerHTML = `
+    <strong>${a.name} + ${b.name}</strong><br>
+    Gate value: ${a.value + b.value}.<br>
+    Classes: ${a.className} + ${b.className}.<br>
+    Lens: ${state.lens === 'gd' ? `${a.gdPower} / ${b.gdPower}` : `${a.syPower} / ${b.syPower}`}.
+  `;
+}
+function renderWheel() {
+  const size = 540;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 210;
+  const points = LETTERS.map((letter, index) => {
+    const angle = -Math.PI / 2 + (index / LETTERS.length) * Math.PI * 2;
+    return {
+      ...letter,
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius
+    };
+  });
+  const lines = state.gates.map(gate => {
+    const a = points.find(p => p.id === gate[0]);
+    const b = points.find(p => p.id === gate[1]);
+    return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="rgba(94,234,212,0.55)" stroke-width="2" />`;
+  }).join('');
+  byId('stage').innerHTML = `
+    <div>
+      <h2>231 Gates Wheel</h2>
+      <p>Click two different letters. Each unordered pair is a gate; repeated gates are recognized as already opened.</p>
+    </div>
+    <div class="wheel-wrap">
+      <svg class="gate-lines" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+        <circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="rgba(246,196,83,0.28)" stroke-width="2"></circle>
+        ${lines}
+      </svg>
+      ${points.map(p => `
+        <button class="letter-node ${p.className.toLowerCase()} ${state.selected.includes(p.id) ? 'selected' : ''}" style="left:${p.x - 32}px; top:${p.y - 32}px" data-letter="${p.id}">
+          <span><span class="hebrew">${p.letter}</span><span class="small">${p.name}</span></span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+function renderClasses() {
+  byId('stage').innerHTML = `
+    <div>
+      <h2>Mothers, Doubles, Singles</h2>
+      <p>Select a letter token, then click the correct bucket. This trains the class scheme behind many Golden Dawn diagrams.</p>
+    </div>
+    <div class="bank">
+      ${LETTERS.map(letter => `<button class="token ${state.pickedToken === letter.id ? 'selected' : ''}" data-token="${letter.id}"><span class="hebrew">${letter.letter}</span>${letter.name}</button>`).join('')}
+    </div>
+    <div class="grid3">
+      ${['Mother', 'Double', 'Single'].map(name => `
+        <div class="bucket">
+          <h3>${name}</h3>
+          <p>${name === 'Mother' ? '3 elemental foundations.' : name === 'Double' ? '7 planetary doubles.' : '12 zodiacal singles.'}</p>
+          <button data-bucket="${name}">Place selected here</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+function renderTriads() {
+  const rows = [
+    { title: 'World', text: 'Cosmic directions, elements, planets, zodiac, and creation-space.', hook: 'Game idea: arrange letters on a cosmological map.' },
+    { title: 'Year', text: 'Time, seasons, months, cycles, and the ritual calendar.', hook: 'Game idea: zodiac wheel and timing puzzles.' },
+    { title: 'Body', text: 'Faculties, organs, breath, speech, and meditative embodiment.', hook: 'Game idea: Middle Pillar and body-map quizzes.' }
+  ];
+  byId('stage').innerHTML = `
+    <div>
+      <h2>World / Year / Body Matrix</h2>
+      <p>A visualization stub for SY's habit of distributing letters across multiple domains. Exact entries need edition-level data import.</p>
+    </div>
+    <div class="matrix">
+      ${rows.map(row => `
+        <article class="matrix-card">
+          <h3>${row.title}</h3>
+          <p><strong>Mapping domain:</strong> ${row.text}</p>
+          <p>${row.hook}</p>
+        </article>
+      `).join('')}
+    </div>
+    <div class="mode-note">
+      Design move: the same letter can be clicked once, then viewed as cosmic, temporal, bodily, Golden Dawn, tarot, or game-mechanical data.
+    </div>
+  `;
+}
+function renderEdition() {
+  byId('stage').innerHTML = `
+    <div>
+      <h2>Digital Edition Comparator</h2>
+      <p>Compare recension lenses and later receptions. Current text is summary metadata only; a future pass should import chapter/paragraph records.</p>
+    </div>
+    <div class="edition-grid">
+      ${EDITIONS.map(edition => `
+        <button class="edition" data-edition="${edition.id}">
+          <h3>${edition.label}</h3>
+          <p><strong>Focus:</strong> ${edition.focus}</p>
+          <p>${edition.note}</p>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+function renderQuiz() {
+  const item = QUIZ[state.quizIndex % QUIZ.length];
+  byId('stage').innerHTML = `
+    <div>
+      <h2>Golden Dawn Knowledge Quiz</h2>
+      <p>Answer what the GD curriculum tends to care about while keeping the source distinction visible.</p>
+    </div>
+    <div class="quiz-card">
+      <div class="mode-note"><strong>Prompt:</strong> ${item.prompt}</div>
+      <div class="option-grid">
+        ${item.options.map(option => `<button data-answer="${option}">${option}</button>`).join('')}
+      </div>
+    </div>
+  `;
+}
+function renderStage() {
+  if (state.mode === 'wheel') renderWheel();
+  if (state.mode === 'classes') renderClasses();
+  if (state.mode === 'triads') renderTriads();
+  if (state.mode === 'edition') renderEdition();
+  if (state.mode === 'quiz') renderQuiz();
+}
+function render() {
+  renderTabs();
+  updateStats();
+  byId('modeNote').innerHTML = `<strong>${activeMode().label}</strong><br>${activeMode().note}`;
+  renderSelection();
+  renderStage();
+  renderLog();
+}
+function openGate(id) {
+  if (state.selected.length >= 2) {
+    state.selected = [];
+  }
+  if (state.selected.includes(id)) return;
+  state.selected.push(id);
+  if (state.selected.length < 2) {
+    addLog(`Selected ${letterById(id).name}. Choose a second letter to form a gate.`);
+    render();
+    return;
+  }
+  const pair = [...state.selected].sort();
+  const key = pair.join(':');
+  const already = state.gates.some(gate => gate.join(':') === key);
+  const [a, b] = pair.map(letterById);
+  if (already) {
+    state.misses += 1;
+    addLog(`${a.name} + ${b.name} is already open. Try a new gate.`);
+  } else {
+    state.gates.push(pair);
+    state.score += 5;
+    addLog(`Opened gate ${a.name} + ${b.name}. Value ${a.value + b.value}; ${a.className}/${b.className}.`);
+  }
+  state.selected = pair;
+  render();
+}
+
+document.body.addEventListener('click', event => {
+  const mode = event.target.closest('[data-mode]');
+  if (mode) {
+    state.mode = mode.dataset.mode;
+    state.selected = [];
+    state.pickedToken = null;
+    addLog(`Mode changed to ${activeMode().label}.`);
+    render();
+    return;
+  }
+  const letter = event.target.closest('[data-letter]');
+  if (letter) openGate(letter.dataset.letter);
+  const token = event.target.closest('[data-token]');
+  if (token) {
+    state.pickedToken = token.dataset.token;
+    addLog(`Selected ${letterById(state.pickedToken).name} for class sorting.`);
+    render();
+  }
+  const bucket = event.target.closest('[data-bucket]');
+  if (bucket && state.pickedToken) {
+    const picked = letterById(state.pickedToken);
+    if (picked.className === bucket.dataset.bucket) {
+      state.score += 4;
+      addLog(`Correct: ${picked.name} is a ${picked.className} letter.`);
+    } else {
+      state.misses += 1;
+      addLog(`Miss: ${picked.name} belongs to ${picked.className}, not ${bucket.dataset.bucket}.`);
+    }
+    state.pickedToken = null;
+    render();
+  }
+  const edition = event.target.closest('[data-edition]');
+  if (edition) {
+    const record = EDITIONS.find(item => item.id === edition.dataset.edition);
+    addLog(`${record.label}: ${record.note}`);
+  }
+  const answer = event.target.closest('[data-answer]');
+  if (answer) {
+    const item = QUIZ[state.quizIndex % QUIZ.length];
+    if (answer.dataset.answer === item.answer) {
+      state.score += 5;
+      addLog(`Correct: ${item.answer}.`);
+    } else {
+      state.misses += 1;
+      addLog(`Miss: ${answer.dataset.answer}. Expected ${item.answer}.`);
+    }
+    state.quizIndex += 1;
+    render();
+  }
+});
+
+byId('lensSelect').addEventListener('change', event => {
+  state.lens = event.target.value;
+  addLog(`Lens changed to ${event.target.selectedOptions[0].textContent}.`);
+  render();
+});
+byId('hintBtn').addEventListener('click', () => {
+  const hints = {
+    wheel: 'Any two different letters make one of the 231 unordered gates.',
+    classes: 'Mothers are Aleph, Mem, Shin. Doubles are planetary. Singles are zodiacal.',
+    triads: 'Think of each letter as readable in world, year, and body at once.',
+    edition: 'Compare Short, Long, Saadya, Donnolo, and later Hermetic overlays without merging them.',
+    quiz: `Current quiz answer: ${QUIZ[state.quizIndex % QUIZ.length].answer}.`
+  };
+  addLog(`Hint: ${hints[state.mode]}`);
+});
+byId('resetBtn').addEventListener('click', () => {
+  state.selected = [];
+  state.gates = [];
+  state.score = 0;
+  state.misses = 0;
+  state.quizIndex = 0;
+  state.pickedToken = null;
+  addLog('Sefer Yetzirah Lab run reset.');
+  render();
+});
+
+addLog('Sefer Yetzirah Lab ready. Start with the wheel or try the class sorting drill.');
+render();
+</script>
+</body>
+</html>

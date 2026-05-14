@@ -105,6 +105,20 @@ It experiments with:
 
 The current implementation is a study-game stub. It should import source-labeled ritual records before it claims to represent a complete Golden Dawn ritual curriculum.
 
+### Sefer Yetzirah Branch
+
+The Sefer Yetzirah-specific layer now lives in `sefer-yetzirah-lab.html`.
+
+It experiments with:
+
+- 231 Gates letter-pair play
+- Mother / Double / Single sorting
+- world / year / body visualization
+- recension comparison
+- Golden Dawn-focused knowledge prompts
+
+This branch is especially important for source labeling because Golden Dawn tarot/path attributions are later Hermetic overlays on an older Jewish letter-cosmology tradition.
+
 ### Knowledge Lecture Sampler
 
 The player matches terms to the knowledge lecture where the topic is trained.
@@ -144,6 +158,7 @@ The same symbol can appear in several schemes. A zodiac sign is a wheel position
 
 1. Add a zodiac wheel with houses, triplicities, modalities, rulers, and decans.
 2. Add drawn pentagram and hexagram path scoring to `ritual-trainer.html`.
-3. Add a tarot spread quiz where the player places all attributions on the card before interpreting it.
-4. Add source labels per item: Golden Dawn, OSOGD adaptation, Agrippa, Regardie, project house rule.
-5. Store mastery per symbol family and feed it into Tarot Coin Journey scoring.
+3. Add a true side-by-side Sefer Yetzirah recension comparator to `sefer-yetzirah-lab.html`.
+4. Add a tarot spread quiz where the player places all attributions on the card before interpreting it.
+5. Add source labels per item: Golden Dawn, OSOGD adaptation, Agrippa, Regardie, project house rule.
+6. Store mastery per symbol family and feed it into Tarot Coin Journey scoring.
