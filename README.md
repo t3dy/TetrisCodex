@@ -6,6 +6,18 @@ Live site: [https://t3dy.github.io/TetrisCodex/](https://t3dy.github.io/TetrisCo
 
 The project is organized around emoji blocks with physical and symbolic properties: mass, friction, volatility, fixity, beam affinity, exit-side value, apparatus effects, source notes, and mode-specific behaviors.
 
+## Feature Coverage Snapshot
+
+The site currently documents or prototypes these major feature families:
+
+- **Alchemy block physics:** reusable emoji matter with mass, friction, volatility, fixity, heat, beam affinity, source notes, and mode-specific behavior.
+- **Balance and platform play:** Balance Tetris, Wild Hunt, moat/drawbridge puzzles, slippery surfaces, wind/gravity controls, and profitable side-dumping goals.
+- **Non-Tetris alchemy modes:** Snake, Space Taxi, Alchemical Three, planned Breakout, Billiards, Push, Minesweeper, and Siege modes using the same symbolic block grammar.
+- **Creator tools:** WYSIWYG level builder, asset studio, shared engine contracts, planned physics/platform/cascade/source editors, and website explainers.
+- **Alchemy scholarship layer:** process atlas, historiography essay, poetry timeline, response bank, source pipeline, and mode-by-mode historical commentary.
+- **Tarot systems:** reading lab, auto-reader, coin journey, numerology breaker, tarot attribution blocks, tarot tetris symbol stacks, and quiz variants.
+- **Golden Dawn systems:** correspondence explorer, Tree Tapper quiz, GD symbol quiz suite, magic-square sigil workbench, ritual trainer, Rose Cross lamen concepts, and knowledge-lecture planning.
+
 ## Playable Pages
 
 - [Arcade Launcher](index.html)  
@@ -52,6 +64,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 
 - [Tarot Reading Lab](tarot-reading.html)  
   Mock reading interface. Choose a prepared spread, walk through interpretation choices, and generate a deterministic written reading.
+
+- [Tarot Auto-Machine](tarot-auto-reader.html)
+  Stream-style automated reading prototype. Place cards into an Operation Cross spread, mint attribution symbols, choose chat interpretations, and generate parallel career/love/magic readings from scored choices.
 
 - [Tarot Coin Journey](tarot-coin-journey.html)  
   Attention-economy tarot prototype. Draw cards, mint elemental/planetary/zodiacal/suit/process coins, spend them on connections, and light a Tree of Life character sheet.
@@ -147,6 +162,10 @@ A planned tarot-attribution mode where a card becomes a composite block unit. Th
 ### Tarot Reading Lab
 
 A playable interface mockup for tarot reading as a game loop. Cards are pre-laid rather than random; the player chooses interpretations for each position, and the system deterministically writes a reading from those choices.
+
+### Tarot Auto-Machine
+
+A playable stream-chat reading prototype. The player draws a small hand, places cards into an alchemical Operation Cross spread, accumulates elemental/planetary/zodiacal attribution symbols, chooses viewer-suggested interpretations, and receives generated career, love, and magic readings.
 
 ### Tarot Coin Journey
 
@@ -268,6 +287,7 @@ Mode and asset docs:
 - [docs/SYMBOL_INPUT_GRAMMAR.md](docs/SYMBOL_INPUT_GRAMMAR.md)
 - [docs/TAROT_ATTRIBUTION_BLOCK_MODE.md](docs/TAROT_ATTRIBUTION_BLOCK_MODE.md)
 - [docs/TAROT_READING_MODE.md](docs/TAROT_READING_MODE.md)
+- [docs/TAROT_AUTO_MACHINE.md](docs/TAROT_AUTO_MACHINE.md)
 - [docs/TAROT_COIN_ATTENTION_MODE.md](docs/TAROT_COIN_ATTENTION_MODE.md)
 - [docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md](docs/TAROT_BALATRO_NUMEROLOGY_BREAKER.md)
 - [docs/TAROT_TETRIS_SYMBOL_STACKS.md](docs/TAROT_TETRIS_SYMBOL_STACKS.md)
@@ -280,6 +300,7 @@ Mode and asset docs:
 - [docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md](docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md)
 - [docs/GD_QUIZ_DATA_ARCHITECTURE.md](docs/GD_QUIZ_DATA_ARCHITECTURE.md)
 - [docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md](docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md)
+- [docs/GD_RITUAL_TRAINER.md](docs/GD_RITUAL_TRAINER.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)

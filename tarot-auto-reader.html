@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarot Auto-Machine</title>
+<style>
+  :root {
+    --bg-dark: #050b0d;
+    --panel-bg: rgba(15, 29, 34, 0.7);
+    --border-glow: rgba(94, 234, 212, 0.15);
+    --accent: #5eead4;
+    --text-main: #ecfeff;
+    --text-muted: #8fb7ae;
+    --gold: #fbbf24;
+    --rose: #fb7185;
+    --green: #34d399;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #0d262e 0%, var(--bg-dark) 60%);
+    color: var(--text-main);
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  main {
+    width: min(1200px, calc(100vw - 40px));
+    margin: 0 auto;
+    padding: 40px 0 80px;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+  
+  nav a {
+    color: var(--accent);
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid var(--border-glow);
+    border-radius: 999px;
+    background: rgba(15, 29, 34, 0.5);
+    font-size: 13px;
+    font-weight: 700;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+  }
+  
+  nav a:hover {
+    background: rgba(94, 234, 212, 0.1);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(94, 234, 212, 0.2);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 50px;
+    animation: fadeInDown 0.8s ease-out;
+  }
+
+  h1 {
+    font-size: clamp(36px, 5vw, 64px);
+    line-height: 1.1;
+    margin: 0 0 16px;
+    background: linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+
+  .lead {
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+    align-items: start;
+    margin-top: 40px;
+  }
+
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-glow);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    margin-bottom: 24px;
+  }
+
+  h2 {
+    margin: 0 0 16px;
+    font-size: 20px;
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .tagline {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .spread-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .hand-grid {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .slot {
+    background: rgba(0,0,0,0.3);
+    border: 2px dashed rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    min-height: 180px;
+    padding: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  .slot.active {
+    border-color: var(--accent);
+    background: rgba(94, 234, 212, 0.05);
+    box-shadow: inset 0 0 20px rgba(94, 234, 212, 0.1);
+  }
+
+  .slot h3 { margin: 0 0 8px; font-size: 16px; color: #fff; }
+  .slot p { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+  .tarot-card {
+    background: linear-gradient(145deg, #111827, #0f172a);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+    min-height: 180px;
+    width: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .tarot-card.in-hand {
+    cursor: pointer;
+    border-color: var(--accent);
+  }
+  .tarot-card.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(0.8);
+  }
+
+  .tarot-card.in-hand:not(.disabled):hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 12px 24px rgba(94, 234, 212, 0.2);
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+  }
+
+  .tarot-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  }
+
+  .tarot-card .emoji {
+    font-size: 42px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+  }
+
+  .tarot-card h3 { margin: 0 0 4px; font-size: 15px; color: #fff; }
+  .tarot-card .meta { font-size: 12px; color: var(--text-muted); margin-bottom: 4px;}
+  .tarot-card .tags { font-size: 11px; color: var(--gold); font-weight: bold;}
+
+  /* Score Bank Styles */
+  .bank-section {
+    margin-bottom: 16px;
+  }
+  .bank-section:last-child {
+    margin-bottom: 0;
+  }
+  .bank-section strong {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .bank-symbols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 24px;
+    color: var(--accent);
+    min-height: 32px;
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+  }
+  .bank-symbols span {
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: inline-block;
+    text-shadow: 0 0 8px rgba(94, 234, 212, 0.5);
+  }
+
+  /* Twitch Chat Styles */
+  .chat-window {
+    background: #0b1120;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 12px;
+    height: 380px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    position: relative;
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+  }
+  
+  .chat-msg {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.03);
+    font-size: 14px;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+    animation: slideIn 0.3s ease-out;
+  }
+  .chat-msg:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateX(2px);
+  }
+  .chat-msg.selectable:hover {
+    border-left-color: var(--accent);
+  }
+  .chat-msg.correct {
+    border-left-color: var(--green);
+    background: rgba(52, 211, 153, 0.1);
+  }
+  .chat-msg.wrong {
+    border-left-color: var(--rose);
+    background: rgba(251, 113, 133, 0.1);
+  }
+  .chat-msg.system {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    background: transparent;
+    cursor: default;
+    border: none;
+  }
+  
+  .chat-username { font-weight: bold; margin-right: 6px; }
+  .user-color-1 { color: #fb7185; }
+  .user-color-2 { color: #60a5fa; }
+  .user-color-3 { color: #34d399; }
+  .user-color-4 { color: #fbbf24; }
+  .user-color-5 { color: #c084fc; }
+
+  /* Narrative Engine Tabs */
+  .narrative-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 8px;
+  }
+  .narrative-tab {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+  }
+  .narrative-tab:hover { color: #fff; }
+  .narrative-tab.active {
+    background: rgba(94, 234, 212, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .narrative-content {
+    font-size: 16px;
+    line-height: 1.7;
+    color: #d9fff7;
+    white-space: pre-wrap;
+    padding: 20px;
+    background: rgba(13, 148, 136, 0.05);
+    border-radius: 12px;
+    border-left: 4px solid var(--accent);
+    display: none;
+    animation: fadeIn 0.3s;
+  }
+  .narrative-content.active { display: block; }
+  .narrative-content p { margin: 0 0 16px; }
+  .narrative-content p:last-child { margin: 0; }
+
+  .points-display {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--gold);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 900;
+  }
+
+  .reset-btn {
+    display: inline-block;
+    background: transparent;
+    color: var(--rose);
+    border: 1px solid var(--rose);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+  }
+  .reset-btn:hover { background: rgba(251, 113, 133, 0.1); }
+
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.5) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <nav>
+      <a href="index.html">Arcade</a>
+      <a href="tarot-reading.html">Manual Lab</a>
+      <a href="tarot-coin-journey.html">Coin Journey</a>
+    </nav>
+
+    <header>
+      <h1>Streamer Tarot</h1>
+      <p class="lead">
+        Play cards into the spread and watch the viewer chat erupt with interpretations. 
+        Select the right interpretation from chat to score Chat Points! The narrative engine will
+        synthesize your choices into three distinct reading styles.
+      </p>
+    </header>
+
+    <div class="layout">
+      <div class="left-col">
+        <div class="panel">
+          <span class="tagline" id="spreadTagline">Spread Layout</span>
+          <h2 id="spreadName">Operation Cross</h2>
+          <p id="spreadDesc" style="color: var(--text-muted); margin-bottom: 20px; font-size: 15px;"></p>
+          <div id="spreadGrid" class="spread-grid"></div>
+        </div>
+
+        <div class="panel" id="handPanel">
+          <span class="tagline">Your Hand</span>
+          <h2>Select a Card to Play</h2>
+          <div id="handGrid" class="hand-grid"></div>
+        </div>
+        
+        <div class="panel" id="narrativePanel" style="display:none;">
+          <span class="tagline">Narrative Engine</span>
+          <h2>Final Synthesized Readings</h2>
+          <div class="narrative-tabs">
+            <button class="narrative-tab active" data-tab="career">💼 Career</button>
+            <button class="narrative-tab" data-tab="love">❤️ Love</button>
+            <button class="narrative-tab" data-tab="magic">✨ Magic</button>
+          </div>
+          <div id="careerReading" class="narrative-content active"></div>
+          <div id="loveReading" class="narrative-content"></div>
+          <div id="magicReading" class="narrative-content"></div>
+          <br>
+          <button class="reset-btn" id="resetBtn">Play Again</button>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <div class="panel" id="bankPanel">
+          <span class="tagline">Score Bank</span>
+          <h2>Attribution Points</h2>
+          <div class="bank-section">
+            <strong>4 Elements</strong>
+            <div id="bankElements" class="bank-symbols"></div>
+          </div>
+          <div class="bank-section">
+            <strong>7 Planets</strong>
+            <div id="bankPlanets" class="bank-symbols"></div>
+          </div>
+          <div class="bank-section">
+            <strong>12 Zodiac Signs</strong>
+            <div id="bankZodiac" class="bank-symbols"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <span class="tagline">Viewer Chat</span>
+          <h2>
+            Live Interpretations
+            <span class="points-display" id="chatPoints">★ 0</span>
+          </h2>
+          <div id="chatWindow" class="chat-window">
+            <div class="chat-msg system">Waiting for stream to start...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+(function() {
+  const readings = [
+    {
+      id: 'operation-cross',
+      name: 'Operation Cross',
+      desc: 'Matter, vessel, heat, obstacle, and projection.',
+      positions: [
+        { id: 'matter', name: 'Matter', question: 'What substance is being worked?' },
+        { id: 'vessel', name: 'Vessel', question: 'What contains or shapes the work?' },
+        { id: 'heat', name: 'Heat', question: 'What pressure changes it?' },
+        { id: 'obstacle', name: 'Obstacle', question: 'What resists the operation?' },
+        { id: 'projection', name: 'Projection', question: 'What result is cast outward?' }
+      ]
+    }
+  ];
+
+  const symbols = {
+    'Fire': '🜂', 'Water': '🜄', 'Air': '🜁', 'Earth': '🜃',
+    'Sun': '☉', 'Moon': '☽', 'Mercury': '☿', 'Venus': '♀', 'Mars': '♂', 'Jupiter': '♃', 'Saturn': '♄',
+    'Aries': '♈', 'Taurus': '♉', 'Gemini': '♊', 'Cancer': '♋', 'Leo': '♌', 'Virgo': '♍', 
+    'Libra': '♎', 'Scorpio': '♏', 'Sagittarius': '♐', 'Capricorn': '♑', 'Aquarius': '♒', 'Pisces': '♓'
+  };
+
+  const fullDeck = [
+    { id: 'magician', name: 'The Magician', emoji: '🪄', element: 'Air', planet: 'Mercury', type: 'Trump', tags: ['air', 'mercury', 'skill', 'language', 'intellect'] },
+    { id: 'tower', name: 'The Tower', emoji: '🗼', element: 'Fire', planet: 'Mars', type: 'Trump', tags: ['fire', 'danger', 'rupture', 'conflict'] },
+    { id: 'moon', name: 'The Moon', emoji: '🌙', element: 'Water', planet: 'Moon', type: 'Trump', tags: ['water', 'uncertainty', 'emotion', 'dream'] },
+    { id: 'sun', name: 'The Sun', emoji: '☉', element: 'Fire', planet: 'Sun', type: 'Trump', tags: ['fire', 'clarity', 'joy', 'action'] },
+    { id: 'devil', name: 'The Devil', emoji: '⛓️', element: 'Earth', zodiac: 'Capricorn', type: 'Trump', tags: ['earth', 'business', 'bond', 'shadow'] },
+    { id: 'ace-cups', name: 'Ace of Cups', emoji: '🏆', element: 'Water', planet: 'Moon', tags: ['water', 'emotion', 'vessel', 'romance'] },
+    { id: 'ace-wands', name: 'Ace of Wands', emoji: '🕯️', element: 'Fire', planet: 'Sun', tags: ['fire', 'action', 'passion', 'beginning'] },
+    { id: 'ten-pentacles', name: 'Ten of Pentacles', emoji: '🪙', element: 'Earth', planet: 'Saturn', tags: ['earth', 'business', 'structure', 'salt'] },
+    { id: 'king-pentacles', name: 'King of Pentacles', emoji: '🤴🪙', element: 'Earth', zodiac: 'Taurus', type: 'Court', tags: ['earth', 'business', 'court', 'authority'] },
+    { id: 'queen-cups', name: 'Queen of Cups', emoji: '👸🏆', element: 'Water', zodiac: 'Cancer', type: 'Court', tags: ['water', 'emotion', 'court', 'romance'] },
+    { id: 'knight-wands', name: 'Knight of Wands', emoji: '🏇🕯️', element: 'Fire', zodiac: 'Sagittarius', type: 'Court', tags: ['fire', 'action', 'court', 'conflict'] },
+    { id: 'page-swords', name: 'Page of Swords', emoji: '🤺🗡️', element: 'Air', zodiac: 'Aquarius', type: 'Court', tags: ['air', 'language', 'court', 'intellect'] },
+    { id: 'temperance', name: 'Temperance', emoji: '⚖️', element: 'Fire/Water', zodiac: 'Sagittarius', type: 'Trump', tags: ['water', 'fire', 'balance', 'mixing'] },
+    { id: 'five-wands', name: 'Five of Wands', emoji: '🕯️5', element: 'Fire', planet: 'Saturn', zodiac: 'Leo', tags: ['fire', 'conflict', 'will', 'action'] },
+    { id: 'empress', name: 'The Empress', emoji: '👑', element: 'Earth', planet: 'Venus', type: 'Trump', tags: ['earth', 'romance', 'fertility', 'nature'] },
+    { id: 'justice', name: 'Justice', emoji: '⚖️', element: 'Air', zodiac: 'Libra', type: 'Trump', tags: ['air', 'balance', 'law', 'intellect'] },
+    { id: 'death', name: 'Death', emoji: '💀', element: 'Water', zodiac: 'Scorpio', type: 'Trump', tags: ['water', 'transformation', 'endings', 'emotion'] }
+  ];
+
+  // Options that viewers can suggest
+  const interpretationBank = [
+    { 
+      id: 'skill-intellect', tags: ['air', 'skill', 'intellect', 'mercury'], 
+      chat: 'Totally an intellectual, calculated move! Big brain energy 🧠', 
+      career: 'You are using your intellect and strategic planning to overcome workplace hurdles.',
+      love: 'Communication and sharp honesty are driving your romantic connections.',
+      magic: 'Your spiritual work requires precise mental focus and deliberate incantations.'
+    },
+    { 
+      id: 'warning-conflict', tags: ['fire', 'danger', 'conflict', 'mars'], 
+      chat: 'MonkaS that looks like a huge fight or disaster coming up... 💥', 
+      career: 'Expect intense competition, sudden disruptions, or a clash with authority at work.',
+      love: 'Passions are running hot, leading to explosive arguments or sudden breakups.',
+      magic: 'A severe calcination phase. Old spiritual structures are burning away.'
+    },
+    { 
+      id: 'emotional-depth', tags: ['water', 'emotion', 'romance', 'moon'], 
+      chat: 'Deep feels incoming! Def a watery, emotional situation 🌊', 
+      career: 'Your career path is currently governed by your intuition and workplace relationships.',
+      love: 'A deep, solvent emotional connection is drawing you closer to your partner.',
+      magic: 'You are in a phase of dissolution, letting go of rigid boundaries to merge with the astral.'
+    },
+    { 
+      id: 'material-business', tags: ['earth', 'business', 'structure', 'salt'], 
+      chat: 'Secure the bag! Pure business and material gains here 💰', 
+      career: 'You are building a stable, long-lasting structure for your wealth and authority.',
+      love: 'Your relationship is grounded in practical realities, resembling a pragmatic partnership.',
+      magic: 'The spiritual forces are grounding themselves in physical, tangible results.'
+    },
+    { 
+      id: 'passion-action', tags: ['fire', 'action', 'passion', 'sun'], 
+      chat: 'LETS GOOO! Full speed ahead, so much passion and action! 🔥', 
+      career: 'Bold action and leadership are pushing your career forward at breakneck speed.',
+      love: 'Fiery passion and spontaneous adventures are sparking your love life.',
+      magic: 'Your will is ignited. Use this solar energy to cast your intentions outward.'
+    },
+    { 
+      id: 'court-business', tags: ['court', 'business', 'earth'], 
+      chat: 'Those two? Def a strategic business alliance. 🤝', 
+      career: 'A powerful mentorship or business alliance is forming between key players.',
+      love: 'You and your partner are operating more like co-CEOs managing a household.',
+      magic: 'The masters of the earthly realm are aligning to support your material manifestation.'
+    },
+    { 
+      id: 'court-romance', tags: ['court', 'romance', 'water'], 
+      chat: 'Ooooh they are totally into each other! Romantic entanglement! 💕', 
+      career: 'Workplace romance or deeply emotional networking is influencing your career trajectory.',
+      love: 'A passionate and profoundly emotional dynamic exists between you and your person of interest.',
+      magic: 'The union of these two figures symbolizes the alchemical wedding of opposite forces.'
+    },
+    { 
+      id: 'court-rivalry', tags: ['court', 'conflict', 'fire'], 
+      chat: 'Oh they HATE each other. Massive rivalry! 🤺', 
+      career: 'A fierce rivalry or power struggle between coworkers is threatening your progress.',
+      love: 'Constant bickering and a clash of egos are creating turbulence in your relationship.',
+      magic: 'Spiritual warfare. Two opposing archetypes are battling for dominance in your psyche.'
+    },
+    {
+      id: 'temper-balance', tags: ['water', 'fire', 'balance'],
+      chat: 'Perfect balance! Fire and water making steam. So balanced. ⚖️',
+      career: 'You are successfully balancing high-stress demands with a calm, adaptable approach.',
+      love: 'Opposites attract, creating a relationship that is both passionate and emotionally nurturing.',
+      magic: 'The alchemical process of ceration: carefully mixing volatile and fixed elements into a perfect union.'
+    },
+    {
+      id: 'wrong-air-is-earth', tags: ['wrong'],
+      chat: 'Wait, is this about farming? Definitely strong earth vibes. 🚜',
+      career: 'A confusing period where you misinterpret your intellectual tasks as manual labor.',
+      love: 'A grounded connection that completely ignores the need for communication.',
+      magic: 'Focusing entirely on the dirt while ignoring the sky.'
+    },
+    {
+      id: 'wrong-water-is-fire', tags: ['wrong'],
+      chat: 'Burn it all down! So much fiery destruction here! 🔥🔥🔥',
+      career: 'A tendency to forcefully destroy projects that only needed gentle reshaping.',
+      love: 'You are projecting aggressive anger onto a situation that just required emotional sensitivity.',
+      magic: 'Applying excessive heat to a delicate tincture, ruining the alchemical work.'
+    }
+  ];
+
+  const usernames = ['TarotFan99', 'Alchemist_X', 'SaltyTears', 'DivinationStation', 'PogCard', 'Mystic_Mog', 'OrbPonderer'];
+
+  let state = {
+    spread: readings[0],
+    deck: [],
+    hand: [],
+    placedCards: [],
+    chatPoints: 0,
+    chatPending: false,
+    chosenInterpretations: [],
+    bank: { elements: [], planets: [], zodiac: [] }
+  };
+
+  const chatWindow = document.getElementById('chatWindow');
+
+  function addChatMsg(user, text, dataOption = null) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg' + (dataOption ? ' selectable' : '');
+    const colorClass = `user-color-${(user.length % 5) + 1}`;
+    
+    div.innerHTML = `<span class="chat-username ${colorClass}">${user}:</span>${text}`;
+    
+    if (dataOption) {
+      div.onclick = () => handleChatSelection(div, dataOption);
+    }
+    
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function shuffle(array) {
+    let cur = array.length, rnd;
+    while (cur != 0) {
+      rnd = Math.floor(Math.random() * cur); cur--;
+      [array[cur], array[rnd]] = [array[rnd], array[cur]];
+    }
+    return array;
+  }
+
+  function initGame() {
+    state.deck = shuffle([...fullDeck]);
+    state.hand = [];
+    state.placedCards = new Array(state.spread.positions.length).fill(null);
+    state.chatPoints = 0;
+    state.chatPending = false;
+    state.chosenInterpretations = [];
+    state.bank = { elements: [], planets: [], zodiac: [] };
+    
+    document.getElementById('spreadName').textContent = state.spread.name;
+    document.getElementById('spreadDesc').textContent = state.spread.desc;
+    document.getElementById('chatPoints').textContent = `★ ${state.chatPoints}`;
+    
+    document.getElementById('bankElements').innerHTML = '';
+    document.getElementById('bankPlanets').innerHTML = '';
+    document.getElementById('bankZodiac').innerHTML = '';
+    
+    document.getElementById('narrativePanel').style.display = 'none';
+    chatWindow.innerHTML = '<div class="chat-msg system">Stream has started. Waiting for first card play.</div>';
+
+    drawHand();
+    renderSpread();
+  }
+
+  function drawHand() {
+    while (state.hand.length < 3 && state.deck.length > 0) {
+      state.hand.push(state.deck.pop());
+    }
+    renderHand();
+  }
+
+  function renderSpread() {
+    const grid = document.getElementById('spreadGrid');
+    grid.innerHTML = state.spread.positions.map((pos, idx) => {
+      const card = state.placedCards[idx];
+      const isActive = idx === state.placedCards.findIndex(c => c === null);
+      
+      if (!card) {
+        return `
+          <div class="slot ${isActive ? 'active' : ''}">
+            <h3>${pos.name}</h3>
+            <p>${pos.question}</p>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="tarot-card" style="animation: popIn 0.3s ease-out;">
+          <div class="emoji">${card.emoji}</div>
+          <h3>${card.name}</h3>
+          <div class="meta">${pos.name}</div>
+          <div class="tags">${card.element}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderHand() {
+    const handGrid = document.getElementById('handGrid');
+    const panel = document.getElementById('handPanel');
+    
+    const activeSlotIdx = state.placedCards.findIndex(c => c === null);
+    if (activeSlotIdx === -1) {
+      panel.style.display = 'none';
+      return;
+    }
+    
+    panel.style.display = 'block';
+    handGrid.innerHTML = state.hand.map((card, idx) => `
+      <div class="tarot-card in-hand ${state.chatPending ? 'disabled' : ''}" data-idx="${idx}">
+        <div class="emoji">${card.emoji}</div>
+        <h3>${card.name}</h3>
+        <div class="meta">${card.type || 'Card'}</div>
+        <div class="tags">${card.element} ${card.planet ? '· ' + card.planet : ''} ${card.zodiac ? '· ' + card.zodiac : ''}</div>
+      </div>
+    `).join('');
+
+    if (!state.chatPending) {
+      handGrid.querySelectorAll('.in-hand').forEach(el => {
+        el.addEventListener('click', () => playCard(parseInt(el.dataset.idx)));
+      });
+    }
+  }
+
+  function updateBank(card) {
+    let newSymbols = [];
+    if (card.element) {
+      card.element.split('/').forEach(e => {
+        const sym = symbols[e];
+        if (sym) { state.bank.elements.push(sym); newSymbols.push({ type: 'elements', char: sym, label: e }); }
+      });
+    }
+    if (card.planet) {
+      const sym = symbols[card.planet];
+      if (sym) { state.bank.planets.push(sym); newSymbols.push({ type: 'planets', char: sym, label: card.planet }); }
+    }
+    if (card.zodiac) {
+      const sym = symbols[card.zodiac];
+      if (sym) { state.bank.zodiac.push(sym); newSymbols.push({ type: 'zodiac', char: sym, label: card.zodiac }); }
+    }
+
+    newSymbols.forEach(ns => {
+      const container = document.getElementById('bank' + ns.type.charAt(0).toUpperCase() + ns.type.slice(1));
+      const span = document.createElement('span');
+      span.textContent = ns.char;
+      span.title = ns.label;
+      container.appendChild(span);
+    });
+  }
+
+  function playCard(handIdx) {
+    if (state.chatPending) return;
+    
+    const card = state.hand[handIdx];
+    const slotIdx = state.placedCards.findIndex(c => c === null);
+    if (slotIdx === -1) return;
+
+    state.hand.splice(handIdx, 1);
+    state.placedCards[slotIdx] = card;
+    const prevCard = slotIdx > 0 ? state.placedCards[slotIdx - 1] : null;
+    
+    updateBank(card);
+    renderSpread();
+    
+    state.chatPending = true;
+    renderHand(); // disable hand
+
+    addChatMsg('System', `You played ${card.name}. Viewers are analyzing the vibes...`);
+    
+    setTimeout(() => {
+      generateChatPoll(card, prevCard);
+    }, 800);
+  }
+
+  function getGlobalTags() {
+    const counts = {};
+    state.placedCards.filter(c => c !== null).forEach(c => {
+      c.tags.forEach(t => counts[t] = (counts[t] || 0) + 1);
+    });
+    return counts;
+  }
+
+  function generateChatPoll(card, prevCard) {
+    const globalTags = getGlobalTags();
+    
+    // Score all interpretation options
+    const scoredOptions = interpretationBank.map(opt => {
+      let score = 0;
+      if (opt.tags.includes('wrong')) {
+        score = -10; // intentionally wrong
+      } else {
+        opt.tags.forEach(t => {
+          if (card.tags.includes(t)) score += 3;
+          if (prevCard && prevCard.tags.includes(t)) score += 3;
+          if (globalTags[t]) score += globalTags[t];
+        });
+      }
+      return { ...opt, score };
+    });
+
+    // Sort by score
+    scoredOptions.sort((a,b) => b.score - a.score);
+
+    // Pick top (correct), middle (okay), and one intentionally wrong
+    const optionsToShow = [
+      scoredOptions[0], // best
+      scoredOptions[1], // second best
+      scoredOptions.find(o => o.score < 0) || scoredOptions[scoredOptions.length - 1] // worst/wrong
+    ];
+
+    shuffle(optionsToShow);
+    const users = shuffle([...usernames]);
+
+    optionsToShow.forEach((opt, idx) => {
+      setTimeout(() => {
+        addChatMsg(users[idx], opt.chat + ` <span style="font-size:11px;opacity:0.5;">(Click to Accept)</span>`, opt);
+      }, idx * 600);
+    });
+  }
+
+  function handleChatSelection(divElement, selectedOption) {
+    if (!state.chatPending) return; // already clicked
+    
+    state.chatPending = false;
+
+    // Remove selectable class from all
+    document.querySelectorAll('.selectable').forEach(el => {
+      el.classList.remove('selectable');
+      el.onclick = null;
+    });
+
+    // Was it a good interpretation?
+    const isCorrect = selectedOption.score > 0;
+    
+    if (isCorrect) {
+      divElement.classList.add('correct');
+      state.chatPoints += 10;
+      addChatMsg('System', `Chat validated! Interpretation accepted. +10 Points 📈`);
+    } else {
+      divElement.classList.add('wrong');
+      addChatMsg('System', `Yikes, you listened to a troll. Interpretation accepted anyway... 📉`);
+    }
+
+    document.getElementById('chatPoints').textContent = `★ ${state.chatPoints}`;
+    
+    // Save to narrative engine
+    const slotIdx = state.placedCards.findIndex(c => c === null) - 1;
+    state.chosenInterpretations.push({
+       posName: state.spread.positions[slotIdx === -1 ? state.spread.positions.length - 1 : slotIdx].name,
+       option: selectedOption
+    });
+
+    // Check if spread is complete
+    const nextSlotIdx = state.placedCards.findIndex(c => c === null);
+    if (nextSlotIdx === -1) {
+      setTimeout(() => {
+        addChatMsg('System', `Spread complete! Narrative Engine generating readings...`);
+        generateNarratives();
+      }, 1000);
+    } else {
+      drawHand();
+      renderHand();
+    }
+  }
+
+  function generateNarratives() {
+    document.getElementById('narrativePanel').style.display = 'block';
+    
+    ['career', 'love', 'magic'].forEach(style => {
+      const container = document.getElementById(style + 'Reading');
+      let html = `<p><strong>${style.toUpperCase()} READING</strong></p>`;
+      
+      state.chosenInterpretations.forEach(choice => {
+        html += `<p><strong>${choice.posName}:</strong> ${choice.option[style]}</p>`;
+      });
+      
+      container.innerHTML = html;
+    });
+    
+    document.getElementById('handPanel').style.display = 'none';
+  }
+
+  // Tab Logic
+  document.querySelectorAll('.narrative-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      document.querySelectorAll('.narrative-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.narrative-content').forEach(c => c.classList.remove('active'));
+      
+      e.target.classList.add('active');
+      document.getElementById(e.target.dataset.tab + 'Reading').classList.add('active');
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', initGame);
+
+  initGame();
+
+})();
+</script>
+</body>
+</html>
