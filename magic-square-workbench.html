@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Square Sigil Workbench</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #070b10;
+    --panel: #101923;
+    --ink: #f8fafc;
+    --muted: #a9bacb;
+    --line: rgba(226, 232, 240, 0.2);
+    --gold: #f6c453;
+    --cyan: #5eead4;
+    --rose: #fb7185;
+    --good: #34d399;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 10% 8%, rgba(94, 234, 212, 0.13), transparent 33%),
+      radial-gradient(circle at 84% 12%, rgba(246, 196, 83, 0.12), transparent 34%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  main {
+    width: min(1320px, calc(100vw - 28px));
+    margin: 0 auto;
+    padding: 26px 0 56px;
+  }
+  nav, .tabs, .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  nav { margin-bottom: 24px; }
+  nav a, button, select, input {
+    border: 1px solid rgba(226, 232, 240, 0.22);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.78);
+    color: var(--ink);
+    font: inherit;
+    overflow-wrap: anywhere;
+  }
+  nav a {
+    padding: 8px 12px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  button, select, input { padding: 9px 11px; }
+  button, select { cursor: pointer; }
+  button:hover, button:focus, button.active, nav a:hover, select:focus, input:focus {
+    outline: 2px solid var(--gold);
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 64px;
+    line-height: 0.95;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  h2, h3 { margin: 0 0 12px; letter-spacing: 0; }
+  p { margin: 0 0 10px; color: var(--muted); line-height: 1.5; }
+  .lead {
+    max-width: 980px;
+    margin-bottom: 22px;
+    font-size: 18px;
+    overflow-wrap: break-word;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.82fr) minmax(430px, 1fr) minmax(330px, 0.84fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(16, 25, 35, 0.9);
+    padding: 16px;
+  }
+  .controls {
+    display: grid;
+    gap: 12px;
+  }
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .tabs { margin: 18px 0; }
+  .tab { text-align: left; min-height: 58px; }
+  .square-wrap {
+    position: relative;
+  }
+  .magic-square {
+    display: grid;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid rgba(246, 196, 83, 0.32);
+    border-radius: 8px;
+    background: rgba(7, 11, 16, 0.84);
+  }
+  .cell {
+    position: relative;
+    min-height: 48px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(226, 232, 240, 0.18);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.74);
+    color: #dbeafe;
+    cursor: pointer;
+    font-weight: 800;
+  }
+  .cell:hover, .cell.active {
+    outline: 2px solid var(--gold);
+  }
+  .cell.trace {
+    background: rgba(94, 234, 212, 0.18);
+    border-color: var(--cyan);
+  }
+  .cell.bad {
+    background: rgba(251, 113, 133, 0.18);
+    border-color: var(--rose);
+  }
+  .cell.good {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: var(--good);
+  }
+  .cell input {
+    width: 100%;
+    height: 100%;
+    min-height: 42px;
+    text-align: center;
+    background: transparent;
+    border: 0;
+    color: var(--ink);
+    font-weight: 900;
+  }
+  svg.overlay {
+    position: absolute;
+    inset: 8px;
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+    pointer-events: none;
+    overflow: visible;
+    background: transparent;
+  }
+  .trace-line {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.8));
+  }
+  .trace-dot {
+    fill: var(--cyan);
+    stroke: #021014;
+    stroke-width: 2;
+  }
+  .sequence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .pill {
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: #dbeafe;
+    background: rgba(96, 165, 250, 0.12);
+    font-size: 13px;
+  }
+  .print-card {
+    min-height: 420px;
+    display: grid;
+    gap: 12px;
+    align-content: start;
+    padding: 18px;
+    border: 1px solid rgba(246, 196, 83, 0.44);
+    border-radius: 8px;
+    background:
+      linear-gradient(135deg, rgba(246, 196, 83, 0.12), transparent 34%),
+      rgba(8, 13, 20, 0.88);
+  }
+  .print-card h3 {
+    color: #fde68a;
+    font-size: 28px;
+  }
+  .print-card .seal {
+    display: grid;
+    place-items: center;
+    min-height: 260px;
+    border: 1px solid rgba(226, 232, 240, 0.18);
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.62);
+  }
+  .log {
+    display: grid;
+    gap: 8px;
+    max-height: 340px;
+    overflow: auto;
+    margin-top: 12px;
+  }
+  .event {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #dbeafe;
+    line-height: 1.45;
+  }
+  .doc-note {
+    margin-top: 14px;
+    padding: 12px;
+    border-left: 4px solid var(--cyan);
+    background: rgba(94, 234, 212, 0.08);
+    color: #ccfbf1;
+  }
+  .small { color: var(--muted); font-size: 13px; }
+  @media print {
+    body { background: white; color: black; }
+    nav, .tabs, .layout > aside:first-child, .layout > aside:last-child, .actions, .doc-note { display: none !important; }
+    main { width: 100%; padding: 0; }
+    .layout { display: block; }
+    .panel { border: 0; background: white; }
+    .print-card { background: white; color: black; border: 2px solid black; }
+  }
+  @media (max-width: 1080px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    h1 { font-size: 38px; }
+    main { width: min(100%, calc(100vw - 20px)); }
+  }
+  @media (max-width: 360px) {
+    h1 { font-size: 30px; }
+    nav a, button, select, input { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html">Arcade</a>
+    <a href="gd-quiz-suite.html">GD Quiz Suite</a>
+    <a href="tree-tapper-quiz.html">Tree Tapper</a>
+    <a href="golden-dawn-explorer.html">GD Explorer</a>
+    <a href="game-guide.html">Guide</a>
+    <a href="docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md">Workbench Doc</a>
+  </nav>
+
+  <h1>Magic Square Sigil Workbench</h1>
+  <p class="lead">
+    A print-shop and game-mode laboratory for planetary magic squares: construct the square,
+    trace number paths, animate the sigil, and compose a printable talisman card.
+  </p>
+
+  <div class="tabs" id="modeTabs"></div>
+
+  <section class="layout">
+    <aside class="panel">
+      <h2>Controls</h2>
+      <div class="controls">
+        <label>
+          Planetary square
+          <select id="planetSelect"></select>
+        </label>
+        <label>
+          Sigil number path
+          <input id="sequenceInput" value="1 5 9 2 6" aria-label="Sigil number path">
+        </label>
+        <div class="actions">
+          <button id="applySeq">Apply Path</button>
+          <button id="playTrace">Animate Trace</button>
+          <button id="clearTrace">Clear</button>
+          <button id="printBtn">Print Sheet</button>
+        </div>
+      </div>
+      <p class="doc-note">
+        This is a prototype interface lab. Nothing here claims to be a complete ritual instruction; it is a visual/schematic drill for the square and sigil systems.
+      </p>
+      <h3>Move Readout</h3>
+      <div class="log" id="log"></div>
+    </aside>
+
+    <section class="panel">
+      <h2 id="stageTitle">Stage</h2>
+      <div id="stage"></div>
+      <div class="sequence" id="sequencePills"></div>
+    </section>
+
+    <aside class="panel">
+      <h2>Print Shop</h2>
+      <div class="print-card" id="printCard"></div>
+    </aside>
+  </section>
+</main>
+
+<script>
+const MAGIC_SQUARES = [
+  { id: 'saturn', label: 'Saturn', glyph: '♄', order: 3, figure: 'Triangle', color: '#9ca3af', square: [[4,9,2],[3,5,7],[8,1,6]], note: 'The compact 3x3 square, useful for first construction drills.' },
+  { id: 'jupiter', label: 'Jupiter', glyph: '♃', order: 4, figure: 'Square', color: '#60a5fa', square: [[4,14,15,1],[9,7,6,12],[5,11,10,8],[16,2,3,13]], note: 'A 4x4 square that makes a clear step up from Saturn.' },
+  { id: 'mars', label: 'Mars', glyph: '♂', order: 5, figure: 'Pentagram', color: '#fb7185', square: [[11,24,7,20,3],[4,12,25,8,16],[17,5,13,21,9],[10,18,1,14,22],[23,6,19,2,15]], note: 'A 5x5 square with good action-game potential for path tracing.' },
+  { id: 'sun', label: 'Sun', glyph: '☉', order: 6, figure: 'Hexagram', color: '#facc15', square: [[6,32,3,34,35,1],[7,11,27,28,8,30],[19,14,16,15,23,24],[18,20,22,21,17,13],[25,29,10,9,26,12],[36,5,33,4,2,31]], note: 'A 6x6 square that suits print-shop talisman layouts.' },
+  { id: 'venus', label: 'Venus', glyph: '♀', order: 7, figure: 'Heptagram', color: '#f472b6', square: [[22,47,16,41,10,35,4],[5,23,45,17,42,11,29],[30,6,24,49,18,36,12],[13,31,7,25,43,19,37],[38,14,32,1,26,44,20],[21,39,8,33,2,27,45],[46,15,40,9,34,3,28]], note: 'A 7x7 square for attraction/binding sigil play.' },
+  { id: 'mercury', label: 'Mercury', glyph: '☿', order: 8, figure: 'Octagram', color: '#5eead4', square: [[8,58,59,5,4,62,63,1],[49,15,14,52,53,11,10,56],[41,23,22,44,45,19,18,48],[32,34,35,29,28,38,39,25],[40,26,27,37,36,30,31,33],[17,47,46,20,21,43,42,24],[9,55,54,12,13,51,50,16],[64,2,3,61,60,6,7,57]], note: 'A large communication/translation square, ideal for animated routing.' },
+  { id: 'moon', label: 'Moon', glyph: '☽', order: 9, figure: 'Enneagram', color: '#c4b5fd', square: [[37,78,29,70,21,62,13,54,5],[6,38,79,30,71,22,63,14,46],[47,7,39,80,31,72,23,55,15],[16,48,8,40,81,32,64,24,56],[57,17,49,9,41,73,33,65,25],[26,58,18,50,1,42,74,34,66],[67,27,59,10,51,2,43,75,35],[36,68,19,60,11,52,3,44,76],[77,28,69,20,61,12,53,4,45]], note: 'A 9x9 square that should become a slow, dreamy tracing mode.' }
+];
+
+const MODES = [
+  { id: 'construct', title: 'Construct Square', detail: 'Fill missing cells and validate row/column totals.' },
+  { id: 'trace', title: 'Trace Sigil', detail: 'Click number cells to draw a path.' },
+  { id: 'animate', title: 'Animate Path', detail: 'Watch the sigil reveal itself step by step.' },
+  { id: 'print', title: 'Print Shop', detail: 'Compose a printable talisman sheet.' }
+];
+
+const state = {
+  planet: 'saturn',
+  mode: 'construct',
+  trace: [1, 5, 9, 2, 6],
+  built: {},
+  animationStep: null,
+  log: []
+};
+
+const byId = id => document.getElementById(id);
+const activeSquare = () => MAGIC_SQUARES.find(square => square.id === state.planet);
+
+function addLog(text) {
+  state.log.unshift(text);
+  state.log = state.log.slice(0, 12);
+  renderLog();
+}
+
+function parseSequence() {
+  return byId('sequenceInput').value
+    .split(/[,\s-]+/)
+    .map(value => Number(value.trim()))
+    .filter(Number.isFinite);
+}
+
+function numberPosition(square, value) {
+  for (let r = 0; r < square.square.length; r += 1) {
+    for (let c = 0; c < square.square[r].length; c += 1) {
+      if (square.square[r][c] === value) return { row: r, col: c };
+    }
+  }
+  return null;
+}
+
+function renderTabs() {
+  byId('modeTabs').innerHTML = MODES.map(mode => `
+    <button class="tab ${mode.id === state.mode ? 'active' : ''}" data-mode="${mode.id}">
+      <strong>${mode.title}</strong><br>
+      <span class="small">${mode.detail}</span>
+    </button>
+  `).join('');
+}
+
+function renderControls() {
+  byId('planetSelect').innerHTML = MAGIC_SQUARES.map(square => `
+    <option value="${square.id}">${square.glyph} ${square.label} ${square.order}x${square.order}</option>
+  `).join('');
+  byId('planetSelect').value = state.planet;
+  byId('sequenceInput').value = state.trace.join(' ');
+}
+
+function renderStage() {
+  const square = activeSquare();
+  byId('stageTitle').textContent = `${square.glyph} ${square.label} ${state.mode === 'construct' ? 'Construction' : 'Sigil Work'}`;
+  byId('stage').innerHTML = `
+    <div class="square-wrap">
+      <div class="magic-square" style="grid-template-columns: repeat(${square.order}, minmax(0, 1fr))">
+        ${square.square.flatMap((row, r) => row.map((value, c) => renderCell(square, value, r, c))).join('')}
+      </div>
+      ${renderOverlay(square)}
+    </div>
+    ${renderModePanel(square)}
+  `;
+  renderSequence();
+  renderPrintCard();
+}
+
+function renderCell(square, value, row, col) {
+  const key = `${square.id}:${row}:${col}`;
+  const traceActive = state.trace.includes(value);
+  const animationActive = state.animationStep !== null && state.trace.slice(0, state.animationStep + 1).includes(value);
+  if (state.mode === 'construct') {
+    const hidden = (row + col) % 3 === 0;
+    const typed = state.built[key] || '';
+    const valid = typed && Number(typed) === value;
+    const bad = typed && Number(typed) !== value;
+    return `
+      <div class="cell ${valid ? 'good' : bad ? 'bad' : ''}" data-value="${value}" data-row="${row}" data-col="${col}">
+        ${hidden ? `<input data-build-key="${key}" value="${typed}" placeholder="?" aria-label="cell ${row + 1},${col + 1}">` : value}
+      </div>
+    `;
+  }
+  return `
+    <button class="cell ${traceActive ? 'trace' : ''} ${animationActive ? 'active' : ''}" data-value="${value}">
+      ${value}
+    </button>
+  `;
+}
+
+function renderOverlay(square) {
+  if (!['trace', 'animate', 'print'].includes(state.mode)) return '';
+  const activeTrace = state.animationStep === null ? state.trace : state.trace.slice(0, state.animationStep + 1);
+  const points = activeTrace.map(value => numberPosition(square, value)).filter(Boolean);
+  if (points.length === 0) return '';
+  const size = 100 / square.order;
+  const coords = points.map(pos => ({
+    x: (pos.col + 0.5) * size,
+    y: (pos.row + 0.5) * size
+  }));
+  return `
+    <svg class="overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <polyline class="trace-line" points="${coords.map(p => `${p.x},${p.y}`).join(' ')}"></polyline>
+      ${coords.map((p, index) => `<circle class="trace-dot" cx="${p.x}" cy="${p.y}" r="${index === 0 ? 2.2 : 1.6}"></circle>`).join('')}
+    </svg>
+  `;
+}
+
+function renderModePanel(square) {
+  const constant = square.order * (square.order * square.order + 1) / 2;
+  if (state.mode === 'construct') {
+    const keyedValues = Object.entries(state.built).filter(([key]) => key.startsWith(`${square.id}:`));
+    const correct = keyedValues.filter(([key, value]) => {
+      const [, row, col] = key.split(':');
+      return Number(value) === square.square[Number(row)][Number(col)];
+    }).length;
+    return `
+      <div class="doc-note">
+        Fill the hidden cells. This ${square.label} square has row/column constant ${constant}. Correct filled cells: ${correct}/${keyedValues.length || 0}.
+      </div>
+    `;
+  }
+  if (state.mode === 'trace') {
+    return `
+      <div class="doc-note">
+        Click cells to append their numbers to the sigil path. Current path uses ${state.trace.length} points.
+      </div>
+    `;
+  }
+  if (state.mode === 'animate') {
+    return `
+      <div class="doc-note">
+        Animation mode reveals the current number path in sequence. Use Animate Trace to replay it.
+      </div>
+    `;
+  }
+  return `
+    <div class="doc-note">
+      Print Shop mode previews the talisman sheet. Use Print Sheet for browser printing or PDF output.
+    </div>
+  `;
+}
+
+function renderSequence() {
+  byId('sequencePills').innerHTML = state.trace.map((value, index) => `
+    <span class="pill">${index + 1}. ${value}</span>
+  `).join('');
+}
+
+function renderPrintCard() {
+  const square = activeSquare();
+  const constant = square.order * (square.order * square.order + 1) / 2;
+  byId('printCard').innerHTML = `
+    <h3>${square.glyph} ${square.label} Sigil Sheet</h3>
+    <p>${square.order}x${square.order} square · ${square.figure} · constant ${constant}</p>
+    <div class="seal">${renderPrintSeal(square)}</div>
+    <p><strong>Sequence:</strong> ${state.trace.join(' → ') || 'none'}</p>
+    <p class="small">${square.note}</p>
+  `;
+}
+
+function renderPrintSeal(square) {
+  const points = state.trace.map(value => numberPosition(square, value)).filter(Boolean);
+  const size = 240;
+  const cell = size / square.order;
+  const coords = points.map(pos => ({ x: (pos.col + 0.5) * cell, y: (pos.row + 0.5) * cell }));
+  return `
+    <svg viewBox="0 0 ${size} ${size}" width="100%" height="260" role="img" aria-label="${square.label} printable sigil">
+      <rect x="4" y="4" width="${size - 8}" height="${size - 8}" rx="8" fill="rgba(15,23,42,0.92)" stroke="${square.color}" stroke-width="2"></rect>
+      ${square.square.flatMap((row, r) => row.map((value, c) => `
+        <rect x="${c * cell + 6}" y="${r * cell + 6}" width="${cell - 4}" height="${cell - 4}" fill="rgba(226,232,240,0.06)" stroke="rgba(226,232,240,0.16)"></rect>
+        <text x="${c * cell + cell / 2}" y="${r * cell + cell / 2 + 4}" text-anchor="middle" fill="#cbd5e1" font-size="${Math.max(9, 18 - square.order)}">${value}</text>
+      `)).join('')}
+      <polyline points="${coords.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${square.color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      ${coords.map((p, index) => `<circle cx="${p.x}" cy="${p.y}" r="${index === 0 ? 5 : 4}" fill="${index === 0 ? '#f8fafc' : square.color}" stroke="#020617" stroke-width="1.5"></circle>`).join('')}
+    </svg>
+  `;
+}
+
+function renderLog() {
+  byId('log').innerHTML = state.log.length
+    ? state.log.map(item => `<div class="event">${item}</div>`).join('')
+    : '<div class="event">Choose a mode, construct cells, trace a path, or animate a sigil.</div>';
+}
+
+function render() {
+  renderTabs();
+  renderControls();
+  renderStage();
+  renderLog();
+}
+
+function applySequence() {
+  const square = activeSquare();
+  const max = square.order * square.order;
+  const sequence = parseSequence().filter(value => value >= 1 && value <= max);
+  state.trace = sequence;
+  state.animationStep = null;
+  addLog(`${square.label} sigil path set to ${sequence.join(' → ') || 'empty'}.`);
+  render();
+}
+
+function animateTrace() {
+  if (!state.trace.length) {
+    addLog('No sigil path to animate. Enter a number sequence first.');
+    return;
+  }
+  state.mode = 'animate';
+  state.animationStep = 0;
+  addLog(`Animating ${activeSquare().label} path with ${state.trace.length} points.`);
+  render();
+  const timer = setInterval(() => {
+    if (state.animationStep >= state.trace.length - 1) {
+      clearInterval(timer);
+      state.animationStep = null;
+      addLog('Animation complete. The print sheet now shows the full trace.');
+      render();
+      return;
+    }
+    state.animationStep += 1;
+    renderStage();
+  }, 420);
+}
+
+function bindEvents() {
+  document.body.addEventListener('click', event => {
+    const tab = event.target.closest('[data-mode]');
+    if (tab) {
+      state.mode = tab.dataset.mode;
+      state.animationStep = null;
+      addLog(`Mode changed to ${tab.textContent.trim().split(/\s+/).slice(0, 3).join(' ')}.`);
+      render();
+      return;
+    }
+    const cell = event.target.closest('[data-value]');
+    if (cell && state.mode === 'trace') {
+      const value = Number(cell.dataset.value);
+      state.trace.push(value);
+      addLog(`Added ${value} to the ${activeSquare().label} sigil path.`);
+      render();
+    }
+  });
+
+  document.body.addEventListener('input', event => {
+    const input = event.target.closest('[data-build-key]');
+    if (!input) return;
+    state.built[input.dataset.buildKey] = input.value;
+    const [, row, col] = input.dataset.buildKey.split(':');
+    const expected = activeSquare().square[Number(row)][Number(col)];
+    if (Number(input.value) === expected) {
+      addLog(`Correct construction cell: ${expected}.`);
+    }
+    renderStage();
+  });
+
+  byId('planetSelect').addEventListener('change', event => {
+    state.planet = event.target.value;
+    state.trace = [1, Math.ceil(activeSquare().order * activeSquare().order / 2), activeSquare().order * activeSquare().order].filter(value => numberPosition(activeSquare(), value));
+    state.built = {};
+    addLog(`Loaded ${activeSquare().label} square.`);
+    render();
+  });
+
+  byId('applySeq').addEventListener('click', applySequence);
+  byId('playTrace').addEventListener('click', animateTrace);
+  byId('clearTrace').addEventListener('click', () => {
+    state.trace = [];
+    state.animationStep = null;
+    addLog('Trace cleared.');
+    render();
+  });
+  byId('printBtn').addEventListener('click', () => {
+    addLog('Print sheet opened through the browser print dialog.');
+    window.print();
+  });
+}
+
+function init() {
+  bindEvents();
+  addLog('Workbench ready. Start by constructing Saturn or tracing a number path.');
+  render();
+}
+
+init();
+</script>
+</body>
+</html>

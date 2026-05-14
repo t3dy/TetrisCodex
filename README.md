@@ -65,6 +65,9 @@ The project is organized around emoji blocks with physical and symbolic properti
 
 - [Golden Dawn Symbol Quiz Suite](gd-quiz-suite.html) - Multi-mode diagram trainer for pentagram quarters, zodiac wheels, tarot-card correspondences, Rose Cross lamen letter classes, magic squares, and knowledge-lecture topics.
 
+- [Magic Square Sigil Workbench](magic-square-workbench.html)
+  Planetary magic-square lab for construction drills, click-traced sigils, animated path playback, and printable talisman-style study sheets.
+
 ## Game Modes
 
 ### Balance Tetris
@@ -161,6 +164,10 @@ A playable memorization mode for Golden Dawn-style correspondences. The player c
 ### Golden Dawn Symbol Quiz Suite
 
 A playable collection of diagram drills. It tests ritual pentagram quarters, zodiac order, tarot-card attribution cells, Rose Cross lamen letter classes, Agrippa-style magic square mappings, and knowledge-lecture topic recall.
+
+### Magic Square Workbench
+
+A playable print-shop prototype for the magic-square branch. It lets the player construct planetary squares, trace number-path sigils, animate the tracing process, and preview printable study/talisman sheets.
 
 ## Creator Tools
 
@@ -265,6 +272,7 @@ Mode and asset docs:
 - [docs/GD_SYMBOL_QUIZ_SUITE.md](docs/GD_SYMBOL_QUIZ_SUITE.md)
 - [docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md](docs/GD_KNOWLEDGE_LECTURE_QUIZ_ATLAS.md)
 - [docs/GD_QUIZ_DATA_ARCHITECTURE.md](docs/GD_QUIZ_DATA_ARCHITECTURE.md)
+- [docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md](docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md)
 - [docs/LOCAL_TAROT_DATABASE_SURVEY.md](docs/LOCAL_TAROT_DATABASE_SURVEY.md)
 - [docs/MOAT_DRAWBRIDGE_PUZZLES.md](docs/MOAT_DRAWBRIDGE_PUZZLES.md)
 - [docs/WILDHUNT.md](docs/WILDHUNT.md)

@@ -32,6 +32,10 @@ Current playable files:
   - Source-linked atlas mapping online knowledge lecture topics to quiz families.
 - `docs/GD_QUIZ_DATA_ARCHITECTURE.md`
   - Proposed schema for quiz prompts, target regions, source labels, and scoring tags.
+- `magic-square-workbench.html`
+  - Magic-square construction, sigil tracing, animation, and print-shop prototype.
+- `docs/MAGIC_SQUARE_SIGIL_WORKBENCH.md`
+  - Design notes for magic-square game modes and export/print-shop needs.
 
 This is deliberately a prototype database rather than a final scholarly authority. The next pass should import or reconcile the user's local Tarot database and any reading-generator work, then attach explicit source labels to each correspondence.
 
